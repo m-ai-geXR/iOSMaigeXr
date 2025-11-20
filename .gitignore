@@ -1,0 +1,230 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Testing
+coverage/
+*.lcov
+
+# Next.js
+.next/
+out/
+
+# Production build
+build/
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage
+.grunt
+
+# Bower dependency directory
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons
+build/Release
+
+# Dependency directories
+jspm_packages/
+
+# TypeScript v1 declaration files
+typings/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+out
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+
+# Logs
+logs
+*.log
+
+# Editor directories and files
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# PWA files
+**/sw.js
+**/workbox-*.js
+**/sw.js.map
+**/workbox-*.js.map
+
+# TypeScript
+*.tsbuildinfo
+
+# Turbo
+.turbo
+
+# Vercel
+.vercel
+
+# Local development
+.local
+
+# Security - API keys and secrets
+*.key
+*.pem
+secrets.json
+config.json
+
+# XRAiAssistant specific
+# Note: localStorage automatically handles persistence
+# No additional ignore patterns needed for local storage data
+
+# Temporary documentation (consolidated into PROJECT_STATUS.md)
+BUILD_COMPLETE.md
+BUILD_FIXES_COMPLETE.md
+IMPLEMENTATION_COMPLETE.md
+CODESANDBOX_FIX.md
+CODESANDBOX_NATIVE_API_FIX.md
+SESSION_SUMMARY.md
+FINAL_SESSION_STATUS.md
+SOLUTION_COMPLETE.md
+BUG_FIX_SUMMARY.md
+LINTING.md
+XCODE_CORRUPTION_POSTMORTEM.md
+TYPE_CONFLICT_FIX.md
+
+# Build logs
+build.log
+
+# ============================================================================
+# Android / Gradle / Kotlin
+# ============================================================================
+
+# Gradle cache and build files
+.gradle/
+/.gradle/
+/local.properties
+/build/
+/app/build/
+/*/build/
+
+# Android Studio / IntelliJ IDEA
+/.idea/
+/.idea/*
+!/.idea/runConfigurations/
+/*.iml
+/.externalNativeBuild
+/.cxx
+
+# Captures directory for screenshots/video
+/captures/
+
+# Android profiler
+/*.hprof
+
+# NDK
+/obj/
+
+# APK and Bundle files (build outputs)
+/*.apk
+/*.aab
+/*.ap_
+/*.dex
+
+# Keystore files (CRITICAL: never commit signing keys!)
+/*.jks
+/*.keystore
+
+# Google Services (contains API keys - add if using Firebase)
+/app/google-services.json
+
+# Kotlin compiler cache
+/.kotlin/
+
+# Navigation Safe Args generated code
+/app/build/generated/
+
+# Room schema export (optional - some teams track this)
+# /app/schemas/
