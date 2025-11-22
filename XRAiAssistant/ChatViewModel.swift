@@ -84,13 +84,13 @@ class ChatViewModel: ObservableObject {
     private let minimumResponseLength: Int = 50 // Chars below this trigger retry
     
     // Available models (ordered by cost - cheapest first) - Legacy, now using aiProviderManager.getAllModels()
+    // NOTE: Only serverless models are included. Non-serverless models require dedicated endpoints.
     let availableModels = [
         "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free", // FREE - DeepSeek R1 reasoning model
         "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free", // FREE - Latest Llama 3.3 70B
         "meta-llama/Meta-Llama-3-8B-Instruct-Lite",     // $0.10/1M - CHEAPEST paid
         "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",  // $0.18/1M - Good balance
-        "Qwen/Qwen2.5-7B-Instruct-Turbo",               // $0.30/1M - Fastest Qwen
-        "Qwen/Qwen2.5-Coder-32B-Instruct"               // $0.80/1M - Advanced coding
+        "Qwen/Qwen2.5-7B-Instruct-Turbo"                // $0.30/1M - Fastest Qwen
     ]
     
     // MARK: - New Provider System Properties
@@ -480,8 +480,6 @@ class ChatViewModel: ObservableObject {
             return "Llama 3.1 8B Turbo"
         case "Qwen/Qwen2.5-7B-Instruct-Turbo":
             return "Qwen 2.5 7B Turbo"
-        case "Qwen/Qwen2.5-Coder-32B-Instruct":
-            return "Qwen 2.5 Coder 32B"
         default:
             return modelId
         }
@@ -506,8 +504,6 @@ class ChatViewModel: ObservableObject {
             return "Good balance - $0.18/1M tokens"
         case "Qwen/Qwen2.5-7B-Instruct-Turbo":
             return "Fast coding - $0.30/1M tokens"
-        case "Qwen/Qwen2.5-Coder-32B-Instruct":
-            return "Advanced coding - $0.80/1M tokens"
         default:
             return "Custom model"
         }
@@ -599,15 +595,14 @@ class ChatViewModel: ObservableObject {
         let requestBody = TogetherAIChatCompletionRequestBody(
             messages: messages,
             model: selectedModel,  // Use model name as-is (NIM endpoint should work)
+            maxTokens: 4000,  // ✅ FIXED: Added maxTokens to prevent 400 errors
             stream: true,
             temperature: temperature,
             topP: topP
-            // TODO: Add maxTokens parameter when AIProxy supports it
-            // maxTokens: 4000
         )
         
         print("✅ Created Together.ai request for model: \(selectedModel)")
-        print("🔧 Together.ai config: stream=true, temperature=\(temperature), top-p=\(topP)")
+        print("🔧 Together.ai config: stream=true, temperature=\(temperature), top-p=\(topP), max-tokens=4000")
         
         // Use streaming chat completion with enhanced monitoring
         var fullResponse = ""

@@ -88,12 +88,13 @@ class TogetherAIProvider: AIProvider {
         let requestBody = TogetherAIChatCompletionRequestBody(
             messages: togetherMessages,
             model: model,
+            maxTokens: 4000,
             stream: true,
             temperature: temperature,
             topP: topP
         )
         
-        print("🚀 Together.ai request: model=\(model), temp=\(temperature), top-p=\(topP)")
+        print("🚀 Together.ai request: model=\(model), temp=\(temperature), top-p=\(topP), max-tokens=4000")
         
         return AsyncThrowingStream<String, Error> { continuation in
             Task {
