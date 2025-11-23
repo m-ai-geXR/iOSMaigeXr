@@ -63,6 +63,10 @@ struct ContentView: View {
     // Image attachment support
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var selectedImages: [UIImage] = []
+
+    // Modal picker states
+    @State private var showingModelPicker = false
+
     private var settingsView: some View {
         NavigationView {
             Form {
@@ -250,53 +254,36 @@ struct ContentView: View {
             Text("AI Model")
                 .font(.headline)
                 .foregroundColor(.primary)
-            
-            Picker("Model", selection: $chatViewModel.selectedModel) {
-                // Show models organized by provider
-                ForEach(Array(chatViewModel.modelsByProvider.keys.sorted()), id: \.self) { provider in
-                    Section(provider) {
-                        ForEach(chatViewModel.modelsByProvider[provider] ?? [], id: \.id) { model in
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack {
-                                    Text(model.displayName)
-                                        .font(.system(size: 14, weight: .medium))
-                                    Spacer()
-                                    if !model.pricing.isEmpty {
-                                        Text(model.pricing)
-                                            .font(.caption2)
-                                            .foregroundColor(.gray)
-                                            .padding(.horizontal, 4)
-                                            .padding(.vertical, 1)
-                                            .background(Color.gray.opacity(0.2))
-                                            .cornerRadius(4)
-                                    }
-                                }
-                                Text(model.description)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .tag(model.id)
+
+            // Button to open modal picker
+            Button(action: { showingModelPicker = true }) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let currentModel = chatViewModel.allAvailableModels.first(where: { $0.id == chatViewModel.selectedModel }) {
+                            Text(currentModel.displayName)
+                                .font(.body)
+                                .foregroundColor(.primary)
+                            Text(currentModel.provider)
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        } else {
+                            Text(chatViewModel.getModelDisplayName(chatViewModel.selectedModel))
+                                .font(.body)
+                                .foregroundColor(.primary)
                         }
                     }
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(.gray)
                 }
-                
-                // Legacy models for backwards compatibility
-                if !chatViewModel.availableModels.isEmpty {
-                    Section("Legacy (Together.ai)") {
-                        ForEach(chatViewModel.availableModels, id: \.self) { model in
-                            VStack(alignment: .leading) {
-                                Text(chatViewModel.getModelDisplayName(model))
-                                    .font(.system(size: 14, weight: .medium))
-                                Text(chatViewModel.getModelDescription(model))
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .tag(model)
-                        }
-                    }
-                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
             }
-            .pickerStyle(MenuPickerStyle())
+            .sheet(isPresented: $showingModelPicker) {
+                modelPickerSheet
+            }
             
             // Show current provider info
             if let currentModel = chatViewModel.allAvailableModels.first(where: { $0.id == chatViewModel.selectedModel }) {
@@ -674,7 +661,92 @@ struct ContentView: View {
             }
         }
     }
-    
+
+    // MARK: - Model Picker Sheet
+    private var modelPickerSheet: some View {
+        NavigationView {
+            List {
+                // Show models organized by provider
+                ForEach(Array(chatViewModel.modelsByProvider.keys.sorted()), id: \.self) { provider in
+                    Section(header: Text(provider)) {
+                        ForEach(chatViewModel.modelsByProvider[provider] ?? [], id: \.id) { model in
+                            Button(action: {
+                                chatViewModel.selectedModel = model.id
+                                showingModelPicker = false
+                            }) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(model.displayName)
+                                            .font(.body)
+                                            .foregroundColor(.primary)
+                                        Text(model.description)
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                            .lineLimit(2)
+                                        if !model.pricing.isEmpty {
+                                            Text(model.pricing)
+                                                .font(.caption2)
+                                                .foregroundColor(.blue)
+                                        }
+                                    }
+                                    Spacer()
+                                    if chatViewModel.selectedModel == model.id {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.blue)
+                                            .font(.body)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                }
+
+                // Legacy models for backwards compatibility
+                if !chatViewModel.availableModels.isEmpty {
+                    Section(header: Text("Legacy (Together.ai)")) {
+                        ForEach(chatViewModel.availableModels, id: \.self) { model in
+                            Button(action: {
+                                chatViewModel.selectedModel = model
+                                showingModelPicker = false
+                            }) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(chatViewModel.getModelDisplayName(model))
+                                            .font(.body)
+                                            .foregroundColor(.primary)
+                                        Text(chatViewModel.getModelDescription(model))
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                            .lineLimit(2)
+                                    }
+                                    Spacer()
+                                    if chatViewModel.selectedModel == model {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.blue)
+                                            .font(.body)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Select AI Model")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        showingModelPicker = false
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Chat View
     private var chatView: some View {
         EnhancedChatView(

@@ -53,13 +53,6 @@ class TogetherAIProvider: AIProvider {
             description: "Fast coding specialist",
             pricing: "$0.30/1M tokens",
             provider: "Together.ai"
-        ),
-        AIModel(
-            id: "Qwen/Qwen2.5-Coder-32B-Instruct",
-            displayName: "Qwen 2.5 Coder 32B",
-            description: "Advanced coding & XR",
-            pricing: "$0.80/1M tokens",
-            provider: "Together.ai"
         )
     ]
     

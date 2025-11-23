@@ -332,6 +332,14 @@ class ChatViewModel: ObservableObject {
     }
 
     private func processUserMessageWithImages(_ text: String, images: [UIImage], currentCode: String?) async {
+        // SAFETY CHECK: Force migration away from non-serverless models
+        if selectedModel == "Qwen/Qwen2.5-Coder-32B-Instruct" {
+            print("🚨 SAFETY CHECK: Detected non-serverless model '\(selectedModel)' - forcing migration!")
+            selectedModel = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+            UserDefaults.standard.set(selectedModel, forKey: "XRAiAssistant_SelectedModel")
+            print("✅ Migrated to: \(selectedModel)")
+        }
+
         isLoading = true
         errorMessage = nil
 
@@ -432,9 +440,17 @@ class ChatViewModel: ObservableObject {
     }
 
     private func processUserMessage(_ text: String, currentCode: String?) async {
+        // SAFETY CHECK: Force migration away from non-serverless models
+        if selectedModel == "Qwen/Qwen2.5-Coder-32B-Instruct" {
+            print("🚨 SAFETY CHECK: Detected non-serverless model '\(selectedModel)' - forcing migration!")
+            selectedModel = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+            UserDefaults.standard.set(selectedModel, forKey: "XRAiAssistant_SelectedModel")
+            print("✅ Migrated to: \(selectedModel)")
+        }
+
         isLoading = true
         errorMessage = nil
-        
+
         do {
             // Create system prompt with context
             let fullSystemPrompt = createSystemPrompt(currentCode: currentCode)
@@ -1339,23 +1355,33 @@ class ChatViewModel: ObservableObject {
         
         // Load model selection
         if let savedModel = UserDefaults.standard.string(forKey: "XRAiAssistant_SelectedModel") {
+            print("📥 Found saved model in UserDefaults: \(savedModel)")
+
             // Check if model exists in either legacy models or new provider system
             let isLegacyModel = availableModels.contains(savedModel)
             let isProviderModel = aiProviderManager.getModel(id: savedModel) != nil
 
             // Map known invalid model IDs to their correct versions
             let invalidModelMappings: [String: String] = [
+                // Anthropic Claude migrations
                 "claude-sonnet-4.5-20250514": "claude-sonnet-4-5-20250929",  // Old fake ID -> Real Sonnet 4.5
                 "claude-sonnet-4-5-20250514": "claude-sonnet-4-5-20250929",  // Old fake ID variant -> Real Sonnet 4.5
-                "claude-opus-4.5-20250514": "claude-opus-4-1-20250805"       // Old fake Opus 4.5 -> Real Opus 4.1
+                "claude-opus-4.5-20250514": "claude-opus-4-1-20250805",      // Old fake Opus 4.5 -> Real Opus 4.1
+
+                // Together.ai non-serverless model migrations (to FREE alternatives)
+                "Qwen/Qwen2.5-Coder-32B-Instruct": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"  // Non-serverless -> FREE DeepSeek R1 70B
             ]
 
             // Check if we need to migrate from an invalid ID
             if let correctModel = invalidModelMappings[savedModel] {
+                print("⚠️ Migrating invalid model '\(savedModel)' to '\(correctModel)'")
+
+                // Update selected model immediately (no async needed - we're in init)
                 selectedModel = correctModel
-                print("⚠️ Migrated invalid model '\(savedModel)' to '\(correctModel)'")
-                // Save the corrected model
-                UserDefaults.standard.set(selectedModel, forKey: "XRAiAssistant_SelectedModel")
+
+                // Save the corrected model to prevent future migrations
+                UserDefaults.standard.set(correctModel, forKey: "XRAiAssistant_SelectedModel")
+                print("✅ Migration complete: \(getModelDisplayName(correctModel))")
             } else if isLegacyModel || isProviderModel {
                 selectedModel = savedModel
                 print("🤖 Loaded saved model: \(getModelDisplayName(savedModel))")

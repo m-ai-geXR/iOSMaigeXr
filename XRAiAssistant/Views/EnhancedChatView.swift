@@ -107,13 +107,16 @@ struct EnhancedChatView: View {
                     }
                 }
 
-                // Reply indicator
-                if let replyID = replyingToMessageID {
-                    replyIndicatorView(for: replyID)
-                }
+                // Bottom input section (reply indicator + input area)
+                VStack(spacing: 0) {
+                    // Reply indicator
+                    if let replyID = replyingToMessageID {
+                        replyIndicatorView(for: replyID)
+                    }
 
-                // Input area
-                inputAreaView
+                    // Input area
+                    inputAreaView
+                }
             }
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
