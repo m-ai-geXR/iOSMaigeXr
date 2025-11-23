@@ -285,16 +285,21 @@ struct EnhancedChatView: View {
     }
 
     private var modelMenuLabel: some View {
-        HStack {
+        HStack(spacing: 4) {
             Text(viewModel.getModelDisplayName(viewModel.selectedModel))
                 .font(.caption)
                 .foregroundColor(.blue)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .fixedSize(horizontal: false, vertical: true)
             Image(systemName: "chevron.down")
                 .font(.caption2)
                 .foregroundColor(.blue)
+                .fixedSize()
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
+        .frame(maxWidth: 120)
         .background(Color.blue.opacity(0.1))
         .cornerRadius(6)
     }
@@ -336,16 +341,21 @@ struct EnhancedChatView: View {
     }
 
     private var libraryMenuLabel: some View {
-        HStack {
+        HStack(spacing: 4) {
             Text(viewModel.libraryManager.selectedLibrary.displayName)
                 .font(.caption)
                 .foregroundColor(.blue)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .fixedSize(horizontal: false, vertical: true)
             Image(systemName: "chevron.down")
                 .font(.caption2)
                 .foregroundColor(.blue)
+                .fixedSize()
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
+        .frame(maxWidth: 100)
         .background(Color.blue.opacity(0.1))
         .cornerRadius(6)
     }
