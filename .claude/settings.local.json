@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xcodebuild:*)"
+      "Bash(xcodebuild:*)",
+      "Bash(curl:*)",
+      "Bash(rm:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

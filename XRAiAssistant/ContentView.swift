@@ -123,7 +123,14 @@ struct ContentView: View {
                     description: "Get your API key from console.anthropic.com",
                     color: .purple
                 )
-                
+
+                // Google AI API Key
+                providerAPIKeyView(
+                    provider: "Google AI",
+                    description: "Get your API key from aistudio.google.com/apikey",
+                    color: .orange
+                )
+
                 // CodeSandbox API Key (Optional)
                 codeSandboxAPIKeyView()
             }

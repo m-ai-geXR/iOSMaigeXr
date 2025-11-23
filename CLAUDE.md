@@ -162,13 +162,23 @@ XRAiAssistant uses a **multi-provider architecture** that supports multiple AI s
 1. **Together.ai** - Primary provider (FREE and paid models)
    - DeepSeek R1 70B (FREE)
    - Meta Llama 3.3 70B (FREE)
-   - Qwen 2.5 models ($0.30-0.80/1M tokens)
+   - Qwen 2.5 7B Turbo ($0.30/1M tokens)
 
-2. **Anthropic Claude** - Secondary provider
-   - Claude 3.5 Sonnet
-   - Claude 3 Opus
+2. **Google AI (Gemini)** - NEW ✨ (FREE tier available)
+   - Gemini 2.5 Flash (Fast, extended context)
+   - Gemini 2.5 Pro (Advanced reasoning, 2M context)
+   - Gemini 3.0 Flash Thinking (Explicit reasoning)
+   - Gemini 1.5 Flash/Pro (Stable models)
 
-3. **LlamaStack** - Fallback for Meta models
+3. **Anthropic Claude** - Advanced reasoning
+   - Claude Sonnet 4 (Latest high-performance)
+   - Claude Opus 4 (World's best coding model)
+   - Claude 3.5 Sonnet/Haiku
+
+4. **OpenAI** - GPT models
+   - GPT-4, GPT-3.5 Turbo
+
+5. **LlamaStack** - Fallback for Meta models
    - Direct Llama model access (when enabled)
 
 ### Provider Selection Logic
@@ -196,12 +206,98 @@ private func callLlamaInference(userMessage: String, systemPrompt: String) async
 **API Key Management**:
 - Default: `"changeMe"` - Users MUST configure their API key
 - Location: Settings panel (gear icon in bottom navigation)
-- Storage: UserDefaults with prefix `"XRAiAssistant_APIKey"`
+- Storage: UserDefaults with prefix `"XRAiAssistant_APIKey_<Provider>"`
+
+**API Key Sources**:
+- Together.ai: https://api.together.ai/settings/api-keys
+- Google AI: https://aistudio.google.com/apikey (FREE tier available)
+- Anthropic: https://console.anthropic.com
+- OpenAI: https://platform.openai.com
 
 **Model Parameters**:
 - `temperature`: 0.0-2.0 (default: 0.7) - Controls randomness
 - `topP`: 0.1-1.0 (default: 0.9) - Nucleus sampling
-- `maxTokens`: 4000 - Maximum response length (REQUIRED for Together.ai)
+- `maxTokens`: 4000 - Maximum response length (REQUIRED)
+
+---
+
+## 🆕 Google AI (Gemini) Integration (2025-11-22)
+
+### Overview
+
+XRAiAssistant now supports Google's Gemini models through direct API integration!
+
+**Files Added**:
+- ✅ [XRAiAssistant/AIProviders/GoogleAIProvider.swift](XRAiAssistant/AIProviders/GoogleAIProvider.swift)
+
+**Files Modified**:
+- ✅ [XRAiAssistant/AIProviders/AIProviderManager.swift](XRAiAssistant/AIProviders/AIProviderManager.swift) - Added GoogleAIProvider
+- ✅ [XRAiAssistant/ContentView.swift](XRAiAssistant/ContentView.swift) - Added Google AI API key field
+
+### Available Gemini Models
+
+**Gemini 2.5 Series** (Latest Stable):
+- `gemini-2.5-flash` - Fast model with improved performance and extended context (DEFAULT)
+- `gemini-2.5-pro` - Most capable with advanced reasoning (1M token context)
+- `gemini-2.5-flash-lite` - Fast, low-cost, high-performance model
+
+**Gemini 3 Series** (Preview - Thinking Mode):
+- `gemini-3-pro-preview` - Advanced reasoning with thinking mode
+
+**Gemini 2.0 Series** (Stable):
+- `gemini-2.0-flash` - Next-gen features with 1M token context
+
+### API Configuration
+
+**Endpoint**: `https://generativelanguage.googleapis.com/v1beta`
+**Method**: POST with streaming via SSE (Server-Sent Events)
+**Authentication**: API key passed as query parameter
+
+**Get Your Free API Key**:
+1. Visit https://aistudio.google.com/apikey
+2. Sign in with your Google account
+3. Create a new API key
+4. Paste into Settings → Google AI API Key field
+
+**Request Format**:
+```swift
+{
+    "contents": [
+        {"role": "user", "parts": [{"text": "message"}]}
+    ],
+    "generationConfig": {
+        "temperature": 0.7,
+        "topP": 0.9,
+        "maxOutputTokens": 4000
+    },
+    "systemInstruction": {
+        "parts": [{"text": "system prompt"}]
+    }
+}
+```
+
+**Response Format** (SSE):
+```
+data: {"candidates":[{"content":{"parts":[{"text":"response"}]}}]}
+```
+
+### Features
+
+- ✅ Streaming support via Server-Sent Events
+- ✅ System instructions (separate from conversation)
+- ✅ Temperature and Top-P control
+- ✅ Extended context windows (up to 2M tokens for Pro)
+- ✅ Free tier available with generous quotas
+- ✅ Thinking mode support (Gemini 3.0)
+
+### Pricing
+
+All Gemini models offer a **FREE tier** with generous daily quotas:
+- Flash models: High free quota
+- Pro models: Moderate free quota
+- Paid tier available for production use
+
+See: https://ai.google.dev/pricing
 
 ---
 

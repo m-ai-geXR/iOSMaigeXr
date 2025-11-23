@@ -11,7 +11,7 @@ class OpenAIProvider: AIProvider {
         AIModel(
             id: "gpt-4o",
             displayName: "GPT-4o",
-            description: "Most advanced multimodal model",
+            description: "Most advanced GPT-4 model",
             pricing: "$2.50/$10.00 per 1M tokens",
             provider: "OpenAI",
             isDefault: true

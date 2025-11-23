@@ -9,16 +9,17 @@ class AIProviderManager: ObservableObject {
     private let togetherProvider = TogetherAIProvider()
     private let openaiProvider = OpenAIProvider()
     private let anthropicProvider = AnthropicProvider()
-    
+    private let googleProvider = GoogleAIProvider()
+
     init() {
         setupProviders()
         loadAPIKeys()
     }
-    
+
     private func setupProviders() {
-        providers = [togetherProvider, openaiProvider, anthropicProvider]
+        providers = [togetherProvider, openaiProvider, anthropicProvider, googleProvider]
         currentProvider = togetherProvider // Default to Together.ai
-        
+
         // Initialize CodeSandbox API key (not a chat provider, but deployment service)
         if apiKeys["CodeSandbox"] == nil {
             apiKeys["CodeSandbox"] = "" // Empty by default for optional service
