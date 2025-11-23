@@ -2,6 +2,7 @@ import Foundation
 import LlamaStackClient
 import AIProxy
 import Combine
+import UIKit
 
 enum APIError: Error {
     case emptyResponse
@@ -304,12 +305,132 @@ class ChatViewModel: ObservableObject {
             libraryId: library3DManager.selectedLibrary.id
         )
         messages.append(userMessage)
-        
+
         Task {
             await processUserMessage(text, currentCode: currentCode)
         }
     }
-    
+
+    func sendMessageWithImages(_ text: String, images: [UIImage], currentCode: String? = nil) {
+        // Display user message in chat with image count indicator
+        let messageContent = images.count == 1 ?
+            "\(text) [📷 1 image]" :
+            "\(text) [📷 \(images.count) images]"
+
+        let userMessage = ChatMessage(
+            id: UUID().uuidString,
+            content: messageContent,
+            isUser: true,
+            timestamp: Date(),
+            libraryId: library3DManager.selectedLibrary.id
+        )
+        messages.append(userMessage)
+
+        Task {
+            await processUserMessageWithImages(text, images: images, currentCode: currentCode)
+        }
+    }
+
+    private func processUserMessageWithImages(_ text: String, images: [UIImage], currentCode: String?) async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            // Convert UIImages to AIImageContent
+            var imageContents: [AIImageContent] = []
+            for (index, image) in images.enumerated() {
+                // Convert to JPEG data
+                guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+                    print("❌ Failed to convert image \(index) to JPEG")
+                    continue
+                }
+
+                let imageContent = AIImageContent(
+                    data: imageData,
+                    mimeType: "image/jpeg",
+                    filename: "image_\(index).jpg"
+                )
+                imageContents.append(imageContent)
+            }
+
+            print("📸 Sending message with \(imageContents.count) images")
+
+            // Check if current provider supports vision
+            guard let provider = aiProviderManager.getProvider(for: selectedModel) else {
+                throw AIProviderError.modelNotSupported
+            }
+
+            if !provider.capabilities.supportsVision {
+                errorMessage = "⚠️ The selected model '\(selectedModel)' does not support image inputs. Please select a vision-capable model like GPT-4o, Claude Opus 4, or Gemini 2.5 Pro."
+                isLoading = false
+                return
+            }
+
+            // Create multimodal message with text and images
+            var contentItems: [AIMessageContentType] = [.text(text)]
+            for imageContent in imageContents {
+                contentItems.append(.image(imageContent))
+            }
+
+            // Create system prompt
+            let fullSystemPrompt = createSystemPrompt(currentCode: currentCode)
+
+            // Build message array
+            let messages = [
+                AIMessage(role: .system, text: fullSystemPrompt),
+                AIMessage(role: .user, content: contentItems)
+            ]
+
+            print("🚀 Calling AI provider with multimodal message")
+
+            // Stream response from AI provider
+            let stream = try await aiProviderManager.generateResponse(
+                messages: messages,
+                modelId: selectedModel,
+                temperature: temperature,
+                topP: topP
+            )
+
+            var fullResponse = ""
+            for try await chunk in stream {
+                fullResponse += chunk
+            }
+
+            print("✅ Received complete response: \(fullResponse.count) characters")
+
+            // Process response for actions
+            let processedResponse = processResponseForActions(fullResponse)
+
+            let assistantMessage = ChatMessage(
+                id: UUID().uuidString,
+                content: processedResponse,
+                isUser: false,
+                timestamp: Date(),
+                libraryId: library3DManager.selectedLibrary.id
+            )
+            self.messages.append(assistantMessage)
+
+        } catch {
+            if let providerError = error as? AIProviderError {
+                switch providerError {
+                case .imageNotSupported(let provider):
+                    errorMessage = "⚠️ \(provider) does not support image inputs. Please select a vision-capable model."
+                case .imageTooLarge(let size, let max):
+                    errorMessage = "⚠️ Image too large (\(size / 1024 / 1024)MB). Maximum size: \(max / 1024 / 1024)MB. Please use smaller images."
+                case .configurationError(let message):
+                    errorMessage = "⚠️ Configuration Error: \(message)"
+                default:
+                    errorMessage = "Provider Error: \(providerError.localizedDescription)"
+                }
+            } else {
+                errorMessage = "Failed to process images: \(error.localizedDescription)"
+            }
+            print("❌ Multimodal error: \(error)")
+        }
+
+        isLoading = false
+    }
+
     private func processUserMessage(_ text: String, currentCode: String?) async {
         isLoading = true
         errorMessage = nil
@@ -439,8 +560,8 @@ class ChatViewModel: ObservableObject {
         print("🔑 Current API key status: \(aiProviderManager.getAPIKey(for: "Together.ai") == "changeMe" ? "NOT_CONFIGURED (changeMe)" : "CONFIGURED")")
         
         let messages = [
-            AIMessage(content: systemPrompt, role: .system),
-            AIMessage(content: userMessage, role: .user)
+            AIMessage(role: .system, text: systemPrompt),
+            AIMessage(role: .user, text: userMessage)
         ]
         
         print("📤 Sending request to AIProviderManager...")
@@ -1221,14 +1342,36 @@ class ChatViewModel: ObservableObject {
             // Check if model exists in either legacy models or new provider system
             let isLegacyModel = availableModels.contains(savedModel)
             let isProviderModel = aiProviderManager.getModel(id: savedModel) != nil
-            
-            if isLegacyModel || isProviderModel {
+
+            // Map known invalid model IDs to their correct versions
+            let invalidModelMappings: [String: String] = [
+                "claude-sonnet-4.5-20250514": "claude-sonnet-4-5-20250929",  // Old fake ID -> Real Sonnet 4.5
+                "claude-sonnet-4-5-20250514": "claude-sonnet-4-5-20250929",  // Old fake ID variant -> Real Sonnet 4.5
+                "claude-opus-4.5-20250514": "claude-opus-4-1-20250805"       // Old fake Opus 4.5 -> Real Opus 4.1
+            ]
+
+            // Check if we need to migrate from an invalid ID
+            if let correctModel = invalidModelMappings[savedModel] {
+                selectedModel = correctModel
+                print("⚠️ Migrated invalid model '\(savedModel)' to '\(correctModel)'")
+                // Save the corrected model
+                UserDefaults.standard.set(selectedModel, forKey: "XRAiAssistant_SelectedModel")
+            } else if isLegacyModel || isProviderModel {
                 selectedModel = savedModel
                 print("🤖 Loaded saved model: \(getModelDisplayName(savedModel))")
             } else {
                 // Model no longer exists, reset to default
-                print("⚠️ Saved model '\(savedModel)' no longer available, using default")
-                selectedModel = availableModels.first ?? "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+                if savedModel.contains("claude") || savedModel.contains("anthropic") {
+                    // User was using Claude, default to latest Claude Sonnet 4.5
+                    selectedModel = "claude-sonnet-4-5-20250929"
+                    print("⚠️ Saved model '\(savedModel)' not found, switching to Claude Sonnet 4.5 (Latest)")
+                } else {
+                    // Use legacy default
+                    print("⚠️ Saved model '\(savedModel)' no longer available, using default")
+                    selectedModel = availableModels.first ?? "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+                }
+                // Save the corrected model
+                UserDefaults.standard.set(selectedModel, forKey: "XRAiAssistant_SelectedModel")
             }
         }
         

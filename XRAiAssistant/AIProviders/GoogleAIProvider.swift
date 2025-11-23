@@ -7,6 +7,15 @@ class GoogleAIProvider: AIProvider {
     private var apiKey: String?
     private let baseURL = "https://generativelanguage.googleapis.com/v1beta"
 
+    let capabilities = AIProviderCapabilities(
+        supportsVision: true,
+        supportsStreaming: true,
+        supportedImageFormats: ["image/jpeg", "image/png", "image/webp"],
+        maxImageSize: 4 * 1024 * 1024,  // 4MB
+        maxImagesPerMessage: 16,
+        maxTokens: 1_000_000  // Gemini 2.5 Pro context
+    )
+
     let models: [AIModel] = [
         // Gemini 3.0 Series (Preview)
         AIModel(
@@ -15,7 +24,8 @@ class GoogleAIProvider: AIProvider {
             description: "Next-generation flash model",
             pricing: "FREE tier available",
             provider: "Google AI",
-            isDefault: true
+            isDefault: true,
+            supportsVision: true
         ),
 
         // Gemini 2.5 Series (Latest Stable)
@@ -24,14 +34,16 @@ class GoogleAIProvider: AIProvider {
             displayName: "Gemini 2.5 Flash",
             description: "Fast model with improved performance",
             pricing: "FREE tier available",
-            provider: "Google AI"
+            provider: "Google AI",
+            supportsVision: true
         ),
         AIModel(
             id: "gemini-2.5-pro",
             displayName: "Gemini 2.5 Pro",
             description: "Most capable model with advanced reasoning",
             pricing: "FREE tier available",
-            provider: "Google AI"
+            provider: "Google AI",
+            supportsVision: true
         )
     ]
 
@@ -57,12 +69,9 @@ class GoogleAIProvider: AIProvider {
 
         for message in messages {
             if message.role == .system {
-                systemInstruction = message.content
+                systemInstruction = message.textContent
             } else {
-                contents.append([
-                    "role": mapRole(message.role),
-                    "parts": [["text": message.content]]
-                ])
+                contents.append(convertMessageToGeminiFormat(message))
             }
         }
 
@@ -157,6 +166,32 @@ class GoogleAIProvider: AIProvider {
                 }
             }
         }
+    }
+
+    // MARK: - Message Conversion
+
+    private func convertMessageToGeminiFormat(_ message: AIMessage) -> [String: Any] {
+        var parts: [[String: Any]] = []
+
+        for contentItem in message.content {
+            switch contentItem {
+            case .text(let text):
+                parts.append(["text": text])
+
+            case .image(let imageContent):
+                parts.append([
+                    "inline_data": [
+                        "mime_type": imageContent.mimeType,
+                        "data": imageContent.base64String
+                    ]
+                ])
+            }
+        }
+
+        return [
+            "role": mapRole(message.role),
+            "parts": parts
+        ]
     }
 
     private func mapRole(_ role: AIMessageRole) -> String {

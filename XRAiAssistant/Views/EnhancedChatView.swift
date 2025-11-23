@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 // MARK: - Enhanced Chat View with Adaptive Layout
 struct EnhancedChatView: View {
@@ -13,6 +14,10 @@ struct EnhancedChatView: View {
     @State private var showHistory = false
     @State private var selectedHistoryConversation: Conversation?
     @State private var isCompactView = false
+
+    // Image attachment support
+    @State private var selectedPhotos: [PhotosPickerItem] = []
+    @State private var selectedImages: [UIImage] = []
 
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.verticalSizeClass) var verticalSizeClass
@@ -557,35 +562,83 @@ struct EnhancedChatView: View {
     }
 
     private var inputAreaView: some View {
-        HStack(spacing: 12) {
-            // Use single-line TextField so Enter/Return submits instead of creating new line
-            TextField("Type a message...", text: $inputText)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .submitLabel(.send) // Shows "Send" button on keyboard
-                .onSubmit {
-                    sendMessage()
+        VStack(spacing: 0) {
+            // Image preview area
+            if !selectedImages.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(selectedImages.indices, id: \.self) { index in
+                            ZStack(alignment: .topTrailing) {
+                                Image(uiImage: selectedImages[index])
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                // Remove button
+                                Button(action: {
+                                    selectedImages.remove(at: index)
+                                    selectedPhotos.remove(at: index)
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.white)
+                                        .background(Color.black.opacity(0.6))
+                                        .clipShape(Circle())
+                                }
+                                .padding(4)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                }
+                .background(Color(.systemGray5))
+            }
+
+            // Input row
+            HStack(spacing: 8) {
+                // Image picker button
+                PhotosPicker(selection: $selectedPhotos, maxSelectionCount: 5, matching: .images) {
+                    Image(systemName: selectedImages.isEmpty ? "photo.on.rectangle" : "photo.on.rectangle.fill")
+                        .foregroundColor(selectedImages.isEmpty ? .gray : .blue)
+                        .font(.system(size: 20))
+                        .padding(8)
+                }
+                .onChange(of: selectedPhotos) { newItems in
+                    Task {
+                        await loadSelectedImages(from: newItems)
+                    }
                 }
 
-            Button(action: sendMessage) {
-                Image(systemName: "paperplane.fill")
-                    .font(.title3)
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(inputText.isEmpty ? Color.gray : Color.blue)
-                    .clipShape(Circle())
+                TextField("Type a message...", text: $inputText, axis: .vertical)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .submitLabel(.send)
+                    .onSubmit {
+                        sendMessage()
+                    }
+                    .lineLimit(1...5)
+
+                Button(action: sendMessage) {
+                    Image(systemName: "paperplane.fill")
+                        .font(.title3)
+                        .foregroundColor(.white)
+                        .frame(width: 44, height: 44)
+                        .background(inputText.isEmpty ? Color.gray : Color.blue)
+                        .clipShape(Circle())
+                }
+                .disabled(inputText.isEmpty || viewModel.isLoading)
             }
-            .disabled(inputText.isEmpty || viewModel.isLoading)
+            .padding(.horizontal)
+            .padding(.vertical, 12)
+            .padding(.bottom, 0)
+            .background(Color(.systemBackground))
+            .overlay(
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(Color(.separator)),
+                alignment: .top
+            )
         }
-        .padding(.horizontal)
-        .padding(.vertical, 12)
-        .padding(.bottom, 0) // Remove extra bottom padding - let safe area handle it
-        .background(Color(.systemBackground))
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color(.separator)),
-            alignment: .top
-        )
     }
 
     private var navigationTitle: String {
@@ -602,7 +655,12 @@ struct EnhancedChatView: View {
         guard !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
         let messageContent = inputText
+        let imagesCopy = selectedImages
+
+        // Clear input and images
         inputText = ""
+        selectedImages = []
+        selectedPhotos = []
 
         // Dismiss keyboard immediately after sending
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
@@ -610,8 +668,12 @@ struct EnhancedChatView: View {
         if let conversation = currentConversation {
             // Add message as threaded reply
             var updatedConversation = conversation
+            let displayContent = !imagesCopy.isEmpty ?
+                (imagesCopy.count == 1 ? "\(messageContent) [📷 1 image]" : "\(messageContent) [📷 \(imagesCopy.count) images]") :
+                messageContent
+
             let newMessage = EnhancedChatMessage(
-                content: messageContent,
+                content: displayContent,
                 isUser: true,
                 threadParentID: replyingToMessageID
             )
@@ -629,15 +691,34 @@ struct EnhancedChatView: View {
 
             // Send to AI and get response
             Task {
-                await sendToAIAndUpdateConversation(messageContent, in: updatedConversation)
+                await sendToAIAndUpdateConversation(messageContent, images: imagesCopy, in: updatedConversation)
             }
         } else {
             // Legacy path - send through existing ViewModel
-            viewModel.sendMessage(messageContent)
+            if !imagesCopy.isEmpty {
+                viewModel.sendMessageWithImages(messageContent, images: imagesCopy)
+            } else {
+                viewModel.sendMessage(messageContent)
+            }
         }
     }
 
-    private func sendToAIAndUpdateConversation(_ userMessage: String, in conversation: Conversation) async {
+    private func loadSelectedImages(from items: [PhotosPickerItem]) async {
+        var loadedImages: [UIImage] = []
+
+        for item in items {
+            if let data = try? await item.loadTransferable(type: Data.self),
+               let image = UIImage(data: data) {
+                loadedImages.append(image)
+            }
+        }
+
+        await MainActor.run {
+            self.selectedImages = loadedImages
+        }
+    }
+
+    private func sendToAIAndUpdateConversation(_ userMessage: String, images: [UIImage] = [], in conversation: Conversation) async {
         // Temporarily sync conversation to viewModel to get AI response
         await MainActor.run {
             // Clear viewModel messages and add conversation history
@@ -664,7 +745,11 @@ struct EnhancedChatView: View {
 
         // Use viewModel's sendMessage which handles AI response
         await MainActor.run {
-            viewModel.sendMessage(userMessage)
+            if !images.isEmpty {
+                viewModel.sendMessageWithImages(userMessage, images: images)
+            } else {
+                viewModel.sendMessage(userMessage)
+            }
         }
 
         // Wait for the response and sync back to conversation

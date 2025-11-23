@@ -1,6 +1,7 @@
 import SwiftUI
 import WebKit
 import Combine
+import PhotosUI
 
 enum AppView {
     case chat
@@ -58,6 +59,10 @@ struct ContentView: View {
     @State private var pendingCodeSandboxCode: String?
     @State private var pendingCodeSandboxFramework: String?
     @State private var codeSandboxCreateFunction: ((String) -> Void)?
+
+    // Image attachment support
+    @State private var selectedPhotos: [PhotosPickerItem] = []
+    @State private var selectedImages: [UIImage] = []
     private var settingsView: some View {
         NavigationView {
             Form {
@@ -936,30 +941,79 @@ struct ContentView: View {
     
     // MARK: - Chat Input
     private var chatInputView: some View {
-        HStack {
-                            TextField("Ask me to create a 3D scene...", text: $chatInput)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .submitLabel(.send) // Shows "Send" button on keyboard
-                                .onSubmit {
-                                    sendMessage()
-                                }
-                                .disableAutocorrection(true)
-                                .keyboardType(.default)
-                                .autocapitalization(.none)
-                                .textInputAutocapitalization(.never)
+        VStack(spacing: 0) {
+            // Image preview area
+            if !selectedImages.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(selectedImages.indices, id: \.self) { index in
+                            ZStack(alignment: .topTrailing) {
+                                Image(uiImage: selectedImages[index])
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                            Button(action: sendMessage) {
-                                Image(systemName: "paperplane.fill")
-                                    .foregroundColor(.white)
-                                    .padding(8)
-                                    .background(chatInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray : Color.blue)
-                                    .clipShape(Circle())
+                                // Remove button
+                                Button(action: {
+                                    selectedImages.remove(at: index)
+                                    selectedPhotos.remove(at: index)
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.white)
+                                        .background(Color.black.opacity(0.6))
+                                        .clipShape(Circle())
+                                }
+                                .padding(4)
                             }
-                            .disabled(chatInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(Color(.systemGray6))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                }
+                .background(Color(.systemGray5))
+            }
+
+            // Input row
+            HStack(alignment: .bottom, spacing: 8) {
+                // Image picker button
+                PhotosPicker(selection: $selectedPhotos, maxSelectionCount: 5, matching: .images) {
+                    Image(systemName: selectedImages.isEmpty ? "photo.on.rectangle" : "photo.on.rectangle.fill")
+                        .foregroundColor(selectedImages.isEmpty ? .gray : .blue)
+                        .font(.system(size: 20))
+                        .padding(8)
+                }
+                .onChange(of: selectedPhotos) { newItems in
+                    Task {
+                        await loadSelectedImages(from: newItems)
+                    }
+                }
+
+                TextField("Ask me to create a 3D scene...", text: $chatInput, axis: .vertical)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .submitLabel(.send)
+                    .onSubmit {
+                        sendMessage()
+                    }
+                    .disableAutocorrection(true)
+                    .keyboardType(.default)
+                    .autocapitalization(.none)
+                    .textInputAutocapitalization(.never)
+                    .lineLimit(1...5)
+
+                Button(action: sendMessage) {
+                    Image(systemName: "paperplane.fill")
+                        .foregroundColor(.white)
+                        .padding(8)
+                        .background(chatInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray : Color.blue)
+                        .clipShape(Circle())
+                }
+                .disabled(chatInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color(.systemGray6))
+        }
     }
     
     // MARK: - Scene View
@@ -1270,12 +1324,38 @@ struct ContentView: View {
         let message = chatInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty else { return }
 
+        let messageCopy = message
+        let imagesCopy = selectedImages
+
+        // Clear input and images
         chatInput = ""
+        selectedImages = []
+        selectedPhotos = []
 
         // Dismiss keyboard immediately after sending
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 
-        chatViewModel.sendMessage(message, currentCode: currentCode)
+        // Send message with images if present
+        if !imagesCopy.isEmpty {
+            chatViewModel.sendMessageWithImages(messageCopy, images: imagesCopy, currentCode: currentCode)
+        } else {
+            chatViewModel.sendMessage(messageCopy, currentCode: currentCode)
+        }
+    }
+
+    private func loadSelectedImages(from items: [PhotosPickerItem]) async {
+        var loadedImages: [UIImage] = []
+
+        for item in items {
+            if let data = try? await item.loadTransferable(type: Data.self),
+               let image = UIImage(data: data) {
+                loadedImages.append(image)
+            }
+        }
+
+        await MainActor.run {
+            self.selectedImages = loadedImages
+        }
     }
     
     private func handleWebViewMessage(action: String, data: [String: Any]) {

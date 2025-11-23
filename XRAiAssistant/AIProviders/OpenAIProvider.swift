@@ -3,10 +3,19 @@ import Foundation
 class OpenAIProvider: AIProvider {
     let name = "OpenAI"
     let requiresAPIKey = true
-    
+
     private var apiKey: String?
     private let baseURL = "https://api.openai.com/v1"
-    
+
+    let capabilities = AIProviderCapabilities(
+        supportsVision: true,
+        supportsStreaming: true,
+        supportedImageFormats: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+        maxImageSize: 20 * 1024 * 1024,  // 20MB
+        maxImagesPerMessage: 10,
+        maxTokens: 128_000  // GPT-4o context
+    )
+
     let models: [AIModel] = [
         AIModel(
             id: "gpt-4o",
@@ -14,28 +23,32 @@ class OpenAIProvider: AIProvider {
             description: "Most advanced GPT-4 model",
             pricing: "$2.50/$10.00 per 1M tokens",
             provider: "OpenAI",
-            isDefault: true
+            isDefault: true,
+            supportsVision: true
         ),
         AIModel(
             id: "gpt-4o-mini",
             displayName: "GPT-4o Mini",
             description: "Fast and affordable smart model",
             pricing: "$0.15/$0.60 per 1M tokens",
-            provider: "OpenAI"
+            provider: "OpenAI",
+            supportsVision: true
         ),
         AIModel(
             id: "gpt-4-turbo",
             displayName: "GPT-4 Turbo",
             description: "Previous flagship model",
             pricing: "$10.00/$30.00 per 1M tokens",
-            provider: "OpenAI"
+            provider: "OpenAI",
+            supportsVision: false
         ),
         AIModel(
             id: "gpt-3.5-turbo",
             displayName: "GPT-3.5 Turbo",
             description: "Fast and cost-effective",
             pricing: "$0.50/$1.50 per 1M tokens",
-            provider: "OpenAI"
+            provider: "OpenAI",
+            supportsVision: false
         )
     ]
     
@@ -56,10 +69,7 @@ class OpenAIProvider: AIProvider {
         }
         
         let openAIMessages = messages.map { message in
-            [
-                "role": mapRole(message.role),
-                "content": message.content
-            ]
+            convertMessageToOpenAIFormat(message)
         }
         
         let requestBody: [String: Any] = [
@@ -123,6 +133,45 @@ class OpenAIProvider: AIProvider {
         }
     }
     
+    // MARK: - Message Conversion
+
+    private func convertMessageToOpenAIFormat(_ message: AIMessage) -> [String: Any] {
+        var openAIMessage: [String: Any] = [
+            "role": mapRole(message.role)
+        ]
+
+        // Check if message has only text or multiple content types
+        if message.content.count == 1, case .text(let text) = message.content[0] {
+            // Simple text-only message
+            openAIMessage["content"] = text
+        } else {
+            // Multimodal message (text + images)
+            var contentArray: [[String: Any]] = []
+
+            for contentItem in message.content {
+                switch contentItem {
+                case .text(let text):
+                    contentArray.append([
+                        "type": "text",
+                        "text": text
+                    ])
+
+                case .image(let imageContent):
+                    contentArray.append([
+                        "type": "image_url",
+                        "image_url": [
+                            "url": "data:\(imageContent.mimeType);base64,\(imageContent.base64String)"
+                        ]
+                    ])
+                }
+            }
+
+            openAIMessage["content"] = contentArray
+        }
+
+        return openAIMessage
+    }
+
     private func mapRole(_ role: AIMessageRole) -> String {
         switch role {
         case .system: return "system"

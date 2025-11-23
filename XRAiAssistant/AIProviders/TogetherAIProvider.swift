@@ -4,10 +4,19 @@ import AIProxy
 class TogetherAIProvider: AIProvider {
     let name = "Together.ai"
     let requiresAPIKey = true
-    
+
     private var togetherAIService: TogetherAIService?
     private var apiKey: String?
-    
+
+    let capabilities = AIProviderCapabilities(
+        supportsVision: false,
+        supportsStreaming: true,
+        supportedImageFormats: [],
+        maxImageSize: 0,
+        maxImagesPerMessage: 0,
+        maxTokens: 32_768  // Typical context window
+    )
+
     let models: [AIModel] = [
         AIModel(
             id: "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free",
@@ -77,11 +86,11 @@ class TogetherAIProvider: AIProvider {
         let togetherMessages = messages.map { message in
             switch message.role {
             case .system:
-                return TogetherAIMessage(content: message.content, role: .system)
+                return TogetherAIMessage(content: message.textContent, role: .system)
             case .user:
-                return TogetherAIMessage(content: message.content, role: .user)
+                return TogetherAIMessage(content: message.textContent, role: .user)
             case .assistant:
-                return TogetherAIMessage(content: message.content, role: .assistant)
+                return TogetherAIMessage(content: message.textContent, role: .assistant)
             }
         }
         
