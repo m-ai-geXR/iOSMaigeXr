@@ -331,6 +331,82 @@ class ChatViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Image Compression Helper
+
+    /// Compresses an image to fit within the provider's size limit
+    /// - Parameters:
+    ///   - image: The UIImage to compress
+    ///   - maxSize: Maximum size in bytes
+    ///   - index: Image index for logging
+    /// - Returns: Compressed JPEG data or nil if compression failed
+    private func compressImage(_ image: UIImage, maxSize: Int, index: Int) -> Data? {
+        print("🖼️ Compressing image \(index): original size \(image.size.width)x\(image.size.height)")
+
+        // IMPORTANT: Account for base64 encoding overhead (~33% increase)
+        // Target 75% of maxSize to ensure base64 encoded version fits
+        let targetSize = Int(Double(maxSize) * 0.75)
+        print("🎯 Target size (accounting for base64 overhead): \(String(format: "%.2f", Double(targetSize) / 1024.0 / 1024.0))MB")
+
+        // Start with high quality
+        var compressionQuality: CGFloat = 0.8
+        var imageData = image.jpegData(compressionQuality: compressionQuality)
+
+        // If still too large, reduce quality progressively
+        while let data = imageData, data.count > targetSize && compressionQuality > 0.1 {
+            compressionQuality -= 0.1
+            imageData = image.jpegData(compressionQuality: compressionQuality)
+            if let data = imageData {
+                print("🔄 Trying quality \(String(format: "%.1f", compressionQuality)): \(String(format: "%.2f", Double(data.count) / 1024.0 / 1024.0))MB")
+            }
+        }
+
+        // If still too large after quality reduction, resize the image
+        if let data = imageData, data.count > targetSize {
+            print("📐 Image still too large after quality reduction, resizing...")
+
+            // Calculate scale factor to get under size limit
+            // Rough estimate: reducing dimensions by 50% reduces file size by ~75%
+            var scale: CGFloat = 0.8
+            var resizedImage = resizeImage(image, scale: scale)
+            imageData = resizedImage?.jpegData(compressionQuality: 0.7)
+
+            // Keep reducing size if needed
+            while let data = imageData, data.count > targetSize && scale > 0.2 {
+                scale -= 0.1
+                resizedImage = resizeImage(image, scale: scale)
+                imageData = resizedImage?.jpegData(compressionQuality: 0.7)
+                if let data = imageData {
+                    print("🔄 Trying scale \(String(format: "%.1f", scale)): \(String(format: "%.2f", Double(data.count) / 1024.0 / 1024.0))MB")
+                }
+            }
+        }
+
+        if let finalData = imageData {
+            let finalSizeMB = Double(finalData.count) / 1024.0 / 1024.0
+            let base64Size = finalData.base64EncodedString().count
+            let base64SizeMB = Double(base64Size) / 1024.0 / 1024.0
+            print("✅ Compressed image \(index): \(String(format: "%.2f", finalSizeMB))MB raw, \(String(format: "%.2f", base64SizeMB))MB base64-encoded")
+            return finalData
+        }
+
+        print("❌ Failed to compress image \(index) to acceptable size")
+        return nil
+    }
+
+    /// Resizes an image by a scale factor
+    private func resizeImage(_ image: UIImage, scale: CGFloat) -> UIImage? {
+        let newSize = CGSize(
+            width: image.size.width * scale,
+            height: image.size.height * scale
+        )
+
+        UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+        defer { UIGraphicsEndImageContext() }
+
+        image.draw(in: CGRect(origin: .zero, size: newSize))
+        return UIGraphicsGetImageFromCurrentImageContext()
+    }
+
     private func processUserMessageWithImages(_ text: String, images: [UIImage], currentCode: String?) async {
         // SAFETY CHECK: Force migration away from non-serverless models
         if selectedModel == "Qwen/Qwen2.5-Coder-32B-Instruct" {
@@ -344,12 +420,20 @@ class ChatViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            // Convert UIImages to AIImageContent
+            // Get provider's max image size
+            guard let provider = aiProviderManager.getProvider(for: selectedModel) else {
+                throw AIProviderError.modelNotSupported
+            }
+
+            let maxImageSize = provider.capabilities.maxImageSize
+            print("📏 Provider max image size: \(maxImageSize / 1024 / 1024)MB")
+
+            // Convert UIImages to AIImageContent with intelligent compression
             var imageContents: [AIImageContent] = []
             for (index, image) in images.enumerated() {
-                // Convert to JPEG data
-                guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-                    print("❌ Failed to convert image \(index) to JPEG")
+                // Compress image to fit within provider's limits
+                guard let imageData = compressImage(image, maxSize: maxImageSize, index: index) else {
+                    print("❌ Failed to compress image \(index)")
                     continue
                 }
 
@@ -363,11 +447,7 @@ class ChatViewModel: ObservableObject {
 
             print("📸 Sending message with \(imageContents.count) images")
 
-            // Check if current provider supports vision
-            guard let provider = aiProviderManager.getProvider(for: selectedModel) else {
-                throw AIProviderError.modelNotSupported
-            }
-
+            // Verify provider supports vision (already checked above, but double-check)
             if !provider.capabilities.supportsVision {
                 errorMessage = "⚠️ The selected model '\(selectedModel)' does not support image inputs. Please select a vision-capable model like GPT-4o, Claude Opus 4, or Gemini 2.5 Pro."
                 isLoading = false

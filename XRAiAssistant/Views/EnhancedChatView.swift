@@ -291,17 +291,16 @@ struct EnhancedChatView: View {
                 .foregroundColor(.blue)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 90)
             Image(systemName: "chevron.down")
                 .font(.caption2)
                 .foregroundColor(.blue)
-                .fixedSize()
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .frame(maxWidth: 120)
         .background(Color.blue.opacity(0.1))
         .cornerRadius(6)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var librarySelectorView: some View {
@@ -347,17 +346,16 @@ struct EnhancedChatView: View {
                 .foregroundColor(.blue)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 80)
             Image(systemName: "chevron.down")
                 .font(.caption2)
                 .foregroundColor(.blue)
-                .fixedSize()
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .frame(maxWidth: 100)
         .background(Color.blue.opacity(0.1))
         .cornerRadius(6)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private func conversationHeaderView(_ conversation: Conversation) -> some View {
