@@ -156,6 +156,10 @@ struct MarkdownMessageView: View {
     }
 
     private func syntaxHighlightedCode(_ code: String, language: String?) -> Text {
+        // Use AttributedString to avoid stack overflow from Text concatenation
+        // This is CRITICAL for long code blocks to prevent infinite recursion
+        var attributedString = AttributedString(code)
+
         // Enhanced syntax highlighting with better contrast colors
         let keywords = [
             // JavaScript/TypeScript
@@ -172,71 +176,29 @@ struct MarkdownMessageView: View {
             "switch", "throw", "throws", "try", "typeof", "void"
         ]
 
-        var result = Text("")
-        let lines = code.components(separatedBy: .newlines)
+        // Apply base monospaced font and color to entire code block
+        attributedString.font = .system(.body, design: .monospaced)
+        attributedString.foregroundColor = Color(red: 0.85, green: 0.90, blue: 0.95)
 
-        for (lineIndex, line) in lines.enumerated() {
-            var currentText = ""
-            let words = line.components(separatedBy: .whitespaces)
+        // Highlight keywords - use regex for better performance
+        for keyword in keywords {
+            // Match whole words only (with word boundaries)
+            let pattern = "\\b\(keyword)\\b"
+            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+                let nsRange = NSRange(code.startIndex..<code.endIndex, in: code)
+                let matches = regex.matches(in: code, options: [], range: nsRange)
 
-            for (wordIndex, word) in words.enumerated() {
-                // Check if word contains a keyword
-                let trimmedWord = word.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-
-                if keywords.contains(trimmedWord) {
-                    // Add accumulated text first
-                    if !currentText.isEmpty {
-                        result = result + Text(currentText)
-                            .foregroundColor(Color(red: 0.85, green: 0.90, blue: 0.95)) // Light gray-blue for text
-                            .font(.system(.body, design: .monospaced))
-                        currentText = ""
-                    }
-
-                    // Add keyword with highlighting
-                    let prefix = word.prefix(while: { !$0.isLetter && !$0.isNumber })
-                    let suffix = word.suffix(from: word.index(word.startIndex, offsetBy: prefix.count + trimmedWord.count))
-
-                    result = result +
-                        Text(String(prefix))
-                            .foregroundColor(Color(red: 0.85, green: 0.90, blue: 0.95))
-                            .font(.system(.body, design: .monospaced)) +
-                        Text(trimmedWord)
-                            .foregroundColor(Color(red: 0.4, green: 0.85, blue: 1.0)) // Bright cyan for keywords
-                            .font(.system(.body, design: .monospaced))
-                            .fontWeight(.semibold) +
-                        Text(String(suffix))
-                            .foregroundColor(Color(red: 0.85, green: 0.90, blue: 0.95))
-                            .font(.system(.body, design: .monospaced))
-
-                    if wordIndex < words.count - 1 {
-                        result = result + Text(" ")
-                            .foregroundColor(Color(red: 0.85, green: 0.90, blue: 0.95))
-                            .font(.system(.body, design: .monospaced))
-                    }
-                } else {
-                    currentText += word
-                    if wordIndex < words.count - 1 {
-                        currentText += " "
+                for match in matches {
+                    if let range = Range(match.range, in: code) {
+                        let attributedRange = AttributedString.Index(range.lowerBound, within: attributedString)!..<AttributedString.Index(range.upperBound, within: attributedString)!
+                        attributedString[attributedRange].foregroundColor = Color(red: 0.4, green: 0.85, blue: 1.0) // Bright cyan
+                        attributedString[attributedRange].font = .system(.body, design: .monospaced).weight(.semibold)
                     }
                 }
             }
-
-            // Add any remaining text
-            if !currentText.isEmpty {
-                result = result + Text(currentText)
-                    .foregroundColor(Color(red: 0.85, green: 0.90, blue: 0.95)) // Light gray-blue for text
-                    .font(.system(.body, design: .monospaced))
-            }
-
-            // Add newline except for last line
-            if lineIndex < lines.count - 1 {
-                result = result + Text("\n")
-                    .foregroundColor(Color(red: 0.85, green: 0.90, blue: 0.95))
-                    .font(.system(.body, design: .monospaced))
-            }
         }
 
-        return result
+        return Text(attributedString)
     }
 
     private func copyToClipboard(_ text: String, index: Int) {
