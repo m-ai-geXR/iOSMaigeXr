@@ -17,11 +17,11 @@ class GoogleAIProvider: AIProvider {
     )
 
     let models: [AIModel] = [
-        // Gemini 3.0 Series (Preview)
+        // Gemini 3 Series (Newest & Most Powerful)
         AIModel(
-            id: "gemini-3.0-flash",
-            displayName: "Gemini 3.0 Flash",
-            description: "Next-generation flash model",
+            id: "gemini-3-pro-preview",
+            displayName: "Gemini 3 Pro",
+            description: "Newest and most powerful general-purpose model - top-tier reasoning, writing, planning, coding, multimodal understanding",
             pricing: "FREE tier available",
             provider: "Google AI",
             isDefault: true,
@@ -30,17 +30,25 @@ class GoogleAIProvider: AIProvider {
 
         // Gemini 2.5 Series (Latest Stable)
         AIModel(
-            id: "gemini-2.5-flash",
-            displayName: "Gemini 2.5 Flash",
-            description: "Fast model with improved performance",
+            id: "gemini-2.5-pro",
+            displayName: "Gemini 2.5 Pro",
+            description: "High-capability reasoning & coding - strong for complex codebases, algorithmic tasks, data/maths logic",
             pricing: "FREE tier available",
             provider: "Google AI",
             supportsVision: true
         ),
         AIModel(
-            id: "gemini-2.5-pro",
-            displayName: "Gemini 2.5 Pro",
-            description: "Most capable model with advanced reasoning",
+            id: "gemini-2.5-flash",
+            displayName: "Gemini 2.5 Flash",
+            description: "Balanced - lower latency & snappier, supports coding & writing - good for general use and prototyping",
+            pricing: "FREE tier available",
+            provider: "Google AI",
+            supportsVision: true
+        ),
+        AIModel(
+            id: "gemini-2.5-flash-lite",
+            displayName: "Gemini 2.5 Flash-Lite",
+            description: "Lightweight and fastest - optimized for speed and shorter tasks",
             pricing: "FREE tier available",
             provider: "Google AI",
             supportsVision: true
