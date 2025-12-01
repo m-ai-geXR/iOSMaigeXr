@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		88B669732EDE393A00C547AF /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 88B669722EDE393A00C547AF /* GRDB */; };
 		BAD367A92D84AED6000EB786 /* LlamaStackClient in Frameworks */ = {isa = PBXBuildFile; productRef = BAD367A82D84AED6000EB786 /* LlamaStackClient */; };
 		BAD367AA2D84AED7000EB786 /* AIProxy in Frameworks */ = {isa = PBXBuildFile; productRef = BAD367AB2D84AED7000EB786 /* AIProxy */; };
 /* End PBXBuildFile section */
@@ -44,6 +45,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				88B669732EDE393A00C547AF /* GRDB in Frameworks */,
 				BAD367A92D84AED6000EB786 /* LlamaStackClient in Frameworks */,
 				BAD367AA2D84AED7000EB786 /* AIProxy in Frameworks */,
 			);
@@ -107,6 +109,7 @@
 			packageProductDependencies = (
 				BAD367A82D84AED6000EB786 /* LlamaStackClient */,
 				BAD367AB2D84AED7000EB786 /* AIProxy */,
+				88B669722EDE393A00C547AF /* GRDB */,
 			);
 			productName = XRAiAssistant;
 			productReference = 26AF95742D3D743800168181 /* XRAiAssistant.app */;
@@ -164,6 +167,7 @@
 			packageReferences = (
 				BAD367A72D84AED6000EB786 /* XCRemoteSwiftPackageReference "llama-stack-client-swift" */,
 				BAD367AC2D84AED7000EB786 /* XCRemoteSwiftPackageReference "AIProxySwift" */,
+				88B669712EDE393A00C547AF /* XCRemoteSwiftPackageReference "GRDB" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 26AF95752D3D743800168181 /* Products */;
@@ -469,6 +473,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		88B669712EDE393A00C547AF /* XCRemoteSwiftPackageReference "GRDB" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/groue/GRDB.swift";
+			requirement = {
+				kind = revision;
+				revision = 76e081590774d72ac7d5c6d328dcdc30eaaa798f;
+			};
+		};
 		BAD367A72D84AED6000EB786 /* XCRemoteSwiftPackageReference "llama-stack-client-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/meta-llama/llama-stack-client-swift";
@@ -488,6 +500,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		88B669722EDE393A00C547AF /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 88B669712EDE393A00C547AF /* XCRemoteSwiftPackageReference "GRDB" */;
+			productName = GRDB;
+		};
 		BAD367A82D84AED6000EB786 /* LlamaStackClient */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = BAD367A72D84AED6000EB786 /* XCRemoteSwiftPackageReference "llama-stack-client-swift" */;

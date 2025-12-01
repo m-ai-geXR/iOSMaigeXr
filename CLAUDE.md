@@ -72,9 +72,18 @@ let availableModels = [
 
 ---
 
-## ⚙️ BUILD REQUIREMENTS - MANDATORY
+## ⚙️ BUILD REQUIREMENTS - IMPORTANT
 
-### **CRITICAL**: Always Run Build After Code Changes
+### **User Verifies Builds**
+
+**IMPORTANT**: The user handles all build verification. Do NOT run `xcodebuild` commands unless explicitly requested.
+
+- ✅ User will verify builds succeed
+- ✅ User will check for compilation errors
+- ✅ User will test on simulator/device
+- ❌ Claude should NOT run build commands automatically
+
+### **When to Suggest Build Verification**
 
 After making ANY code changes, you MUST verify the project builds successfully:
 

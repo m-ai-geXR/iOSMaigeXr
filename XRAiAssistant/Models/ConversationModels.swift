@@ -91,28 +91,65 @@ class ConversationStorageManager: ObservableObject {
 
     private let storageKey = "XRAiAssistant_Conversations"
     private let maxStoredConversations = 100
+    private let db = DatabaseManager.shared
+    private let useSQLite = true // Toggle for gradual rollout
 
     init() {
-        loadConversations()
+        Task {
+            await loadConversations()
+        }
     }
 
-    // MARK: - Persistence
+    // MARK: - Persistence (SQLite)
 
-    func saveConversations() {
+    func saveConversations() async {
+        if useSQLite {
+            // SQLite auto-saves individual conversations
+            // This method is kept for compatibility
+            print("💾 Conversations auto-saved to SQLite")
+        } else {
+            saveConversationsUserDefaults()
+        }
+    }
+
+    func loadConversations() async {
+        if useSQLite {
+            await loadConversationsSQLite()
+        } else {
+            loadConversationsUserDefaults()
+        }
+    }
+
+    // MARK: - SQLite Implementation
+
+    private func loadConversationsSQLite() async {
+        do {
+            conversations = try await db.loadConversations(limit: maxStoredConversations)
+            print("📂 Loaded \(conversations.count) conversations from SQLite")
+        } catch {
+            print("❌ Failed to load conversations from SQLite: \(error)")
+            // Fallback to UserDefaults
+            loadConversationsUserDefaults()
+        }
+    }
+
+    // MARK: - Legacy UserDefaults Implementation (Backup)
+
+    private func saveConversationsUserDefaults() {
         do {
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
             let data = try encoder.encode(conversations)
             UserDefaults.standard.set(data, forKey: storageKey)
-            print("💾 Saved \(conversations.count) conversations")
+            print("💾 Saved \(conversations.count) conversations to UserDefaults")
         } catch {
             print("❌ Failed to save conversations: \(error.localizedDescription)")
         }
     }
 
-    func loadConversations() {
+    private func loadConversationsUserDefaults() {
         guard let data = UserDefaults.standard.data(forKey: storageKey) else {
-            print("📂 No saved conversations found")
+            print("📂 No saved conversations found in UserDefaults")
             return
         }
 
@@ -120,7 +157,7 @@ class ConversationStorageManager: ObservableObject {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             conversations = try decoder.decode([Conversation].self, from: data)
-            print("📂 Loaded \(conversations.count) conversations")
+            print("📂 Loaded \(conversations.count) conversations from UserDefaults")
         } catch {
             print("❌ Failed to load conversations: \(error.localizedDescription)")
             conversations = []
@@ -139,7 +176,18 @@ class ConversationStorageManager: ObservableObject {
             conversations = Array(conversations.prefix(maxStoredConversations))
         }
 
-        saveConversations()
+        if useSQLite {
+            Task {
+                do {
+                    try await db.saveConversation(newConversation)
+                    print("✅ Conversation saved to SQLite")
+                } catch {
+                    print("❌ Failed to save conversation: \(error)")
+                }
+            }
+        } else {
+            saveConversationsUserDefaults()
+        }
     }
 
     func updateConversation(_ conversation: Conversation) {
@@ -153,18 +201,52 @@ class ConversationStorageManager: ObservableObject {
             let removed = conversations.remove(at: index)
             conversations.insert(removed, at: 0)
 
-            saveConversations()
+            if useSQLite {
+                Task {
+                    do {
+                        try await db.saveConversation(updated)
+                        print("✅ Conversation updated in SQLite")
+                    } catch {
+                        print("❌ Failed to update conversation: \(error)")
+                    }
+                }
+            } else {
+                saveConversationsUserDefaults()
+            }
         }
     }
 
     func deleteConversation(_ id: UUID) {
         conversations.removeAll { $0.id == id }
-        saveConversations()
+
+        if useSQLite {
+            Task {
+                do {
+                    try await db.deleteConversation(id)
+                    print("✅ Conversation deleted from SQLite")
+                } catch {
+                    print("❌ Failed to delete conversation: \(error)")
+                }
+            }
+        } else {
+            saveConversationsUserDefaults()
+        }
     }
 
     func clearAllConversations() {
+        let conversationIds = conversations.map { $0.id }
         conversations.removeAll()
-        saveConversations()
+
+        if useSQLite {
+            Task {
+                for id in conversationIds {
+                    try? await db.deleteConversation(id)
+                }
+                print("✅ All conversations cleared from SQLite")
+            }
+        } else {
+            saveConversationsUserDefaults()
+        }
     }
 
     func getConversation(id: UUID) -> Conversation? {

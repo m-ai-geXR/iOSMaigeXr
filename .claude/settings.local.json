@@ -4,7 +4,10 @@
       "Bash(xcodebuild:*)",
       "Bash(curl:*)",
       "Bash(rm:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(open:*)",
+      "Bash(swift package:*)",
+      "Bash(killall:*)"
     ],
     "deny": [],
     "ask": []

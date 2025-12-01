@@ -11,7 +11,7 @@ enum APIError: Error {
 }
 
 // MARK: - Configuration Constants
-private let DEFAULT_API_KEY = "changeMe"
+internal let DEFAULT_API_KEY = "changeMe"
 
 @MainActor
 class ChatViewModel: ObservableObject {
@@ -48,7 +48,13 @@ class ChatViewModel: ObservableObject {
     var buildSystem: BuildManager {
         return buildManager
     }
-    
+
+    // RAG Services (Retrieval-Augmented Generation)
+    internal var embeddingService: EmbeddingService?
+    internal var vectorSearchService: VectorSearchService?
+    internal var ragContextBuilder: RAGContextBuilder?
+    @Published var ragEnabled: Bool = false
+
     // Legacy providers - maintained for compatibility
     private var inference: RemoteInference
     private var togetherAIService: TogetherAIService
@@ -617,7 +623,7 @@ class ChatViewModel: ObservableObject {
         return prompt
     }
     
-    private func callLlamaInference(userMessage: String, systemPrompt: String) async throws -> String {
+    internal func callLlamaInference(userMessage: String, systemPrompt: String) async throws -> String {
         print("🎯 Using selected model: \(selectedModel)")
         
         // Always try new provider system first (it has better error handling)
@@ -1403,7 +1409,7 @@ class ChatViewModel: ObservableObject {
     }
     
     /// Load settings from UserDefaults
-    private func loadSettings() {
+    internal func loadSettings() {
         print("📂 Loading settings from UserDefaults...")
         
         // Load API key (keep default if not found)
