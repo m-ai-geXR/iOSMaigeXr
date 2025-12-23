@@ -18,9 +18,17 @@ struct ConversationHistoryView: View {
                     conversationList
                 }
             }
-            .navigationTitle("Chat History")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    HStack(spacing: 4) {
+                        MaigeXRBrandText(isActive: true, fontSize: 17)
+                        Text("History")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                    }
+                }
+
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Close") {
                         isPresented = false

@@ -86,6 +86,77 @@ extension View {
     func neonTextGlow(color: Color) -> some View {
         self.shadow(color: color.opacity(0.15), radius: 2, x: 0, y: 0)
     }
+
+    // MARK: - Glass Effects (Glassmorphism)
+
+    /// Apply a glass effect with blur and semi-transparency
+    /// - Parameters:
+    ///   - tintColor: Background tint color (default cyberpunk dark gray)
+    ///   - opacity: Background opacity (default 0.7 for glass effect)
+    ///   - cornerRadius: Corner radius (default 12pt)
+    ///   - borderColor: Optional border color with glow
+    /// - Returns: View with glassmorphism effect
+    func glassEffect(
+        tintColor: Color = .cyberpunkDarkGray,
+        opacity: Double = 0.7,
+        cornerRadius: CGFloat = 12,
+        borderColor: Color? = nil
+    ) -> some View {
+        self
+            .background(
+                ZStack {
+                    // Glass background with blur
+                    tintColor.opacity(opacity)
+
+                    // Subtle gradient overlay for depth
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.1),
+                            Color.clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+                .background(.ultraThinMaterial)
+                .cornerRadius(cornerRadius)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(borderColor ?? Color.white.opacity(0.1), lineWidth: 0.5)
+            )
+            .shadow(color: borderColor?.opacity(0.2) ?? Color.clear, radius: borderColor != nil ? 8 : 0, x: 0, y: 0)
+    }
+
+    /// Apply a premium glass card effect with neon accent
+    /// - Parameters:
+    ///   - accentColor: Neon accent color for border glow
+    ///   - cornerRadius: Corner radius (default 16pt)
+    /// - Returns: View with premium glass card styling
+    func glassCard(accentColor: Color = .neonCyan, cornerRadius: CGFloat = 16) -> some View {
+        self
+            .padding()
+            .glassEffect(
+                tintColor: .cyberpunkDarkGray,
+                opacity: 0.6,
+                cornerRadius: cornerRadius,
+                borderColor: accentColor
+            )
+    }
+
+    /// Apply a frosted glass input field effect
+    /// - Parameter accentColor: Neon accent color for active state
+    /// - Returns: View with frosted input styling
+    func glassInput(accentColor: Color = .neonCyan) -> some View {
+        self
+            .padding(12)
+            .glassEffect(
+                tintColor: .cyberpunkDarkGray,
+                opacity: 0.5,
+                cornerRadius: 8,
+                borderColor: accentColor
+            )
+    }
 }
 
 // MARK: - Glow Hierarchy Reference

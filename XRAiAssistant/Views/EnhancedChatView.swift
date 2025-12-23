@@ -118,8 +118,17 @@ struct EnhancedChatView: View {
                     inputAreaView
                 }
             }
-            .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    if currentConversation != nil {
+                        Text(navigationTitle)
+                            .font(.headline)
+                    } else {
+                        MaigeXRBrandText(isActive: true, fontSize: 17)
+                    }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showHistory = true }) {
@@ -402,13 +411,9 @@ struct EnhancedChatView: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 4) {
                     MarkdownMessageView(content: message.content, isUser: true)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Color.neonBlue.opacity(0.2))
                         .foregroundColor(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
-                        .neonBorder(color: .neonBlue, width: 1, glowRadius: 6, cornerRadius: 18)
                         .frame(maxWidth: 600, alignment: .trailing)
+                        .glassCard(accentColor: .neonBlue, cornerRadius: 18)
 
                     Text(formatTime(message.timestamp))
                         .font(.caption2)
@@ -417,13 +422,9 @@ struct EnhancedChatView: View {
             } else {
                 VStack(alignment: .leading, spacing: 6) {
                     MarkdownMessageView(content: message.content, isUser: false)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Color.cyberpunkDarkGray)
                         .foregroundColor(.cyberpunkWhite)
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
-                        .neonBorder(color: .neonCyan, width: 1, glowRadius: 6, cornerRadius: 18)
                         .frame(maxWidth: 600, alignment: .leading)
+                        .glassCard(accentColor: .neonCyan, cornerRadius: 18)
 
                     // Timestamp and action buttons
                     HStack(spacing: 12) {
@@ -625,14 +626,7 @@ struct EnhancedChatView: View {
                 }
 
                 TextField("Type a message...", text: $inputText, axis: .vertical)
-                    .padding(12)
-                    .background(Color.cyberpunkDarkGray)
-                    .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.neonCyan, lineWidth: 1.5)
-                    )
-                    .neonInputGlow(color: .neonCyan)
+                    .glassInput(accentColor: .neonCyan)
                     .submitLabel(.send)
                     .onSubmit {
                         sendMessage()
@@ -670,7 +664,7 @@ struct EnhancedChatView: View {
         if let conversation = currentConversation {
             return conversation.title
         } else {
-            return "Chat"
+            return "m{ai}geXR"
         }
     }
 

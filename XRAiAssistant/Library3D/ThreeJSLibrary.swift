@@ -87,6 +87,11 @@ struct ThreeJSLibrary: Library3D {
         Three.js r160 includes powerful postprocessing capabilities loaded from local files.
         Available globally: EffectComposer, RenderPass, UnrealBloomPass, ShaderPass, OutputPass
 
+        IMPORTANT: The renderer is pre-configured with:
+        - Tone Mapping: ACESFilmicToneMapping (for HDR and realistic lighting)
+        - Tone Mapping Exposure: 1.0 (adjustable for brightness control)
+        - Output Color Space: sRGB (for accurate color reproduction)
+
         Example: Adding bloom effect to your scene
         const composer = new EffectComposer(renderer);
         const renderPass = new RenderPass(scene, camera);
@@ -94,9 +99,9 @@ struct ThreeJSLibrary: Library3D {
 
         const bloomPass = new UnrealBloomPass(
             new THREE.Vector2(window.innerWidth, window.innerHeight),
-            1.5,  // strength
-            0.4,  // radius
-            0.85  // threshold
+            1.5,  // strength (try 0.5-3.0 for different intensities)
+            0.4,  // radius (try 0.2-1.0 for bloom spread)
+            0.85  // threshold (0.0-1.0, lower = more bloom on darker objects)
         );
         composer.addPass(bloomPass);
 
@@ -106,9 +111,17 @@ struct ThreeJSLibrary: Library3D {
         // IMPORTANT: Replace the default render loop with composer
         function animate() {
             requestAnimationFrame(animate);
+            // Add any animations here (object rotations, etc.)
             composer.render(); // Use composer instead of renderer.render()
         }
         animate();
+
+        PRO TIPS for Shading and Visual Quality:
+        - Use MeshStandardMaterial for PBR (physically-based rendering) with metalness/roughness
+        - Combine emissive materials with bloom for spectacular neon/glow effects
+        - Adjust renderer.toneMappingExposure (0.5-2.0) for scene brightness
+        - Use multiple lights (ambient + directional + point) for depth and realism
+        - Dark scene backgrounds (0x000000-0x111111) make bloom effects pop
 
         VISUAL EFFECTS (Without Post-Processing):
         Create stunning visual effects using emissive materials and creative lighting:
@@ -253,20 +266,17 @@ struct ThreeJSLibrary: Library3D {
                     ground.rotation.x = -Math.PI / 2;
                     scene.add(ground);
 
-                    // Animation
-                    function animate() {
-                        requestAnimationFrame(animate);
-
+                    // Animation function (called by global render loop)
+                    scene.userData.animate = function() {
                         cubes.forEach((cube, i) => {
                             cube.rotation.x += 0.01;
                             cube.rotation.y += 0.01;
                             cube.position.y = 1 + Math.sin(Date.now() * 0.001 + i) * 0.3;
                         });
+                    };
 
-                        controls.update();
-                        renderer.render(scene, camera);
-                    }
-                    animate();
+                    controls.target.set(0, 1, 0);
+                    controls.update();
 
                     return { scene, camera };
                 };
@@ -332,16 +342,12 @@ struct ThreeJSLibrary: Library3D {
                     const particles = new THREE.Points(geometry, material);
                     scene.add(particles);
 
-                    // Animation
-                    function animate() {
-                        requestAnimationFrame(animate);
-
+                    // Animation function (called by global render loop)
+                    scene.userData.animate = function() {
                         particles.rotation.y += 0.001;
+                    };
 
-                        controls.update();
-                        renderer.render(scene, camera);
-                    }
-                    animate();
+                    controls.update();
 
                     return { scene, camera };
                 };
@@ -401,10 +407,8 @@ struct ThreeJSLibrary: Library3D {
                     const mesh = new THREE.Mesh(geometry, material);
                     scene.add(mesh);
 
-                    // Animation
-                    function animate() {
-                        requestAnimationFrame(animate);
-
+                    // Animation function (called by global render loop)
+                    scene.userData.animate = function() {
                         const time = Date.now() * 0.001;
 
                         // Morph between shapes
@@ -413,11 +417,9 @@ struct ThreeJSLibrary: Library3D {
 
                         mesh.rotation.x = time * 0.2;
                         mesh.rotation.y = time * 0.3;
+                    };
 
-                        controls.update();
-                        renderer.render(scene, camera);
-                    }
-                    animate();
+                    controls.update();
 
                     return { scene, camera };
                 };
@@ -512,10 +514,8 @@ struct ThreeJSLibrary: Library3D {
                     window.addEventListener('mousemove', onMouseMove);
                     window.addEventListener('click', onClick);
 
-                    // Animation
-                    function animate() {
-                        requestAnimationFrame(animate);
-
+                    // Animation function (called by global render loop)
+                    scene.userData.animate = function() {
                         spheres.forEach(sphere => {
                             // Smooth scale transition
                             sphere.scale.lerp(
@@ -529,11 +529,9 @@ struct ThreeJSLibrary: Library3D {
 
                             sphere.rotation.y += 0.01;
                         });
+                    };
 
-                        controls.update();
-                        renderer.render(scene, camera);
-                    }
-                    animate();
+                    controls.update();
 
                     return { scene, camera };
                 };
@@ -578,10 +576,8 @@ struct ThreeJSLibrary: Library3D {
                         knots.push(knot);
                     }
 
-                    // Animation
-                    function animate() {
-                        requestAnimationFrame(animate);
-
+                    // Animation function (called by global render loop)
+                    scene.userData.animate = function() {
                         const time = Date.now() * 0.001;
 
                         knots.forEach((knot, i) => {
@@ -589,11 +585,9 @@ struct ThreeJSLibrary: Library3D {
                             knot.rotation.y = time * (0.2 + i * 0.1);
                             knot.position.y = Math.sin(time + i * 2) * 1.5;
                         });
+                    };
 
-                        controls.update();
-                        renderer.render(scene, camera);
-                    }
-                    animate();
+                    controls.update();
 
                     return { scene, camera };
                 };
@@ -659,10 +653,8 @@ struct ThreeJSLibrary: Library3D {
                     const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
                     scene.add(gridHelper);
 
-                    // Animation
-                    function animate() {
-                        requestAnimationFrame(animate);
-
+                    // Animation function (called by global render loop)
+                    scene.userData.animate = function() {
                         const time = Date.now() * 0.001;
 
                         objects.forEach((obj, i) => {
@@ -674,11 +666,9 @@ struct ThreeJSLibrary: Library3D {
 
                             obj.position.y = Math.sin(time + i * 1.5) * 1.5;
                         });
+                    };
 
-                        controls.update();
-                        renderer.render(scene, camera);
-                    }
-                    animate();
+                    controls.update();
 
                     return { scene, camera };
                 };
@@ -727,10 +717,8 @@ struct ThreeJSLibrary: Library3D {
                     const positionAttribute = geometry.getAttribute('position');
                     const originalPositions = positionAttribute.array.slice();
 
-                    // Animation
-                    function animate() {
-                        requestAnimationFrame(animate);
-
+                    // Animation function (called by global render loop)
+                    scene.userData.animate = function() {
                         const time = Date.now() * 0.001;
 
                         for (let i = 0; i < positionAttribute.count; i++) {
@@ -748,11 +736,9 @@ struct ThreeJSLibrary: Library3D {
 
                         pointLight.position.x = Math.sin(time) * 5;
                         pointLight.position.z = Math.cos(time) * 5;
+                    };
 
-                        controls.update();
-                        renderer.render(scene, camera);
-                    }
-                    animate();
+                    controls.update();
 
                     return { scene, camera };
                 };
@@ -808,10 +794,8 @@ struct ThreeJSLibrary: Library3D {
                     centerLight.position.set(0, 0, -20);
                     scene.add(centerLight);
 
-                    // Animation
-                    function animate() {
-                        requestAnimationFrame(animate);
-
+                    // Animation function (called by global render loop)
+                    scene.userData.animate = function() {
                         const time = Date.now() * 0.001;
 
                         rings.forEach((ring, i) => {
@@ -825,11 +809,9 @@ struct ThreeJSLibrary: Library3D {
                         });
 
                         centerLight.intensity = 2 + Math.sin(time * 4) * 1;
+                    };
 
-                        controls.update();
-                        renderer.render(scene, camera);
-                    }
-                    animate();
+                    controls.update();
 
                     return { scene, camera };
                 };
@@ -907,14 +889,13 @@ struct ThreeJSLibrary: Library3D {
                         opacity: 0.3
                     });
 
-                    // Physics simulation
+                    // Physics simulation constants
                     const gravity = -0.015;
                     const damping = 0.98;
                     const bounds = 9;
 
-                    function animate() {
-                        requestAnimationFrame(animate);
-
+                    // Animation function (called by global render loop)
+                    scene.userData.animate = function() {
                         spheres.forEach(sphere => {
                             // Apply gravity
                             sphere.userData.velocity.y += gravity;
@@ -946,11 +927,9 @@ struct ThreeJSLibrary: Library3D {
                             sphere.rotation.x += sphere.userData.velocity.length();
                             sphere.rotation.y += sphere.userData.velocity.length();
                         });
+                    };
 
-                        controls.update();
-                        renderer.render(scene, camera);
-                    }
-                    animate();
+                    controls.update();
 
                     return { scene, camera };
                 };

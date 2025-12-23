@@ -39,6 +39,29 @@ class KeyboardObserver: ObservableObject {
     }
 }
 
+// MARK: - m{ai}geXR Brand Component
+struct MaigeXRBrandText: View {
+    let isActive: Bool
+    let fontSize: CGFloat
+
+    init(isActive: Bool, fontSize: CGFloat = 10) {
+        self.isActive = isActive
+        self.fontSize = fontSize
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Text("m")
+                .foregroundColor(isActive ? .neonCyan : .cyberpunkGray)
+            Text("{ai}")
+                .foregroundColor(isActive ? .neonPink : .cyberpunkGray.opacity(0.7))
+            Text("geXR")
+                .foregroundColor(isActive ? .neonCyan : .cyberpunkGray)
+        }
+        .font(.system(size: fontSize, weight: .medium, design: .rounded))
+    }
+}
+
 struct ContentView: View {
     @StateObject private var chatViewModel = ChatViewModel()
     @StateObject private var conversationStorage = ConversationStorageManager()
@@ -1202,6 +1225,28 @@ struct ContentView: View {
                             .background(Color.black.opacity(0.7))
                             .cornerRadius(12)
                         }
+
+                        // Screenshot button (floating in top-right corner)
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Button(action: captureSceneScreenshot) {
+                                    Image(systemName: "camera.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                        .frame(width: 50, height: 50)
+                                        .glassEffect(
+                                            tintColor: .cyberpunkDarkGray,
+                                            opacity: 0.8,
+                                            cornerRadius: 25,
+                                            borderColor: .neonCyan
+                                        )
+                                }
+                                .padding(.top, 16)
+                                .padding(.trailing, 16)
+                            }
+                            Spacer()
+                        }
                     }
         }
     }
@@ -1224,10 +1269,8 @@ struct ContentView: View {
                 }) {
                     VStack(spacing: 4) {
                         Image(systemName: currentView == .chat ? "bubble.left.fill" : "bubble.left")
-                        Text("Code")
-                            .font(.caption)
+                        MaigeXRBrandText(isActive: currentView == .chat)
                     }
-                    .foregroundColor(currentView == .chat ? .neonCyan : .cyberpunkGray)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                 }
@@ -1470,6 +1513,11 @@ struct ContentView: View {
             }
         case "codeRun":
             print("Scene execution completed")
+            // Auto-capture screenshot after 5 seconds (like Android implementation)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                print("📸 Auto-capturing screenshot 5 seconds after code execution...")
+                self.captureSceneScreenshotAuto()
+            }
         case "codeInserted":
             if let code = data["code"] as? String {
                 print("Code inserted: \(code)")
@@ -1926,6 +1974,89 @@ struct ContentView: View {
         print("💾 Saving ContentView settings...")
         UserDefaults.standard.set(useSandpackForR3F, forKey: "XRAiAssistant_UseSandpackForR3F")
         print("✅ Sandpack setting saved: \(useSandpackForR3F)")
+    }
+
+    // MARK: - Screenshot Capture
+
+    /// Captures a screenshot of the current 3D scene from the WebView
+    private func captureSceneScreenshot() {
+        guard let webView = webView else {
+            print("⚠️ Cannot capture screenshot - WebView not available")
+            return
+        }
+
+        print("📸 Capturing scene screenshot...")
+
+        // Create a snapshot configuration
+        let config = WKSnapshotConfiguration()
+        config.rect = CGRect(origin: .zero, size: webView.bounds.size)
+
+        // Take snapshot
+        webView.takeSnapshot(with: config) { image, error in
+            if let error = error {
+                print("❌ Screenshot capture failed: \(error.localizedDescription)")
+                return
+            }
+
+            guard let image = image else {
+                print("❌ Screenshot capture returned nil image")
+                return
+            }
+
+            print("✅ Screenshot captured successfully (\(Int(image.size.width))x\(Int(image.size.height)))")
+
+            // Save to photo library
+            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+
+            // TODO: Add screenshot to conversation history
+            // This would require extending the ConversationModels to support image attachments
+
+            print("💾 Screenshot saved to Photos")
+        }
+    }
+
+    /// Automatically captures screenshot using JavaScript canvas.toDataURL (for conversation history)
+    private func captureSceneScreenshotAuto() {
+        guard let webView = webView else {
+            print("⚠️ Cannot capture auto-screenshot - WebView not available")
+            return
+        }
+
+        print("")
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print("📸 AUTO-CAPTURING CANVAS SCREENSHOT")
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        let captureJS = """
+        (function() {
+            if (typeof captureCanvasScreenshot === 'function') {
+                console.log("📸 Calling captureCanvasScreenshot...");
+                return captureCanvasScreenshot();
+            } else {
+                console.error("❌ captureCanvasScreenshot function not found");
+                return null;
+            }
+        })();
+        """
+
+        webView.evaluateJavaScript(captureJS) { result, error in
+            if let error = error {
+                print("❌ Auto-screenshot capture failed: \(error.localizedDescription)")
+                return
+            }
+
+            guard let base64String = result as? String, !base64String.isEmpty else {
+                print("❌ Auto-screenshot returned empty result")
+                return
+            }
+
+            print("✅ Auto-screenshot captured: \(base64String.count) characters")
+
+            // TODO: Save to conversation history like Android
+            // For now, just log success
+            print("💾 Screenshot ready for conversation history integration")
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        }
     }
 
     private func loadContentViewSettings() {

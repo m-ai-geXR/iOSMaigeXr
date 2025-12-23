@@ -987,10 +987,24 @@
                 const canvasHeight = canvas.clientHeight || 600;
                 renderer.setSize(canvasWidth, canvasHeight);
                 renderer.setPixelRatio(window.devicePixelRatio);
+
+                // Shadow mapping for realistic shadows
                 renderer.shadowMap.enabled = true;
                 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-                
+
+                // Tone mapping for proper HDR and bloom effects
+                renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                renderer.toneMappingExposure = 1.0;
+
+                // Output encoding for proper color space
+                renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+                // VISUAL DEBUGGING: Set bright magenta background to verify rendering
+                renderer.setClearColor(0xff00ff, 1.0); // Bright magenta - impossible to miss!
+
                 console.log('✅ Three.js renderer created successfully:', canvasWidth + 'x' + canvasHeight);
+                console.log('✅ Tone mapping: ACESFilmic, Exposure: 1.0, Color space: sRGB');
+                console.log('🎨 DEBUG: Clear color set to BRIGHT MAGENTA (0xff00ff) for visibility test');
                 
                 // Test renderer capabilities
                 const gl = renderer.getContext();
@@ -1094,6 +1108,15 @@
                     console.log('🎬 Render loop active, frame:', frameCount, 'scene children:', scene?.children?.length || 0);
                 }
 
+                // VISUAL DEBUG: Force clear and render test every 120 frames
+                if (frameCount % 120 === 0 && renderer) {
+                    console.log('🎨 DEBUG: Forcing manual clear and render test...');
+                    renderer.clear();
+                    if (scene && camera) {
+                        renderer.render(scene, camera);
+                    }
+                }
+
                 controls.update();
 
                 // Execute any scene animations
@@ -1124,55 +1147,48 @@
         }
         
         function getDefaultCode() {
-            return `// Welcome to Three.js Playground!
-// Create your 3D scene using Three.js r160+
+            return `// 🎨 VISUAL DEBUG TEST - Three.js Playground
+// If you can see a BRIGHT GREEN SPINNING CUBE, rendering is working!
 
 const createScene = () => {
-    // Create scene
+    // Create scene with DARK background (so green cube stands out)
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x606060); // Even lighter background for better visibility
-    
-    // Create camera (use canvas dimensions for proper aspect ratio)
+    scene.background = new THREE.Color(0x000000); // Pure black background
+
+    // Create camera
     const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
-    camera.position.set(0, 5, 10);
-    
-    // Lighting - Enhanced for better visibility
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.8); // Increased ambient intensity
+    camera.position.set(0, 0, 5); // Close to the cube for visibility
+
+    // BRIGHT ambient light (no shadows needed for debug)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); // Very bright white light
     scene.add(ambientLight);
-    
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); // Full intensity
-    directionalLight.position.set(10, 10, 5);
-    scene.add(directionalLight);
-    
-    // Add point light for additional illumination
-    const pointLight = new THREE.PointLight(0xffffff, 0.5, 50);
-    pointLight.position.set(-10, 10, -10);
-    scene.add(pointLight);
-    
-    // Create geometry and material
-    const geometry = new THREE.SphereGeometry(1, 32, 32);
-    const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
-    const sphere = new THREE.Mesh(geometry, material);
-    sphere.position.y = 1;
-    scene.add(sphere);
-    
-    // Create ground
-    const groundGeometry = new THREE.PlaneGeometry(10, 10);
-    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    scene.add(ground);
-    
+
+    // 🟢 DEBUG TEST CUBE - BRIGHT GREEN, IMPOSSIBLE TO MISS
+    const geometry = new THREE.BoxGeometry(2, 2, 2); // Large cube
+    const material = new THREE.MeshBasicMaterial({
+        color: 0x00ff00, // BRIGHT GREEN
+        wireframe: false  // Solid cube
+    });
+    const cube = new THREE.Mesh(geometry, material);
+    scene.add(cube);
+
+    // Add simple rotation animation
+    scene.userData.animate = function() {
+        cube.rotation.x += 0.01;
+        cube.rotation.y += 0.01;
+    };
+
     // Set up controls
     controls.target.set(0, 0, 0);
     controls.update();
-    
-    console.log("Scene created with camera:", !!camera, "objects:", scene.children.length);
-    
+
+    console.log("🟢 DEBUG SCENE: Green spinning cube created");
+    console.log("Scene objects:", scene.children.length);
+
     return { scene, camera };
 };
 
-// Execute the scene creation and update global references
+// Execute the scene creation
 const sceneResult = createScene();
 if (sceneResult && sceneResult.scene) {
     window.scene = sceneResult.scene;
@@ -1183,7 +1199,7 @@ if (sceneResult && sceneResult.camera) {
     camera = sceneResult.camera;
 }
 
-console.log("✅ Default scene creation complete!");`;
+console.log("✅ DEBUG scene ready - Look for BRIGHT GREEN spinning cube!");`;
         }
         
         function createDefaultScene() {
@@ -1490,7 +1506,91 @@ console.log("✅ Default scene creation complete!");`;
             // Open Three.js documentation in Safari
             window.location.href = 'https://threejs.org/docs/';
         }
-        
+
+        // Canvas Screenshot Capture (for auto-save to conversation history)
+        function captureCanvasScreenshot() {
+            console.log('📸 captureCanvasScreenshot called');
+
+            try {
+                const canvas = document.getElementById('renderCanvas');
+                if (!canvas) {
+                    console.error('❌ Canvas not found for screenshot');
+                    return null;
+                }
+
+                console.log('✅ Canvas found, capturing screenshot...');
+
+                // Convert canvas to base64 data URL
+                const dataURL = canvas.toDataURL('image/png');
+
+                // Extract base64 data (remove "data:image/png;base64," prefix)
+                const base64Data = dataURL.split(',')[1];
+
+                console.log(`✅ Screenshot captured: ${base64Data.length} characters`);
+                return base64Data;
+            } catch (error) {
+                console.error('❌ Screenshot capture failed:', error);
+                return null;
+            }
+        }
+
+        // Make screenshot function globally available
+        window.captureCanvasScreenshot = captureCanvasScreenshot;
+
+        // Canvas Visibility Diagnostic (for debugging rendering issues)
+        function diagnoseCanvasVisibility() {
+            const canvas = document.getElementById('renderCanvas');
+            const canvasContainer = document.getElementById('canvasContainer');
+
+            console.log('');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🔍 CANVAS VISIBILITY DIAGNOSTIC');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+            if (!canvas) {
+                console.error('❌ Canvas element not found!');
+                return;
+            }
+
+            const styles = window.getComputedStyle(canvas);
+            const containerStyles = canvasContainer ? window.getComputedStyle(canvasContainer) : null;
+
+            console.log('📊 Canvas Properties:');
+            console.log('  - Client dimensions:', canvas.clientWidth + 'x' + canvas.clientHeight);
+            console.log('  - Offset dimensions:', canvas.offsetWidth + 'x' + canvas.offsetHeight);
+            console.log('  - Display:', styles.display);
+            console.log('  - Visibility:', styles.visibility);
+            console.log('  - Opacity:', styles.opacity);
+            console.log('  - Z-index:', styles.zIndex);
+            console.log('  - Position:', styles.position);
+
+            if (containerStyles) {
+                console.log('📊 Container Properties:');
+                console.log('  - Width:', containerStyles.width);
+                console.log('  - Display:', containerStyles.display);
+                console.log('  - Has editor-open class:', canvasContainer.classList.contains('editor-open'));
+            }
+
+            if (renderer) {
+                const size = renderer.getSize(new THREE.Vector2());
+                console.log('📊 Renderer Properties:');
+                console.log('  - Renderer size:', size.x + 'x' + size.y);
+                console.log('  - Pixel ratio:', renderer.getPixelRatio());
+                console.log('  - WebGL context:', !!renderer.getContext());
+            }
+
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('');
+        }
+
+        // Make diagnostic function globally available
+        window.diagnoseCanvasVisibility = diagnoseCanvasVisibility;
+
+        // Run diagnostic on load
+        setTimeout(() => {
+            diagnoseCanvasVisibility();
+        }, 2000);
+
         function initFloatingConsole() {
             const consoleWindow = document.getElementById('consoleWindow');
             const titleBar = document.getElementById('consoleTitleBar');
