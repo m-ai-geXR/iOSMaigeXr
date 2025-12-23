@@ -41,8 +41,9 @@ struct Conversation: Identifiable, Codable, Equatable {
     var updatedAt: Date
     var library3DID: String? // Associated 3D library for context
     var modelUsed: String? // AI model used in this conversation
+    var screenshotBase64: String? // Scene screenshot thumbnail (base64-encoded JPEG)
 
-    init(id: UUID = UUID(), title: String, messages: [EnhancedChatMessage] = [], createdAt: Date = Date(), updatedAt: Date = Date(), library3DID: String? = nil, modelUsed: String? = nil) {
+    init(id: UUID = UUID(), title: String, messages: [EnhancedChatMessage] = [], createdAt: Date = Date(), updatedAt: Date = Date(), library3DID: String? = nil, modelUsed: String? = nil, screenshotBase64: String? = nil) {
         self.id = id
         self.title = title
         self.messages = messages
@@ -50,6 +51,7 @@ struct Conversation: Identifiable, Codable, Equatable {
         self.updatedAt = updatedAt
         self.library3DID = library3DID
         self.modelUsed = modelUsed
+        self.screenshotBase64 = screenshotBase64
     }
 
     // Auto-generate title from first user message
@@ -272,5 +274,44 @@ class ConversationStorageManager: ObservableObject {
 
     func getConversationsByModel(_ modelName: String) -> [Conversation] {
         return conversations.filter { $0.modelUsed == modelName }
+    }
+
+    // MARK: - Screenshot Management
+
+    /// Update conversation with screenshot thumbnail
+    /// Called after 3D scene renders and screenshot is captured from WebView canvas
+    func updateConversationScreenshot(conversationId: UUID, screenshotBase64: String) {
+        guard var conversation = getConversation(id: conversationId) else {
+            print("⚠️ Cannot update screenshot: Conversation \(conversationId) not found")
+            return
+        }
+
+        // Update screenshot field
+        conversation.screenshotBase64 = screenshotBase64
+        conversation.updatedAt = Date()
+
+        // Update in array
+        if let index = conversations.firstIndex(where: { $0.id == conversationId }) {
+            conversations[index] = conversation
+
+            // Move to top (most recent)
+            let removed = conversations.remove(at: index)
+            conversations.insert(removed, at: 0)
+        }
+
+        // Persist to database
+        if useSQLite {
+            Task {
+                do {
+                    try await db.saveConversation(conversation)
+                    print("✅ Screenshot saved for conversation: \(conversationId)")
+                    print("📊 Screenshot size: \(screenshotBase64.count) characters")
+                } catch {
+                    print("❌ Failed to save screenshot: \(error)")
+                }
+            }
+        } else {
+            saveConversationsUserDefaults()
+        }
     }
 }

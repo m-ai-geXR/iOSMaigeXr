@@ -158,6 +158,18 @@ class DatabaseManager: ObservableObject {
             print("✅ Migration v2_rag_tables completed")
         }
 
+        // v3: Add screenshot support to conversations
+        migrator.registerMigration("v3_conversation_screenshots") { db in
+            print("🔄 Running migration: v3_conversation_screenshots")
+
+            // Add screenshot column to conversations table
+            try db.alter(table: "conversations") { t in
+                t.add(column: "screenshot_base64", .text)
+            }
+
+            print("✅ Migration v3_conversation_screenshots completed")
+        }
+
         return migrator
     }
 
@@ -268,15 +280,16 @@ class DatabaseManager: ObservableObject {
 
             try db.execute(
                 sql: """
-                INSERT INTO conversations (id, title, library_3d_id, model_used, created_at, updated_at, is_archived, metadata)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO conversations (id, title, library_3d_id, model_used, created_at, updated_at, is_archived, metadata, screenshot_base64)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     library_3d_id = excluded.library_3d_id,
                     model_used = excluded.model_used,
                     updated_at = excluded.updated_at,
                     is_archived = excluded.is_archived,
-                    metadata = excluded.metadata
+                    metadata = excluded.metadata,
+                    screenshot_base64 = excluded.screenshot_base64
                 """,
                 arguments: [
                     conversation.id.uuidString,
@@ -286,7 +299,8 @@ class DatabaseManager: ObservableObject {
                     conversation.createdAt,
                     conversation.updatedAt,
                     false,
-                    metadataJSON != nil ? String(data: metadataJSON!, encoding: .utf8) : nil
+                    metadataJSON != nil ? String(data: metadataJSON!, encoding: .utf8) : nil,
+                    conversation.screenshotBase64
                 ]
             )
 
@@ -346,6 +360,7 @@ class DatabaseManager: ObservableObject {
                 let updatedAt: Date = row["updated_at"]
                 let library3DID: String? = row["library_3d_id"]
                 let modelUsed: String? = row["model_used"]
+                let screenshotBase64: String? = row["screenshot_base64"]
 
                 // Load messages for this conversation
                 let messages = try loadMessages(for: conversationId, db: db)
@@ -357,7 +372,8 @@ class DatabaseManager: ObservableObject {
                     createdAt: createdAt,
                     updatedAt: updatedAt,
                     library3DID: library3DID,
-                    modelUsed: modelUsed
+                    modelUsed: modelUsed,
+                    screenshotBase64: screenshotBase64
                 )
 
                 conversations.append(conversation)

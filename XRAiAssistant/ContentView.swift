@@ -2052,9 +2052,18 @@ struct ContentView: View {
 
             print("✅ Auto-screenshot captured: \(base64String.count) characters")
 
-            // TODO: Save to conversation history like Android
-            // For now, just log success
-            print("💾 Screenshot ready for conversation history integration")
+            // Save screenshot to current conversation (like Android implementation)
+            // Find the most recent conversation (newly created or updated)
+            if let latestConversation = self.conversationStorage.conversations.first {
+                print("💾 Saving screenshot to conversation: \(latestConversation.id)")
+                self.conversationStorage.updateConversationScreenshot(
+                    conversationId: latestConversation.id,
+                    screenshotBase64: base64String
+                )
+            } else {
+                print("⚠️ No conversations found - screenshot not saved")
+            }
+
             print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         }
     }

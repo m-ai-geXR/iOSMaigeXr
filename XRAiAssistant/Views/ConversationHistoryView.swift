@@ -114,40 +114,46 @@ struct ConversationRowView: View {
     let conversation: Conversation
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Title
-            Text(conversation.title)
-                .font(.headline)
-                .lineLimit(2)
+        HStack(alignment: .center, spacing: 12) {
+            // Screenshot thumbnail (left side - matching Android implementation)
+            ConversationThumbnailView(screenshotBase64: conversation.screenshotBase64)
 
-            // Preview of first AI response
-            if let firstAIMessage = conversation.messages.first(where: { !$0.isUser }) {
-                Text(firstAIMessage.content)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+            // Content
+            VStack(alignment: .leading, spacing: 8) {
+                // Title
+                Text(conversation.title)
+                    .font(.headline)
                     .lineLimit(2)
-            }
 
-            // Metadata
-            HStack(spacing: 12) {
-                Label(relativeDateString(from: conversation.updatedAt), systemImage: "clock")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                Label("\(conversation.messages.count)", systemImage: "bubble.left.and.bubble.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                if let library = conversation.library3DID {
-                    Text(library)
-                        .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.blue.opacity(0.2))
-                        .cornerRadius(4)
+                // Preview of first AI response
+                if let firstAIMessage = conversation.messages.first(where: { !$0.isUser }) {
+                    Text(firstAIMessage.content)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
                 }
 
-                Spacer()
+                // Metadata
+                HStack(spacing: 12) {
+                    Label(relativeDateString(from: conversation.updatedAt), systemImage: "clock")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Label("\(conversation.messages.count)", systemImage: "bubble.left.and.bubble.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    if let library = conversation.library3DID {
+                        Text(library)
+                            .font(.caption)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.blue.opacity(0.2))
+                            .cornerRadius(4)
+                    }
+
+                    Spacer()
+                }
             }
         }
         .padding(.vertical, 4)
@@ -157,6 +163,66 @@ struct ConversationRowView: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+// MARK: - Conversation Thumbnail View
+struct ConversationThumbnailView: View {
+    let screenshotBase64: String?
+
+    var body: some View {
+        Group {
+            if let base64String = screenshotBase64, let uiImage = decodeBase64ToUIImage(base64String) {
+                // Display screenshot thumbnail
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 80, height: 80)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.neonCyan, lineWidth: 1.5)
+                    )
+                    .neonGlow(color: .neonCyan, radius: 4)
+            } else {
+                // Placeholder icon when no screenshot
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.cyberpunkDarkGray.opacity(0.3))
+                        .frame(width: 80, height: 80)
+
+                    Image(systemName: "photo")
+                        .font(.system(size: 32))
+                        .foregroundColor(.neonCyan.opacity(0.5))
+                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.neonCyan.opacity(0.5), lineWidth: 1.5)
+                )
+            }
+        }
+    }
+
+    /// Decode base64 string to UIImage (matching Android's Base64.decode)
+    private func decodeBase64ToUIImage(_ base64String: String) -> UIImage? {
+        // Remove data URL prefix if present (like Android implementation)
+        var cleanedBase64 = base64String
+            .replacingOccurrences(of: "data:image/jpeg;base64,", with: "")
+            .replacingOccurrences(of: "data:image/png;base64,", with: "")
+
+        // Decode base64 to Data
+        guard let imageData = Data(base64Encoded: cleanedBase64) else {
+            print("⚠️ Failed to decode screenshot base64")
+            return nil
+        }
+
+        // Create UIImage from data
+        guard let image = UIImage(data: imageData) else {
+            print("⚠️ Failed to create UIImage from screenshot data")
+            return nil
+        }
+
+        return image
     }
 }
 
