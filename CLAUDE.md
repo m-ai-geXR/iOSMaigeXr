@@ -1,8 +1,8 @@
-# CLAUDE.md - iOS XRAiAssistant
+# CLAUDE.md - iOS m{ai}geXR
 
-This file provides guidance to Claude Code (claude.ai/code) when working with the iOS implementation of XRAiAssistant.
+This file provides guidance to Claude Code (claude.ai/code) when working with the iOS implementation of m{ai}geXR.
 
-**XRAiAssistant iOS** is an AI-powered Extended Reality development platform that combines Babylon.js, Together AI, React Three Fiber, and native iOS development into the ultimate mobile XR development environment with advanced AI assistance capabilities.
+**m{ai}geXR iOS** is an AI-powered Extended Reality development platform that combines Babylon.js, Together AI, React Three Fiber, and native iOS development into the ultimate mobile XR development environment with advanced AI assistance capabilities.
 
 > **The Ultimate Mobile XR Development Environment for iOS**
 > Democratizing 3D and Extended Reality development through conversational AI assistance, professional parameter control, and privacy-first architecture.
@@ -116,10 +116,10 @@ xcodebuild -project XRAiAssistant.xcodeproj \
 
 ## 📱 iOS Project Structure
 
-### Main Application (`XRAiAssistant/`)
+### Main Application (`m{ai}geXR/`)
 ```
-XRAiAssistant/
-├── XRAiAssistant.swift              # App entry point
+m{ai}geXR/
+├── m{ai}geXR.swift                  # App entry point
 ├── ContentView.swift                # Main UI with bottom navigation
 ├── ChatViewModel.swift              # AI integration + state management (LEGACY)
 ├── AIProviders/                     # NEW: Multi-provider system
@@ -139,7 +139,7 @@ XRAiAssistant/
 ├── SecureCodeSandboxService.swift   # CodeSandbox integration
 └── Resources/                       # Assets and embedded HTML
 
-XRAiAssistantTests/
+m{ai}geXRTests/
 ├── ChatViewModelTests.swift         # AI integration tests
 ├── CodeSandboxIntegrationTests.swift # Sandbox tests
 └── SecureCodeSandboxServiceTests.swift
@@ -462,7 +462,7 @@ init() {
 ### Test Coverage
 
 **Unit Tests**:
-- [ChatViewModelTests.swift](XRAiAssistantTests/ChatViewModelTests.swift) - AI integration tests
+- [ChatViewModelTests.swift](m{ai}geXRTests/ChatViewModelTests.swift) - AI integration tests
 - SecureCodeSandboxServiceTests.swift - Sandbox API tests
 
 **Integration Tests**:
@@ -474,8 +474,8 @@ init() {
 ```bash
 # Build and test
 xcodebuild test \
-  -project XRAiAssistant.xcodeproj \
-  -scheme XRAiAssistant \
+  -project m{ai}geXR.xcodeproj \
+  -scheme m{ai}geXR \
   -sdk iphonesimulator \
   -destination 'platform=iOS Simulator,name=iPad Air 11-inch (M3)'
 ```
@@ -536,8 +536,8 @@ At the end of EVERY coding session, verify the project builds:
 
 ```bash
 # Quick build check (no code signing)
-xcodebuild -project XRAiAssistant.xcodeproj \
-  -scheme XRAiAssistant \
+xcodebuild -project m{ai}geXR.xcodeproj \
+  -scheme m{ai}geXR \
   -configuration Debug \
   -sdk iphonesimulator \
   build \
@@ -562,7 +562,7 @@ xcodebuild -project XRAiAssistant.xcodeproj \
 ./scripts/xcode_recovery.sh
 
 # Then open Xcode to resolve packages
-open XRAiAssistant.xcodeproj
+open m{ai}geXR.xcodeproj
 ```
 
 ---
@@ -637,4 +637,4 @@ open XRAiAssistant.xcodeproj
 
 ---
 
-**XRAiAssistant iOS** - The future of AI-powered XR development 🚀
+**m{ai}geXR iOS** - The future of AI-powered XR development 🚀

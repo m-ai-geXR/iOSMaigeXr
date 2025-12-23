@@ -1,6 +1,6 @@
-# 🚀 XRAiAssistant - AI-Powered Extended Reality Development for iOS
+# 🚀 m{ai}geXR - AI-Powered Extended Reality Development for iOS
 
-> **The Ultimate Mobile XR Development Environment**  
+> **The Ultimate Mobile XR Development Environment**
 > Revolutionizing 3D and Extended Reality development by combining Babylon.js, Together AI, and native iOS into an AI-assisted creative platform.
 
 [![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
@@ -9,7 +9,7 @@
 [![Together AI](https://img.shields.io/badge/Together%20AI-Integrated-purple.svg)](https://together.ai)
 [![XR Ready](https://img.shields.io/badge/XR-Ready-brightgreen.svg)](https://www.babylonjs.com/community/)
 
-## 🌟 **What Makes XRAiAssistant Special**
+## 🌟 **What Makes m{ai}geXR Special**
 
 This isn't just another 3D playground—it's a **paradigm shift** toward AI-assisted Extended Reality development:
 
@@ -23,10 +23,10 @@ This isn't just another 3D playground—it's a **paradigm shift** toward AI-assi
 
 ## 🚨 **Important Setup Required**
 
-**⚠️ API Key Setup**: XRAiAssistant comes with `apiKey = "changeMe"` by default for security. You MUST configure your API key:
+**⚠️ API Key Setup**: m{ai}geXR comes with `apiKey = "changeMe"` by default for security. You MUST configure your API key:
 
 1. **Get your free Together AI API key**: Visit [together.ai](https://together.ai) and sign up
-2. **Open XRAiAssistant**: Launch the app on iOS Simulator or device
+2. **Open m{ai}geXR**: Launch the app on iOS Simulator or device
 3. **Open Settings**: Tap the gear icon in the bottom tab bar
 4. **Enter API Key**: Replace "changeMe" with your actual Together AI API key
 5. **Select Model**: Choose from 6+ available AI models (free options available)
@@ -105,9 +105,9 @@ class LocalRAGChatViewModel: ChatViewModel {
 
 ### 1. **Clone & Open**
 ```bash
-git clone https://github.com/your-repo/XRAiAssistant.git
-cd XRAiAssistant
-open XRAiAssistant.xcodeproj
+git clone https://github.com/m-ai-geXR/maigeXR.git
+cd maigeXR/iOSMaigeXr
+open m{ai}geXR.xcodeproj
 ```
 
 ### 2. **Get Your Together AI API Key** ⚠️ **REQUIRED**
@@ -116,7 +116,7 @@ open XRAiAssistant.xcodeproj
 3. Generate a new API key
 4. Copy the key (starts with `tgp_v1_...`)
 
-### 3. **Configure XRAiAssistant**
+### 3. **Configure m{ai}geXR**
 1. Build and run the app in Xcode (iOS Simulator or device)
 2. Tap the **Settings** icon (gear) in the bottom tab bar
 3. In "API Configuration" section, replace "changeMe" with your actual API key
@@ -234,20 +234,18 @@ AI: *Provides comprehensive explanation with working demo code showing controlle
 
 ---
 
-## ✅ **Project Successfully Renamed to XRAiAssistant**
+## ✅ **Project Successfully Rebranded to m{ai}geXR**
 
-**Complete Renaming Completed**: All project files and directories have been successfully renamed from "BabylonPlaygroundApp" to "XRAiAssistant":
+**Complete Rebranding Completed**: All project files and directories have been successfully updated to m{ai}geXR branding:
 
-### **What Was Renamed:**
-- ✅ Directory: `BabylonPlaygroundApp_New/` → `XRAiAssistant/`
-- ✅ Xcode Project: `BabylonPlaygroundApp.xcodeproj` → `XRAiAssistant.xcodeproj`
-- ✅ App Target: `BabylonPlaygroundApp` → `XRAiAssistant`
-- ✅ Swift App File: `BabylonPlaygroundApp.swift` → `XRAiAssistant.swift`
-- ✅ Test Target: `BabylonPlaygroundAppTests` → `XRAiAssistantTests`
-- ✅ Bundle ID: `com.example.XRAiAssistant`
+### **What Was Updated:**
+- ✅ Project branding: Now m{ai}geXR
+- ✅ Documentation: Updated to reflect new brand
+- ✅ All references: Consistent m{ai}geXR naming
+- ✅ Bundle ID: Updated to match organization
 - ✅ All project references and imports updated
 
-**Ready to Build**: Simply open `XRAiAssistant.xcodeproj` in Xcode and build!
+**Ready to Build**: Simply open `m{ai}geXR.xcodeproj` in Xcode and build!
 
 ---
 
@@ -299,7 +297,7 @@ We welcome contributions across multiple areas:
 
 ---
 
-## 🎯 **Why XRAiAssistant Matters**
+## 🎯 **Why m{ai}geXR Matters**
 
 This project represents a **fundamental shift** in how developers approach XR and 3D development:
 
@@ -323,6 +321,18 @@ This project represents a **fundamental shift** in how developers approach XR an
 
 ---
 
+## 📖 **Documentation**
+
+**Project Documentation:**
+- [README.md](README.md) - Project overview and setup guide
+- [CLAUDE.md](CLAUDE.md) - Comprehensive development guide for Claude Code AI
+- [docs/STYLING_PROGRESS.md](docs/STYLING_PROGRESS.md) - iOS branding implementation status
+
+**Android Parity:**
+The iOS app is being updated to match the Android app's neon cyberpunk branding. See STYLING_PROGRESS.md for current implementation status (85% complete).
+
+---
+
 ## 📚 **Learning Resources**
 
 ### **Getting Started**
@@ -336,9 +346,9 @@ This project represents a **fundamental shift** in how developers approach XR an
 - [Mobile XR Performance Optimization](https://developer.oculus.com/documentation/web/webxr-performance/)
 
 ### **Community**
-- **GitHub**: [github.com/your-repo/XRAiAssistant](https://github.com/your-repo/XRAiAssistant)
-- **Issues**: [Report bugs and request features](https://github.com/your-repo/XRAiAssistant/issues)
-- **Discussions**: [Join technical discussions](https://github.com/your-repo/XRAiAssistant/discussions)
+- **GitHub**: [github.com/m-ai-geXR/maigeXR](https://github.com/m-ai-geXR/maigeXR)
+- **Issues**: [Report bugs and request features](https://github.com/m-ai-geXR/maigeXR/issues)
+- **Discussions**: [Join technical discussions](https://github.com/m-ai-geXR/maigeXR/discussions)
 
 ---
 
@@ -371,6 +381,6 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ---
 
-**Ready to build the future of XR development?** [Get started now!](https://github.com/your-repo/XRAiAssistant) 🚀
+**Ready to build the future of XR development?** [Get started now!](https://github.com/m-ai-geXR/maigeXR) 🚀
 
 **Don't forget**: Replace `"changeMe"` with your Together AI API key! Get yours at [together.ai](https://together.ai) 🔑

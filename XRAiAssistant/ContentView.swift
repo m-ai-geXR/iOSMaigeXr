@@ -102,8 +102,12 @@ struct ContentView: View {
                             }
                         }
                     }
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.blue)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.neonPink)
+                    .cornerRadius(8)
+                    .neonButtonGlow(color: .neonPink)
                 }
             }
         }
@@ -116,28 +120,28 @@ struct ContentView: View {
                 providerAPIKeyView(
                     provider: "Together.ai",
                     description: "Get your API key from together.ai",
-                    color: .blue
+                    color: .neonBlue
                 )
-                
+
                 // OpenAI API Key
                 providerAPIKeyView(
                     provider: "OpenAI",
                     description: "Get your API key from platform.openai.com",
-                    color: .green
+                    color: .neonGreen
                 )
-                
+
                 // Anthropic API Key
                 providerAPIKeyView(
                     provider: "Anthropic",
                     description: "Get your API key from console.anthropic.com",
-                    color: .purple
+                    color: .neonPurple
                 )
 
                 // Google AI API Key
                 providerAPIKeyView(
                     provider: "Google AI",
                     description: "Get your API key from aistudio.google.com/apikey",
-                    color: .orange
+                    color: .warningNeon
                 )
 
                 // CodeSandbox API Key (Optional)
@@ -151,21 +155,28 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("\(provider) API Key")
                 .font(.headline)
-                .foregroundColor(.primary)
-            
+                .foregroundColor(color)
+
             SecureField("Enter your \(provider) API key", text: Binding(
                 get: { chatViewModel.getAPIKey(for: provider) },
                 set: { chatViewModel.setAPIKey(for: provider, key: $0) }
             ))
-            .textFieldStyle(RoundedBorderTextFieldStyle())
-            
+            .padding(12)
+            .background(Color.cyberpunkDarkGray)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(color, lineWidth: 1.5)
+            )
+            .neonInputGlow(color: color)
+
             HStack {
                 Text(description)
                     .font(.caption)
-                    .foregroundColor(.gray)
-                
+                    .foregroundColor(.cyberpunkGray)
+
                 Spacer()
-                
+
                 if chatViewModel.isProviderConfigured(provider) {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
@@ -177,16 +188,17 @@ struct ContentView: View {
                 } else {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
+                            .foregroundColor(.warningNeon)
                         Text("API key required")
                             .font(.caption)
-                            .foregroundColor(.orange)
+                            .foregroundColor(.warningNeon)
                     }
                 }
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 8)
+        .padding(16)
+        .background(Color.cyberpunkDarkGray)
+        .neonBorder(color: color, width: 1.5, glowRadius: 8)
         .background(color.opacity(0.05))
         .cornerRadius(8)
     }
@@ -376,28 +388,29 @@ struct ContentView: View {
             HStack {
                 Text("Temperature")
                     .font(.headline)
-                    .foregroundColor(.primary)
+                    .foregroundColor(.cyberpunkWhite)
                 Spacer()
                 Text("\(chatViewModel.temperature, specifier: "%.1f")")
                     .font(.subheadline)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.neonBlue)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(Color.blue.opacity(0.1))
+                    .background(Color.neonBlue.opacity(0.2))
                     .cornerRadius(6)
             }
-            
+
             Slider(value: $chatViewModel.temperature, in: 0.0...2.0, step: 0.1)
-                .accentColor(.blue)
-            
+                .accentColor(.neonBlue)
+                .neonCardGlow(color: .neonBlue)
+
             HStack {
                 Text("0.0 - Focused")
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(.cyberpunkGray)
                 Spacer()
                 Text("2.0 - Creative")
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(.cyberpunkGray)
             }
         }
     }
@@ -407,28 +420,29 @@ struct ContentView: View {
             HStack {
                 Text("Top-p (Nucleus Sampling)")
                     .font(.headline)
-                    .foregroundColor(.primary)
+                    .foregroundColor(.cyberpunkWhite)
                 Spacer()
                 Text("\(chatViewModel.topP, specifier: "%.1f")")
                     .font(.subheadline)
-                    .foregroundColor(.green)
+                    .foregroundColor(.neonGreen)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(Color.green.opacity(0.1))
+                    .background(Color.neonGreen.opacity(0.2))
                     .cornerRadius(6)
             }
-            
+
             Slider(value: $chatViewModel.topP, in: 0.1...1.0, step: 0.1)
-                .accentColor(.green)
-            
+                .accentColor(.neonGreen)
+                .neonCardGlow(color: .neonGreen)
+
             HStack {
                 Text("0.1 - Precise")
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(.cyberpunkGray)
                 Spacer()
                 Text("1.0 - Diverse")
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(.cyberpunkGray)
             }
             
             Text("Controls vocabulary diversity. Lower values focus on most likely words.")
@@ -1213,7 +1227,7 @@ struct ContentView: View {
                         Text("Code")
                             .font(.caption)
                     }
-                    .foregroundColor(currentView == .chat ? .blue : .gray)
+                    .foregroundColor(currentView == .chat ? .neonCyan : .cyberpunkGray)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                 }
@@ -1261,19 +1275,20 @@ struct ContentView: View {
                     VStack(spacing: 4) {
                         ZStack {
                             Image(systemName: currentView == .scene ? "play.circle.fill" : "play.circle")
-                            
+
                             // Show notification dot if code is ready
                             if !lastGeneratedCode.isEmpty && currentView != .scene {
                                 Circle()
-                                    .fill(Color.red)
+                                    .fill(Color.neonPink)
                                     .frame(width: 8, height: 8)
+                                    .shadow(color: .neonPinkGlow, radius: 4)
                                     .offset(x: 8, y: -8)
                             }
                         }
                         Text("Run Scene")
                             .font(.caption)
                     }
-                    .foregroundColor(currentView == .scene ? .green : (!lastGeneratedCode.isEmpty ? .blue : .gray))
+                    .foregroundColor(currentView == .scene ? .neonPink : (!lastGeneratedCode.isEmpty ? .neonCyan : .cyberpunkGray))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                 }
@@ -1314,11 +1329,12 @@ struct ContentView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(Color(.systemGray6))
+            .background(Color.cyberpunkBlack)
             .overlay(
                 Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(.gray.opacity(0.3)),
+                    .fill(Color.neonCyan)
+                    .frame(height: 2)
+                    .shadow(color: .neonCyanGlow, radius: 4, x: 0, y: 0),
                 alignment: .top
             )
             .onChange(of: showingSettings) { isShowing in

@@ -404,9 +404,10 @@ struct EnhancedChatView: View {
                     MarkdownMessageView(content: message.content, isUser: true)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(Color.blue)
+                        .background(Color.neonBlue.opacity(0.2))
                         .foregroundColor(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 18))
+                        .neonBorder(color: .neonBlue, width: 1, glowRadius: 6, cornerRadius: 18)
                         .frame(maxWidth: 600, alignment: .trailing)
 
                     Text(formatTime(message.timestamp))
@@ -418,9 +419,10 @@ struct EnhancedChatView: View {
                     MarkdownMessageView(content: message.content, isUser: false)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(Color(.systemGray5))
-                        .foregroundColor(.primary)
+                        .background(Color.cyberpunkDarkGray)
+                        .foregroundColor(.cyberpunkWhite)
                         .clipShape(RoundedRectangle(cornerRadius: 18))
+                        .neonBorder(color: .neonCyan, width: 1, glowRadius: 6, cornerRadius: 18)
                         .frame(maxWidth: 600, alignment: .leading)
 
                     // Timestamp and action buttons
@@ -447,7 +449,7 @@ struct EnhancedChatView: View {
                                     .font(.caption)
                                     .underline() // Make it look like a hyperlink
                             }
-                            .foregroundColor(extractCode(from: message.content) != nil ? .green : .orange)
+                            .foregroundColor(extractCode(from: message.content) != nil ? .neonGreen : .warningNeon)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
@@ -532,9 +534,10 @@ struct EnhancedChatView: View {
     private var loadingIndicator: some View {
         HStack {
             ProgressView()
+                .tint(.neonCyan)
             Text("Thinking...")
                 .font(.callout)
-                .foregroundColor(.secondary)
+                .foregroundColor(.neonCyan)
         }
         .padding()
     }
@@ -622,7 +625,14 @@ struct EnhancedChatView: View {
                 }
 
                 TextField("Type a message...", text: $inputText, axis: .vertical)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding(12)
+                    .background(Color.cyberpunkDarkGray)
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.neonCyan, lineWidth: 1.5)
+                    )
+                    .neonInputGlow(color: .neonCyan)
                     .submitLabel(.send)
                     .onSubmit {
                         sendMessage()
@@ -634,19 +644,23 @@ struct EnhancedChatView: View {
                         .font(.title3)
                         .foregroundColor(.white)
                         .frame(width: 44, height: 44)
-                        .background(inputText.isEmpty ? Color.gray : Color.blue)
-                        .clipShape(Circle())
+                        .background(
+                            Circle()
+                                .fill(inputText.isEmpty ? Color.cyberpunkDimGray : Color.neonPink)
+                        )
+                        .neonButtonGlow(color: inputText.isEmpty ? .clear : .neonPink)
                 }
                 .disabled(inputText.isEmpty || viewModel.isLoading)
             }
             .padding(.horizontal)
             .padding(.vertical, 12)
             .padding(.bottom, 0)
-            .background(Color(.systemBackground))
+            .background(Color.cyberpunkBlack)
             .overlay(
                 Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Color(.separator)),
+                    .fill(Color.neonCyan)
+                    .frame(height: 2)
+                    .shadow(color: .neonCyanGlow, radius: 4, x: 0, y: 0),
                 alignment: .top
             )
         }
