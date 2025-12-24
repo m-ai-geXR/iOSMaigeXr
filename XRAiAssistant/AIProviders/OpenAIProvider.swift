@@ -13,42 +13,71 @@ class OpenAIProvider: AIProvider {
         supportedImageFormats: ["image/jpeg", "image/png", "image/webp", "image/gif"],
         maxImageSize: 20 * 1024 * 1024,  // 20MB
         maxImagesPerMessage: 10,
-        maxTokens: 128_000  // GPT-4o context
+        maxTokens: 400_000  // GPT-5.2 context (400K tokens)
     )
 
     let models: [AIModel] = [
+        // GPT-5.2 Series (Latest - December 2025)
         AIModel(
-            id: "gpt-4o",
-            displayName: "GPT-4o",
-            description: "Most advanced GPT-4 model",
-            pricing: "$2.50/$10.00 per 1M tokens",
+            id: "gpt-5.2",
+            displayName: "GPT-5.2",
+            description: "Best model for coding and agentic tasks",
+            pricing: "$1.75/$14.00 per 1M tokens",
             provider: "OpenAI",
             isDefault: true,
             supportsVision: true
         ),
         AIModel(
-            id: "gpt-4o-mini",
-            displayName: "GPT-4o Mini",
-            description: "Fast and affordable smart model",
-            pricing: "$0.15/$0.60 per 1M tokens",
+            id: "gpt-5.2-pro",
+            displayName: "GPT-5.2 Pro",
+            description: "Smartest and most trustworthy - highest accuracy",
+            pricing: "Premium tier",
             provider: "OpenAI",
             supportsVision: true
         ),
         AIModel(
-            id: "gpt-4-turbo",
-            displayName: "GPT-4 Turbo",
-            description: "Previous flagship model",
-            pricing: "$10.00/$30.00 per 1M tokens",
+            id: "gpt-5.2-chat-latest",
+            displayName: "GPT-5.2 Chat (Latest)",
+            description: "Latest ChatGPT model with automatic updates",
+            pricing: "$1.75/$14.00 per 1M tokens",
+            provider: "OpenAI",
+            supportsVision: true
+        ),
+
+        // Reasoning Models (o-series)
+        AIModel(
+            id: "o1-2024-12-17",
+            displayName: "o1",
+            description: "Advanced reasoning model for complex problems",
+            pricing: "Premium tier",
             provider: "OpenAI",
             supportsVision: false
         ),
         AIModel(
-            id: "gpt-3.5-turbo",
-            displayName: "GPT-3.5 Turbo",
-            description: "Fast and cost-effective",
-            pricing: "$0.50/$1.50 per 1M tokens",
+            id: "o3-mini-2025-01-31",
+            displayName: "o3-mini",
+            description: "Latest reasoning model with enhanced reasoning abilities",
+            pricing: "Economy tier",
             provider: "OpenAI",
             supportsVision: false
+        ),
+
+        // GPT-4o Series (Still Supported)
+        AIModel(
+            id: "gpt-4o",
+            displayName: "GPT-4o",
+            description: "Versatile high-intelligence flagship model",
+            pricing: "$2.50/$10.00 per 1M tokens",
+            provider: "OpenAI",
+            supportsVision: true
+        ),
+        AIModel(
+            id: "gpt-4o-mini",
+            displayName: "GPT-4o Mini",
+            description: "Fast and affordable small model for focused tasks",
+            pricing: "$0.15/$0.60 per 1M tokens",
+            provider: "OpenAI",
+            supportsVision: true
         )
     ]
     

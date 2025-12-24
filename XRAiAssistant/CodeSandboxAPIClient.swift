@@ -362,6 +362,22 @@ class CodeSandboxAPIClient {
             }
         }
 
+        // Remove all THREE.* references (e.g., THREE.Vector3, THREE.Color, new THREE.Fog(), etc.)
+        // React Three Fiber is declarative and doesn't use THREE constructors
+        let threeUsagePatterns = [
+            #"new\s+THREE\.[A-Za-z0-9_]+\([^)]*\)"#,           // new THREE.Vector3(), new THREE.Color(), etc.
+            #"THREE\.[A-Z][A-Za-z0-9_]*"#,                     // THREE.Vector3, THREE.Color (class references)
+            #"THREE\.MathUtils\.[a-z][A-Za-z0-9_]*"#,          // THREE.MathUtils.degToRad, etc.
+        ]
+
+        for pattern in threeUsagePatterns {
+            let before = cleanedCode
+            cleanedCode = cleanedCode.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
+            if before != cleanedCode {
+                print("  ✂️ Removed THREE.* usage (React Three Fiber uses declarative JSX instead)")
+            }
+        }
+
         // Remove unused React imports (useRef, useState, useEffect, etc.) if they're not used
         // This prevents React bundler confusion
         if !cleanedCode.contains("useRef(") {

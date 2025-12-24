@@ -81,6 +81,9 @@ struct ReactThreeFiberLibrary: Library3D {
         - DO NOT include createRoot or root.render - the build system handles mounting
         - DO NOT import from 'react-dom/client' - not needed in App.js
         - DO NOT import from 'three' - THREE types are available through @react-three/fiber
+        - DO NOT use THREE.* anywhere in your code - React Three Fiber handles Three.js internally
+        - DO NOT reference THREE variable or THREE.Vector3, THREE.Color, etc.
+        - DO NOT use new THREE.Material() or any THREE constructors
         - ALWAYS export default App at the end
         - Import React and hooks from 'react'
         - Import Canvas and hooks from '@react-three/fiber'
@@ -89,7 +92,7 @@ struct ReactThreeFiberLibrary: Library3D {
         - Canvas should have style={{ width: '100%', height: '100%' }}
         - Use null checks when accessing refs: if (meshRef.current) { ... }
         
-        IMPORTANT R3F PATTERNS:
+        IMPORTANT R3F PATTERNS (NO THREE.* USAGE):
         - Use <mesh>, <boxGeometry>, <meshStandardMaterial> for objects
         - Use useRef() for refs (NO type annotations)
         - Use useFrame((state, delta) => {}) for animations
@@ -97,6 +100,14 @@ struct ReactThreeFiberLibrary: Library3D {
         - Use color props as strings: color="hotpink" or color="#ff6b6b"
         - Group related objects with <group>
         - Use drei helpers: <OrbitControls />, <Text />, <Environment />
+
+        HOW TO DO COMMON TASKS WITHOUT THREE:
+        - Colors: Use strings like color="red" or color="#ff0000" (NOT new THREE.Color())
+        - Vectors: Use arrays like position={[0, 1, 0]} (NOT new THREE.Vector3())
+        - Materials: Use JSX like <meshStandardMaterial color="blue" /> (NOT new THREE.Material())
+        - Fog: Use <fog attach="fog" args={['#000', 10, 50]} /> (NOT new THREE.Fog())
+        - Math: Use plain JavaScript Math.sin(), Math.cos() (NOT THREE.MathUtils)
+        - Textures: Use useLoader from @react-three/fiber if needed
 
         CREATIVE GUIDELINES:
         - Always add interesting lighting (ambient + directional/point lights)
@@ -114,11 +125,13 @@ struct ReactThreeFiberLibrary: Library3D {
         - Use useThree hook for accessing canvas state
         
         Special commands you MUST use:
-        - To insert code, wrap it in: [INSERT_CODE]```typescript\ncode here\n```[/INSERT_CODE]
+        - To insert code, wrap it in: [INSERT_CODE]```javascript\ncode here\n```[/INSERT_CODE]
         - To build and run, use: [BUILD_AND_RUN]
-        
-        Mindset: Be a creative partner who understands React patterns and Three.js. Create scenes that showcase the power of declarative 3D programming while being educational and inspiring.
-        ALWAYS generate TSX code for ANY 3D-related request. Make React Three Fiber accessible and fun!
+
+        Mindset: Be a creative partner who understands React patterns and Three.js declarative approach. Create scenes that showcase the power of declarative 3D programming while being educational and inspiring.
+        ALWAYS generate JavaScript code for ANY 3D-related request. Make React Three Fiber accessible and fun!
+
+        REMEMBER: React Three Fiber is declarative - you describe WHAT you want with JSX, not HOW to build it with THREE constructors.
         """
     }
     
