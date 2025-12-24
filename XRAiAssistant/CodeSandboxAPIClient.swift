@@ -303,6 +303,14 @@ class CodeSandboxAPIClient {
             print("  ✂️ Removed type annotations from variable declarations")
         }
 
+        // Remove TypeScript type assertions (as Type)
+        // Example: array as Float32Array → array
+        let beforeTypeAssertions = cleanedCode
+        cleanedCode = cleanedCode.replacingOccurrences(of: #"\s+as\s+[A-Z][a-zA-Z0-9<>\[\]]*"#, with: "", options: .regularExpression)
+        if cleanedCode != beforeTypeAssertions {
+            print("  ✂️ Removed TypeScript type assertions (as Type)")
+        }
+
         // Remove type annotations from function parameters
         // This handles ALL patterns including object literal types
         let beforeParamTypes = cleanedCode
@@ -337,9 +345,22 @@ class CodeSandboxAPIClient {
         cleanedCode = cleanedCode.replacingOccurrences(of: ": React.FC", with: "")
         cleanedCode = cleanedCode.replacingOccurrences(of: ": React.FC<", with: "")
 
-        // Remove THREE imports
-        cleanedCode = cleanedCode.replacingOccurrences(of: "import * as THREE from 'three'\n", with: "")
-        cleanedCode = cleanedCode.replacingOccurrences(of: "import * as THREE from \"three\"\n", with: "")
+        // Remove ALL THREE imports (correct and malformed)
+        // Handles: import * as THREE from 'three', import * from 'three' (malformed), import THREE from 'three'
+        let threeImportPatterns = [
+            #"import\s+\*\s+as\s+THREE\s+from\s+['"]three['"]\s*\n?"#,  // import * as THREE from 'three'
+            #"import\s+\*\s+from\s+['"]three['"]\s*\n?"#,                // import * from 'three' (MALFORMED - missing 'as')
+            #"import\s+THREE\s+from\s+['"]three['"]\s*\n?"#,             // import THREE from 'three'
+            #"import\s+\{\s*[^}]*\}\s+from\s+['"]three['"]\s*\n?"#       // import { ... } from 'three'
+        ]
+
+        for pattern in threeImportPatterns {
+            let before = cleanedCode
+            cleanedCode = cleanedCode.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
+            if before != cleanedCode {
+                print("  ✂️ Removed THREE import (pattern matched)")
+            }
+        }
 
         // Remove unused React imports (useRef, useState, useEffect, etc.) if they're not used
         // This prevents React bundler confusion

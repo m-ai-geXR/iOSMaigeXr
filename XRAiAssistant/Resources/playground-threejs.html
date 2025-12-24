@@ -1098,23 +1098,15 @@
         function startRenderLoop() {
             console.log('🎬 Starting Three.js render loop...');
             let frameCount = 0;
+            let composerLoggedOnce = false;
 
             function animate() {
                 animationId = requestAnimationFrame(animate);
                 frameCount++;
 
-                // Debug every 60 frames (about once per second at 60fps)
-                if (frameCount % 60 === 0) {
+                // Reduced debug logging: only every 300 frames (~5 seconds at 60fps)
+                if (frameCount % 300 === 0) {
                     console.log('🎬 Render loop active, frame:', frameCount, 'scene children:', scene?.children?.length || 0);
-                }
-
-                // VISUAL DEBUG: Force clear and render test every 120 frames
-                if (frameCount % 120 === 0 && renderer) {
-                    console.log('🎨 DEBUG: Forcing manual clear and render test...');
-                    renderer.clear();
-                    if (scene && camera) {
-                        renderer.render(scene, camera);
-                    }
                 }
 
                 controls.update();
@@ -1127,6 +1119,13 @@
                 if (scene && camera && renderer) {
                     // Check if scene has a custom composer (for postprocessing)
                     if (scene.userData && scene.userData.composer) {
+                        // Log composer usage once for debugging bloom issues
+                        if (!composerLoggedOnce) {
+                            console.log('✨ Using EffectComposer for postprocessing');
+                            console.log('📊 Composer passes:', scene.userData.composer.passes?.length || 0);
+                            console.log('🎨 Renderer size:', renderer.getSize(new THREE.Vector2()));
+                            composerLoggedOnce = true;
+                        }
                         scene.userData.composer.render();
                     } else {
                         renderer.render(scene, camera);
@@ -1143,6 +1142,11 @@
                 camera.aspect = canvas.clientWidth / canvas.clientHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+
+                // Update composer size if it exists
+                if (scene && scene.userData && scene.userData.composer) {
+                    scene.userData.composer.setSize(canvas.clientWidth, canvas.clientHeight);
+                }
             }
         }
         

@@ -108,13 +108,9 @@ struct ThreeJSLibrary: Library3D {
         const outputPass = new OutputPass();
         composer.addPass(outputPass);
 
-        // IMPORTANT: Replace the default render loop with composer
-        function animate() {
-            requestAnimationFrame(animate);
-            // Add any animations here (object rotations, etc.)
-            composer.render(); // Use composer instead of renderer.render()
-        }
-        animate();
+        // CRITICAL: Store composer on scene.userData for the global render loop
+        scene.userData.composer = composer;
+        console.log('✨ Enhanced Unreal Bloom Pass enabled - composer stored on scene.userData');
 
         PRO TIPS for Shading and Visual Quality:
         - Use MeshStandardMaterial for PBR (physically-based rendering) with metalness/roughness

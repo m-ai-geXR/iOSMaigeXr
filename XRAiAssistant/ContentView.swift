@@ -90,6 +90,9 @@ struct ContentView: View {
     // Modal picker states
     @State private var showingModelPicker = false
 
+    // Screenshot tracking - only capture once per conversation
+    @State private var screenshotCapturedForConversation: UUID? = nil
+
     private var settingsView: some View {
         NavigationView {
             Form {
@@ -1226,27 +1229,31 @@ struct ContentView: View {
                             .cornerRadius(12)
                         }
 
-                        // Screenshot button (floating in top-right corner)
+                        // Floating Screenshot Button (positioned to left of console button)
                         VStack {
+                            Spacer()
                             HStack {
                                 Spacer()
+
+                                // Screenshot button - 20px to the left of console button
                                 Button(action: captureSceneScreenshot) {
                                     Image(systemName: "camera.fill")
                                         .font(.title2)
                                         .foregroundColor(.white)
-                                        .frame(width: 50, height: 50)
+                                        .frame(width: 48, height: 48)
                                         .glassEffect(
                                             tintColor: .cyberpunkDarkGray,
                                             opacity: 0.8,
-                                            cornerRadius: 25,
+                                            cornerRadius: 24,
                                             borderColor: .neonCyan
                                         )
                                 }
-                                .padding(.top, 16)
-                                .padding(.trailing, 16)
+                                .padding(.trailing, 20) // 20px spacing to left of console button
+                                .padding(.bottom, 20)
+                                .padding(.trailing, 48) // Account for console button width
                             }
-                            Spacer()
                         }
+
                     }
         }
     }
@@ -1513,10 +1520,18 @@ struct ContentView: View {
             }
         case "codeRun":
             print("Scene execution completed")
+
             // Auto-capture screenshot after 5 seconds (like Android implementation)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-                print("📸 Auto-capturing screenshot 5 seconds after code execution...")
-                self.captureSceneScreenshotAuto()
+            // Only capture once per conversation
+            if let latestConversation = conversationStorage.conversations.first {
+                if screenshotCapturedForConversation != latestConversation.id {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                        print("📸 Auto-capturing screenshot 5 seconds after code execution...")
+                        self.captureSceneScreenshotAuto()
+                    }
+                } else {
+                    print("📸 Screenshot already captured for this conversation, skipping")
+                }
             }
         case "codeInserted":
             if let code = data["code"] as? String {
@@ -2005,13 +2020,9 @@ struct ContentView: View {
 
             print("✅ Screenshot captured successfully (\(Int(image.size.width))x\(Int(image.size.height)))")
 
-            // Save to photo library
-            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-
-            // TODO: Add screenshot to conversation history
-            // This would require extending the ConversationModels to support image attachments
-
-            print("💾 Screenshot saved to Photos")
+            // Note: Screenshots are automatically saved to conversation history via captureSceneScreenshotAuto()
+            // This manual screenshot is just for user reference
+            print("💾 Screenshot captured (use auto-screenshot for conversation history)")
         }
     }
 
@@ -2060,6 +2071,10 @@ struct ContentView: View {
                     conversationId: latestConversation.id,
                     screenshotBase64: base64String
                 )
+
+                // Mark this conversation as having a screenshot (one per conversation)
+                self.screenshotCapturedForConversation = latestConversation.id
+                print("✅ Screenshot flag set for conversation: \(latestConversation.id)")
             } else {
                 print("⚠️ No conversations found - screenshot not saved")
             }
