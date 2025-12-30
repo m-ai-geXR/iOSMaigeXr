@@ -184,8 +184,13 @@ XRAiAssistant uses a **multi-provider architecture** that supports multiple AI s
    - Claude Opus 4 (World's best coding model)
    - Claude 3.5 Sonnet/Haiku
 
-4. **OpenAI** - GPT models
-   - GPT-4, GPT-3.5 Turbo
+4. **OpenAI** - GPT models (UPGRADED 2025-12-30) ✨
+   - GPT-5.2 (Latest - Best for coding)
+   - GPT-5.2 Pro (Highest accuracy)
+   - GPT-5.2 Chat Latest (Auto-updating)
+   - o1 (Advanced reasoning)
+   - o3-mini (Enhanced reasoning)
+   - GPT-4o, GPT-4o Mini (Legacy support)
 
 5. **LlamaStack** - Fallback for Meta models
    - Direct Llama model access (when enabled)
@@ -307,6 +312,110 @@ All Gemini models offer a **FREE tier** with generous daily quotas:
 - Paid tier available for production use
 
 See: https://ai.google.dev/pricing
+
+---
+
+## 🆕 OpenAI GPT-5.2 Integration (2025-12-30)
+
+### Overview
+
+XRAiAssistant now supports OpenAI's latest GPT-5.2 models, matching feature parity with the Android implementation!
+
+**Files Modified**:
+- ✅ [XRAiAssistant/AIProviders/OpenAIProvider.swift](XRAiAssistant/AIProviders/OpenAIProvider.swift)
+
+### Available GPT Models
+
+**GPT-5.2 Series** (Latest - December 2025):
+- `gpt-5.2` - Best model for coding and agentic tasks (DEFAULT)
+- `gpt-5.2-pro` - Smartest and most trustworthy with highest accuracy
+- `gpt-5.2-chat-latest` - Latest ChatGPT model with automatic updates
+
+**Reasoning Models** (o-series):
+- `o1-2024-12-17` - Advanced reasoning model for complex problems
+- `o3-mini-2025-01-31` - Latest reasoning model with enhanced reasoning abilities
+
+**GPT-4o Series** (Legacy Support):
+- `gpt-4o` - Versatile high-intelligence flagship model
+- `gpt-4o-mini` - Fast and affordable small model for focused tasks
+
+**Removed Legacy Models**:
+- ❌ GPT-4 Turbo (replaced by GPT-5.2)
+- ❌ GPT-3.5 Turbo (replaced by GPT-4o Mini)
+
+### API Configuration
+
+**Endpoint**: `https://api.openai.com/v1/chat/completions`
+**Method**: POST with streaming
+**Authentication**: Bearer token in Authorization header
+
+**Get Your API Key**:
+1. Visit https://platform.openai.com
+2. Sign in or create account
+3. Navigate to API keys section
+4. Create new secret key
+5. Paste into Settings → OpenAI API Key field
+
+**Request Format**:
+```swift
+{
+    "model": "gpt-5.2",
+    "messages": [
+        {"role": "system", "content": "system prompt"},
+        {"role": "user", "content": "message"}
+    ],
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "stream": true
+}
+```
+
+**Response Format** (SSE):
+```
+data: {"choices":[{"delta":{"content":"response chunk"}}]}
+data: [DONE]
+```
+
+### Features
+
+- ✅ Streaming support via Server-Sent Events
+- ✅ Vision support for GPT-5.2 and GPT-4o models (multimodal)
+- ✅ Temperature and Top-P control
+- ✅ Extended context windows (up to 400K tokens for GPT-5.2)
+- ✅ Advanced reasoning capabilities (o1, o3-mini)
+- ✅ Function calling support (all models)
+
+### Pricing
+
+**GPT-5.2 Series**:
+- GPT-5.2: $1.75/$14.00 per 1M tokens (input/output)
+- GPT-5.2 Pro: Premium tier pricing
+- GPT-5.2 Chat Latest: $1.75/$14.00 per 1M tokens
+
+**Reasoning Models**:
+- o1: Premium tier pricing
+- o3-mini: Economy tier pricing
+
+**GPT-4o Series**:
+- GPT-4o: $2.50/$10.00 per 1M tokens
+- GPT-4o Mini: $0.15/$0.60 per 1M tokens
+
+See: https://openai.com/pricing
+
+### Upgrade Summary
+
+**iOS Implementation Now Matches Android**:
+- ✅ 7 OpenAI models (same as Android)
+- ✅ Latest GPT-5.2 generation included
+- ✅ Reasoning models (o1, o3-mini) included
+- ✅ 400K token context window
+- ✅ Vision support for multimodal models
+- ✅ Same pricing structure
+
+**Upgraded From**:
+- 4 models → 7 models
+- 128K context → 400K context
+- GPT-4o max → GPT-5.2 max
 
 ---
 

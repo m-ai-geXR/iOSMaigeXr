@@ -1,8 +1,13 @@
 # iOS m{ai}geXR Styling Progress
 
 **Status:** [6/7] Phases Complete
-**Last Updated:** 2025-12-22
+**Last Updated:** 2025-12-30
 **Android Parity:** In Progress
+
+**Recent Updates:**
+- ✅ **2025-12-30:** OpenAI models upgraded to GPT-5.2 (7 models total)
+- ✅ **2025-12-30:** React Three Fiber THREE.* usage errors fixed
+- ✅ **2025-12-30:** CodeSandbox play button restored for preview loading
 
 ---
 
