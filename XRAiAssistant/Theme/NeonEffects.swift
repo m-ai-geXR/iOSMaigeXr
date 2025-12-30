@@ -185,4 +185,9 @@ extension View {
 
  Custom:
    .neonGlow(color: .neonGreen, radius: 10)
+
+ Glass Effects:
+   .glassCard(accentColor: .neonCyan)
+   .glassInput(accentColor: .neonPink)
+   .glassEffect(tintColor: .cyberpunkDarkGray, borderColor: .neonBlue)
  */
