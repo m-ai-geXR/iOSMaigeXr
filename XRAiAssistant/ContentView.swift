@@ -72,6 +72,8 @@ struct ContentView: View {
     @State private var chatInput = ""
     @State private var showingError = false
     @State private var errorMessage = ""
+    @State private var showingExportSheet = false
+    @State private var exportedFileURL: URL?
     @State private var currentView: AppView = .chat
     @State private var webViewReady = false
     @State private var isInjectingCode = false
@@ -1408,6 +1410,11 @@ struct ContentView: View {
         } message: {
             Text(chatViewModel.errorMessage ?? "")
         }
+        .sheet(isPresented: $showingExportSheet) {
+            if let fileURL = exportedFileURL {
+                ShareSheet(activityItems: [fileURL])
+            }
+        }
         .onTapGesture {
             // Dismiss keyboard when tapping outside text fields
             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
@@ -1562,8 +1569,59 @@ struct ContentView: View {
         case "testInjection":
             print("🧪 Test injection requested")
             testEditorInjection()
+        case "sceneExported":
+            handleSceneExport(data: data)
         default:
             print("Unknown action: \(action)")
+        }
+    }
+
+    private func handleSceneExport(data: [String: Any]) {
+        guard let format = data["format"] as? String,
+              let filename = data["filename"] as? String,
+              let base64Data = data["data"] as? String,
+              let success = data["success"] as? Bool else {
+            print("❌ Invalid scene export data")
+            return
+        }
+
+        guard success else {
+            print("❌ Scene export failed")
+            return
+        }
+
+        print("📦 Received scene export: \(filename) (\(format))")
+
+        // Decode base64 data
+        guard let decodedData = Data(base64Encoded: base64Data) else {
+            print("❌ Failed to decode base64 data")
+            return
+        }
+
+        // Get documents directory
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let fileURL = documentsPath.appendingPathComponent(filename)
+
+        do {
+            // Write file to documents directory
+            try decodedData.write(to: fileURL)
+            print("✅ Scene exported successfully to: \(fileURL.path)")
+
+            // Get file size for logging
+            let fileSize = (Double(decodedData.count) / 1024.0)
+            print("📊 File size: \(String(format: "%.2f", fileSize)) KB")
+
+            // Show share sheet to save/share the file
+            DispatchQueue.main.async {
+                self.exportedFileURL = fileURL
+                self.showingExportSheet = true
+            }
+        } catch {
+            print("❌ Failed to save export file: \(error.localizedDescription)")
+            DispatchQueue.main.async {
+                self.errorMessage = "❌ Export failed: \(error.localizedDescription)"
+                self.showingError = true
+            }
         }
     }
     
@@ -2202,6 +2260,23 @@ struct ChatMessageView: View {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+}
+
+// Share Sheet for iOS file sharing
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(
+            activityItems: activityItems,
+            applicationActivities: nil
+        )
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {
+        // No updates needed
     }
 }
 

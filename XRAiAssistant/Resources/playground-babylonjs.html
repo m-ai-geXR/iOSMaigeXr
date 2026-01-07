@@ -382,7 +382,12 @@
         <button class="menu-btn" onclick="formatCode()">{ } Format</button>
         <button class="menu-btn" onclick="clearCode()">🗑 Clear</button>
         <button class="menu-btn" onclick="saveScene()">💾 Save</button>
-        <button class="menu-btn" onclick="downloadScene()">⬇ Download</button>
+        <select class="menu-btn" onchange="exportScene(this.value); this.value='';" title="Export Scene">
+            <option value="">📦 Export Scene</option>
+            <option value="glb">GLB (Binary glTF)</option>
+            <option value="gltf">glTF (Text + Assets)</option>
+            <option value="babylon">Babylon.js (.babylon)</option>
+        </select>
         <button class="menu-btn" onclick="newScene()">📄 New</button>
         <button class="menu-btn" onclick="openDocumentation()">📖 Docs</button>
         <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
@@ -882,6 +887,21 @@ const scene = createScene();`;
                 }
             }
 
+            // Remove attachControls calls - these cause errors in the sandbox execution context
+            // Pattern: camera.attachControls(canvas, true) or similar
+            const attachControlsPatterns = [
+                /camera\.attachControls\s*\([^)]*\)\s*;?/gi,
+                /\.attachControls\s*\([^)]*\)\s*;?/gi
+            ];
+
+            for (const pattern of attachControlsPatterns) {
+                const beforeCount = (cleanedCode.match(pattern) || []).length;
+                if (beforeCount > 0) {
+                    cleanedCode = cleanedCode.replace(pattern, '// attachControls removed (already handled by playground)');
+                    console.log(`  ✅ Removed ${beforeCount} attachControls calls (already handled by playground)`);
+                }
+            }
+
             console.log('🧹 Babylon.js code cleaning complete');
             return cleanedCode;
         }
@@ -952,16 +972,19 @@ const scene = createScene();`;
                     
                     // Execute with proper context
                     scene = executeCode(canvasElement, engine, BABYLON);
-                    
+
                 } catch (execError) {
                     console.error('Function execution failed:', execError);
                     throw execError;
                 }
-                
+
                 if (!scene) {
                     throw new Error('Scene creation failed - no scene object returned');
                 }
-                
+
+                // Make scene globally accessible for export functionality
+                window.scene = scene;
+
                 console.log('✅ Scene created successfully:', scene);
                 console.log('Scene cameras:', scene.cameras?.length || 0);
                 console.log('Scene meshes:', scene.meshes?.length || 0);
@@ -1064,17 +1087,215 @@ const scene = createScene();`;
             const code = editor ? editor.getValue() : '';
             notifySwift('downloadRequested', { code: code });
         }
-        
+
+        /**
+         * Export Scene - Universal 3D Scene Export System
+         * Supports GLB (binary glTF), glTF (text + assets), and Babylon.js native format
+         * Adheres to m{ai}geXR export capabilities specification
+         */
+        async function exportScene(format) {
+            if (!format) return;
+
+            console.log(`🚀 Exporting scene as ${format.toUpperCase()}...`);
+
+            // Ensure we have a valid scene
+            if (!window.scene) {
+                console.error('❌ No active scene to export');
+                alert('Please run the scene first before exporting');
+                return;
+            }
+
+            const scene = window.scene;
+
+            try {
+                switch(format) {
+                    case 'glb':
+                        await exportGLB(scene);
+                        break;
+                    case 'gltf':
+                        await exportGLTF(scene);
+                        break;
+                    case 'babylon':
+                        exportBabylonNative(scene);
+                        break;
+                    default:
+                        console.error(`❌ Unsupported export format: ${format}`);
+                }
+            } catch (error) {
+                console.error(`❌ Export failed: ${error.message}`);
+                alert(`Export failed: ${error.message}`);
+            }
+        }
+
+        /**
+         * Export as GLB (Binary glTF) - PREFERRED DEFAULT
+         * Single-file, portable, universally supported
+         */
+        async function exportGLB(scene) {
+            console.log('📦 Preparing GLB export...');
+
+            // Load the glTF serializer dynamically if not already loaded
+            if (!BABYLON.GLTF2Export) {
+                console.log('📚 Loading @babylonjs/serializers library...');
+                const script = document.createElement('script');
+                script.src = 'https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js';
+                document.head.appendChild(script);
+
+                await new Promise((resolve, reject) => {
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error('Failed to load Babylon.js serializers'));
+                });
+            }
+
+            console.log('✅ Serializer loaded, exporting scene...');
+
+            // Export the scene as GLB
+            BABYLON.GLTF2Export.GLBAsync(scene, 'maigeXR_scene').then((glb) => {
+                console.log('✅ GLB export successful');
+
+                // Get the GLB binary data from the exported container
+                const glbFile = glb.glTFFiles['maigeXR_scene.glb'];
+
+                // Convert ArrayBuffer to base64
+                const bytes = new Uint8Array(glbFile);
+                let binary = '';
+                const len = bytes.byteLength;
+                for (let i = 0; i < len; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                const base64 = btoa(binary);
+
+                console.log(`📊 GLB size: ${bytes.byteLength} bytes`);
+
+                // Send to Swift with base64 data
+                notifySwift('sceneExported', {
+                    format: 'glb',
+                    filename: 'maigeXR_scene.glb',
+                    data: base64,
+                    size: bytes.byteLength,
+                    success: true
+                });
+
+                alert(`✅ GLB exported successfully!\nSize: ${(bytes.byteLength / 1024).toFixed(2)} KB`);
+            }).catch((error) => {
+                console.error('❌ GLB export error:', error);
+                alert(`❌ GLB export failed: ${error.message}`);
+                throw error;
+            });
+        }
+
+        /**
+         * Export as glTF (Text + Assets) - EDITABLE FORMAT
+         * Multiple files: .gltf + .bin + textures
+         * Use when editable asset graphs are required
+         */
+        async function exportGLTF(scene) {
+            console.log('📦 Preparing glTF export...');
+
+            // Load the glTF serializer dynamically if not already loaded
+            if (!BABYLON.GLTF2Export) {
+                console.log('📚 Loading @babylonjs/serializers library...');
+                const script = document.createElement('script');
+                script.src = 'https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js';
+                document.head.appendChild(script);
+
+                await new Promise((resolve, reject) => {
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error('Failed to load Babylon.js serializers'));
+                });
+            }
+
+            console.log('✅ Serializer loaded, exporting scene...');
+
+            // Export the scene as glTF
+            BABYLON.GLTF2Export.GLTFAsync(scene, 'maigeXR_scene').then((gltf) => {
+                console.log('✅ glTF export successful');
+
+                // Get the main .gltf file (JSON text)
+                const gltfFile = gltf.glTFFiles['maigeXR_scene.gltf'];
+
+                // Convert to base64 (for text JSON file)
+                let gltfText;
+                if (typeof gltfFile === 'string') {
+                    gltfText = gltfFile;
+                } else {
+                    // If it's binary, convert to text
+                    const decoder = new TextDecoder('utf-8');
+                    gltfText = decoder.decode(new Uint8Array(gltfFile));
+                }
+
+                const base64 = btoa(unescape(encodeURIComponent(gltfText)));
+
+                console.log(`📊 glTF size: ${gltfText.length} bytes`);
+
+                // Send to Swift with base64 data
+                notifySwift('sceneExported', {
+                    format: 'gltf',
+                    filename: 'maigeXR_scene.gltf',
+                    data: base64,
+                    size: gltfText.length,
+                    success: true
+                });
+
+                alert(`✅ glTF exported successfully!\nSize: ${(gltfText.length / 1024).toFixed(2)} KB\nNote: Binary assets (.bin) not included in this export.`);
+            }).catch((error) => {
+                console.error('❌ glTF export error:', error);
+                alert(`❌ glTF export failed: ${error.message}`);
+                throw error;
+            });
+        }
+
+        /**
+         * Export as Babylon.js Native (.babylon JSON)
+         * Engine-specific format for internal reload, persistence, debugging
+         * Fast, complete scene serialization
+         */
+        function exportBabylonNative(scene) {
+            console.log('📦 Preparing Babylon.js native export...');
+
+            try {
+                // Serialize the entire scene to Babylon.js JSON format
+                const serializedScene = BABYLON.SceneSerializer.Serialize(scene);
+                const sceneJSON = JSON.stringify(serializedScene, null, 2);
+
+                // Convert JSON string to base64
+                const base64 = btoa(unescape(encodeURIComponent(sceneJSON)));
+
+                console.log(`📊 Babylon scene size: ${sceneJSON.length} bytes`);
+
+                // Send to Swift with base64 data
+                notifySwift('sceneExported', {
+                    format: 'babylon',
+                    filename: 'maigeXR_scene.babylon',
+                    data: base64,
+                    size: sceneJSON.length,
+                    success: true
+                });
+
+                alert(`✅ Babylon.js scene exported successfully!\nSize: ${(sceneJSON.length / 1024).toFixed(2)} KB`);
+            } catch (error) {
+                console.error('❌ Babylon native export error:', error);
+                alert(`❌ Babylon export failed: ${error.message}`);
+                throw error;
+            }
+        }
+
+        // Make export functions globally accessible
+        window.exportScene = exportScene;
+        window.exportGLB = exportGLB;
+        window.exportGLTF = exportGLTF;
+        window.exportBabylonNative = exportBabylonNative;
+
         function newScene() {
             clearCode();
             runCode();
         }
-        
+
         function openDocumentation() {
             // Open Babylon.js documentation in Safari
             window.location.href = 'https://doc.babylonjs.com/';
         }
-        
+
         // Floating Console Window Management
         let consoleState = {
             x: null,

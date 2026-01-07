@@ -9,6 +9,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 ---
 
+## 📝 COMMIT MESSAGE WORKFLOW
+
+### Using COMMIT_MESSAGES.md
+
+When making significant changes during a development session, Claude will:
+
+1. **Document all changes** in `docs/COMMIT_MESSAGES.md`
+2. **Write commit-ready messages** without quotes, backticks, or special formatting
+3. **Include comprehensive details**: files changed, technical approach, testing notes
+4. **Format for direct copy-paste** into git commit messages
+
+### Workflow
+
+**During Development:**
+- Claude tracks all modifications throughout the session
+- Documents patterns, fixes, and architectural decisions
+- Notes files modified and line numbers
+
+**End of Session:**
+- User requests: "Please create commit message in docs/COMMIT_MESSAGES.md"
+- Claude writes complete, formatted commit message
+- User copies message directly from file to git commit
+
+**Format Guidelines:**
+- No quotation marks, backticks, or escaped characters
+- Use standard markdown for readability
+- Include technical details and rationale
+- List all modified files with descriptions
+- Document breaking changes and migration notes
+
+**Example Request:**
+```
+Please create this document here docs/COMMIT_MESSAGES.md and articulate the current changes that have been made
+```
+
+---
+
 ## 🚨 CRITICAL FIXES (2025-11-22)
 
 ### Fix #1: Parameter Order Error ✅

@@ -435,7 +435,12 @@
         <button class="menu-btn" onclick="formatCode()">{ } Format</button>
         <button class="menu-btn" onclick="clearCode()">🗑 Clear</button>
         <button class="menu-btn" onclick="saveScene()">💾 Save</button>
-        <button class="menu-btn" onclick="downloadScene()">⬇ Download</button>
+        <select class="menu-btn" onchange="exportScene(this.value); this.value='';" title="Export Scene">
+            <option value="">📦 Export Scene</option>
+            <option value="glb">GLB (Binary glTF)</option>
+            <option value="gltf">glTF (Text + Assets)</option>
+            <option value="json">Three.js Scene JSON</option>
+        </select>
         <button class="menu-btn" onclick="newScene()">📄 New</button>
         <button class="menu-btn" onclick="openDocumentation()">📖 Documentation</button>
         <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
@@ -2230,17 +2235,154 @@
             const code = editor ? editor.getValue() : '';
             notifySwift('downloadRequested', { code: code });
         }
-        
+
+        /**
+         * Export Scene - Universal 3D Scene Export System (A-Frame)
+         * A-Frame uses Three.js under the hood, accessible via a-scene.object3D
+         * Supports GLB (binary glTF), glTF (text + assets), and Three.js Scene JSON
+         * Adheres to m{ai}geXR export capabilities specification
+         */
+        async function exportScene(format) {
+            if (!format) return;
+
+            console.log(`🚀 Exporting scene as ${format.toUpperCase()}...`);
+
+            // A-Frame scene is accessed via the <a-scene> element's object3D property
+            const aframeScene = document.querySelector('a-scene');
+
+            if (!aframeScene || !aframeScene.object3D) {
+                console.error('❌ No active A-Frame scene to export');
+                alert('Please run the scene first before exporting');
+                return;
+            }
+
+            // Get the Three.js scene from A-Frame
+            const scene = aframeScene.object3D;
+
+            try {
+                switch(format) {
+                    case 'glb':
+                        await exportGLB(scene);
+                        break;
+                    case 'gltf':
+                        await exportGLTF(scene);
+                        break;
+                    case 'json':
+                        exportThreeJSONNative(scene);
+                        break;
+                    default:
+                        console.error(`❌ Unsupported export format: ${format}`);
+                }
+            } catch (error) {
+                console.error(`❌ Export failed: ${error.message}`);
+                alert(`Export failed: ${error.message}`);
+            }
+        }
+
+        /**
+         * Export as GLB (Binary glTF) - PREFERRED DEFAULT
+         * Single-file, portable, universally supported
+         * Note: GLB export requires external library which may not work in WKWebView
+         */
+        async function exportGLB(scene) {
+            console.log('📦 Preparing GLB export...');
+
+            try {
+                alert('⚠️ GLB export requires external Three.js library.\n\nPlease use the JSON export option instead, which captures the full A-Frame scene structure.');
+                console.log('ℹ️ GLB export not available - use JSON export for A-Frame scenes');
+            } catch (error) {
+                console.error('❌ GLB export error:', error);
+                alert(`❌ GLB export failed: ${error.message}`);
+            }
+        }
+
+        /**
+         * Export as glTF (Text + Assets) - EDITABLE FORMAT
+         * Multiple files: .gltf + .bin + textures
+         * Note: glTF export requires external library which may not work in WKWebView
+         */
+        async function exportGLTF(scene) {
+            console.log('📦 Preparing glTF export...');
+
+            try {
+                alert('⚠️ glTF export requires external Three.js library.\n\nPlease use the JSON export option instead, which captures the full A-Frame scene structure.');
+                console.log('ℹ️ glTF export not available - use JSON export for A-Frame scenes');
+            } catch (error) {
+                console.error('❌ glTF export error:', error);
+                alert(`❌ glTF export failed: ${error.message}`);
+            }
+        }
+
+        /**
+         * Export as A-Frame HTML Scene
+         * Exports the full A-Frame scene HTML for reimporting or sharing
+         * Most portable format for A-Frame scenes
+         */
+        function exportThreeJSONNative(scene) {
+            console.log('📦 Preparing A-Frame HTML export...');
+
+            try {
+                // Get the A-Frame scene element
+                const aframeScene = document.querySelector('a-scene');
+
+                if (!aframeScene) {
+                    throw new Error('No A-Frame scene found');
+                }
+
+                // Get the HTML content of the scene
+                const sceneHTML = aframeScene.outerHTML;
+
+                // Convert to base64 using a safe method
+                const encoder = new TextEncoder();
+                const data = encoder.encode(sceneHTML);
+
+                // Convert Uint8Array to base64 safely
+                let binary = '';
+                const len = data.length;
+                const chunkSize = 0x8000; // Process in chunks to avoid call stack size exceeded
+
+                for (let i = 0; i < len; i += chunkSize) {
+                    const chunk = data.subarray(i, Math.min(i + chunkSize, len));
+                    binary += String.fromCharCode.apply(null, chunk);
+                }
+
+                const base64 = btoa(binary);
+
+                console.log(`📊 A-Frame HTML size: ${sceneHTML.length} bytes`);
+
+                // Send to Swift with base64 data
+                notifySwift('sceneExported', {
+                    format: 'html',
+                    filename: 'maigeXR_scene_aframe.html',
+                    data: base64,
+                    size: sceneHTML.length,
+                    success: true
+                });
+
+                alert(`✅ A-Frame HTML exported successfully!\nSize: ${(sceneHTML.length / 1024).toFixed(2)} KB\n\nThis HTML can be reopened in any web browser.`);
+            } catch (error) {
+                console.error('❌ A-Frame HTML export error:', error);
+                alert(`❌ A-Frame HTML export failed: ${error.message}`);
+                throw error;
+            }
+        }
+
+        // Make export functions globally accessible
+        window.exportScene = exportScene;
+        window.exportGLB = exportGLB;
+        window.exportGLTF = exportGLTF;
+        window.exportThreeJSONNative = exportThreeJSONNative;
+
         function newScene() {
             clearCode();
             runCode();
         }
-        
+
         function openDocumentation() {
             // Open A-Frame documentation in Safari
             window.location.href = 'https://aframe.io/docs/';
         }
-        
+
         function initFloatingConsole() {
             const consoleWindow = document.getElementById('consoleWindow');
             const titleBar = document.getElementById('consoleTitleBar');

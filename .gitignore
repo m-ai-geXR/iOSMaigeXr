@@ -7,6 +7,7 @@ node_modules/
 .yarn/build-state.yml
 .yarn/install-state.gz
 screenshots/
+docs/COMMIT_MESSAGES.md
 # Testing
 coverage/
 *.lcov

@@ -260,6 +260,12 @@
                     <div id="build-status">Ready to build</div>
                     <button id="build-button">Build</button>
                     <button id="run-button">Run</button>
+                    <select id="export-button" class="toolbar-btn" title="Export Scene">
+                        <option value="">📦 Export Scene</option>
+                        <option value="glb">GLB (Binary glTF)</option>
+                        <option value="gltf">glTF (Text + Assets)</option>
+                        <option value="json">Three.js Scene JSON</option>
+                    </select>
                 </div>
             </div>
             <div id="editor"></div>
@@ -1757,6 +1763,15 @@
             document.getElementById('build-button').addEventListener('click', buildScene);
             document.getElementById('run-button').addEventListener('click', runScene);
             document.getElementById('console-clear').addEventListener('click', clearConsole);
+
+            // Export scene dropdown listener
+            const exportButton = document.getElementById('export-button');
+            if (exportButton) {
+                exportButton.addEventListener('change', (e) => {
+                    exportScene(e.target.value);
+                    e.target.value = ''; // Reset dropdown
+                });
+            }
         }
         
         function addConsoleMessage(type, message) {
@@ -1783,7 +1798,181 @@
             }
             hideConsole();
         }
-        
+
+        /**
+         * Export Scene - Universal 3D Scene Export System (React Three Fiber)
+         * R3F uses Three.js under the hood, so we access the scene via useThree
+         * Supports GLB (binary glTF), glTF (text + assets), and Three.js Scene JSON
+         * Adheres to m{ai}geXR export capabilities specification
+         */
+        async function exportScene(format) {
+            if (!format) return;
+
+            console.log(`🚀 Exporting scene as ${format.toUpperCase()}...`);
+            addConsoleMessage('info', `Exporting scene as ${format.toUpperCase()}...`);
+
+            // R3F stores the three.js scene in the global context
+            // We need to access it from the running React app
+            let scene = null;
+
+            // Try to get scene from window (set by R3F when scene is built)
+            if (window.__r3f_scene) {
+                scene = window.__r3f_scene;
+            } else if (window.THREE && window.THREE.Scene) {
+                // Fallback: try to find scene in Three.js instances
+                console.warn('⚠️ No R3F scene reference found, attempting fallback...');
+                addConsoleMessage('warn', 'No scene reference found, please run the scene first');
+                alert('Please build and run the scene first before exporting');
+                return;
+            }
+
+            if (!scene) {
+                console.error('❌ No active scene to export');
+                addConsoleMessage('error', 'No active scene to export');
+                alert('Please build and run the scene first before exporting');
+                return;
+            }
+
+            try {
+                switch(format) {
+                    case 'glb':
+                        await exportGLB(scene);
+                        break;
+                    case 'gltf':
+                        await exportGLTF(scene);
+                        break;
+                    case 'json':
+                        exportThreeJSONNative(scene);
+                        break;
+                    default:
+                        console.error(`❌ Unsupported export format: ${format}`);
+                }
+            } catch (error) {
+                console.error(`❌ Export failed: ${error.message}`);
+                addConsoleMessage('error', `Export failed: ${error.message}`);
+                alert(`Export failed: ${error.message}`);
+            }
+        }
+
+        /**
+         * Export as GLB (Binary glTF) - PREFERRED DEFAULT
+         * Single-file, portable, universally supported
+         */
+        async function exportGLB(scene) {
+            console.log('📦 Preparing GLB export...');
+            addConsoleMessage('info', 'Preparing GLB export...');
+
+            // Dynamically import GLTFExporter from Three.js addons
+            const GLTFExporter = (await import('https://cdn.jsdelivr.net/npm/super-three@0.173.0/examples/jsm/exporters/GLTFExporter.js')).GLTFExporter;
+
+            console.log('✅ GLTFExporter loaded, exporting scene...');
+
+            // Create exporter and export as GLB (binary)
+            const exporter = new GLTFExporter();
+
+            exporter.parse(
+                scene,
+                (result) => {
+                    console.log('✅ GLB export successful');
+                    addConsoleMessage('success', 'GLB export successful');
+
+                    // result is ArrayBuffer for GLB
+                    const blob = new Blob([result], { type: 'application/octet-stream' });
+                    const url = URL.createObjectURL(blob);
+
+                    // Trigger download
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'maigeXR_scene.glb';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                },
+                (error) => {
+                    console.error('❌ GLB export error:', error);
+                    addConsoleMessage('error', `GLB export error: ${error.message}`);
+                    throw error;
+                },
+                { binary: true } // Export as binary GLB
+            );
+        }
+
+        /**
+         * Export as glTF (Text + Assets) - EDITABLE FORMAT
+         * Multiple files: .gltf + .bin + textures
+         * Use when editable asset graphs are required
+         */
+        async function exportGLTF(scene) {
+            console.log('📦 Preparing glTF export...');
+            addConsoleMessage('info', 'Preparing glTF export...');
+
+            // Dynamically import GLTFExporter from Three.js addons
+            const GLTFExporter = (await import('https://cdn.jsdelivr.net/npm/super-three@0.173.0/examples/jsm/exporters/GLTFExporter.js')).GLTFExporter;
+
+            console.log('✅ GLTFExporter loaded, exporting scene...');
+
+            // Create exporter and export as glTF (text)
+            const exporter = new GLTFExporter();
+
+            exporter.parse(
+                scene,
+                (result) => {
+                    console.log('✅ glTF export successful');
+                    addConsoleMessage('success', 'glTF export successful');
+
+                    // result is object for glTF (text)
+                    const output = JSON.stringify(result, null, 2);
+                    const blob = new Blob([output], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+
+                    // Trigger download
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'maigeXR_scene.gltf';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                },
+                (error) => {
+                    console.error('❌ glTF export error:', error);
+                    addConsoleMessage('error', `glTF export error: ${error.message}`);
+                    throw error;
+                },
+                { binary: false } // Export as text glTF
+            );
+        }
+
+        /**
+         * Export as Three.js Scene JSON
+         * Engine-specific format for internal reload, persistence, debugging
+         * Non-portable, but captures full Three.js scene graph
+         */
+        function exportThreeJSONNative(scene) {
+            console.log('📦 Preparing Three.js Scene JSON export...');
+            addConsoleMessage('info', 'Preparing Three.js Scene JSON export...');
+
+            // Serialize the entire scene to Three.js JSON format
+            const sceneJSON = JSON.stringify(scene.toJSON(), null, 2);
+
+            // Create download blob
+            const blob = new Blob([sceneJSON], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            // Trigger download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'maigeXR_scene_r3f.json';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            console.log('✅ Three.js Scene JSON exported successfully');
+            addConsoleMessage('success', 'Scene JSON exported successfully');
+        }
+
         function updateBuildStatus(status, message, type = '') {
             const statusElement = document.getElementById('build-status');
             const buildButton = document.getElementById('build-button');
@@ -2658,21 +2847,39 @@ function createDirectThreeJSScene(container) {
 
 import React, { useRef } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 
+// Scene Export Helper - exposes Three.js scene for export functionality
+function SceneExporter() {
+  const { scene } = useThree();
+
+  React.useEffect(() => {
+    // Expose scene to window for export functionality
+    window.__r3f_scene = scene;
+    console.log('✅ Scene exposed for export:', scene);
+
+    return () => {
+      // Cleanup on unmount
+      window.__r3f_scene = null;
+    };
+  }, [scene]);
+
+  return null; // This component doesn't render anything
+}
+
 function RotatingCube() {
   const meshRef = useRef(null);
-  
+
   useFrame((state, delta) => {
     if (meshRef.current) {
       meshRef.current.rotation.x += delta * 0.5;
       meshRef.current.rotation.y += delta * 0.2;
     }
   });
-  
-  return React.createElement('mesh', 
+
+  return React.createElement('mesh',
     { ref: meshRef, position: [0, 1, 0] },
     React.createElement('boxGeometry', { args: [1, 1, 1] }),
     React.createElement('meshStandardMaterial', { color: 'hotpink' })
@@ -2681,10 +2888,11 @@ function RotatingCube() {
 
 function Scene() {
   return React.createElement(React.Fragment, null,
+    React.createElement(SceneExporter), // Add scene exporter helper
     React.createElement('ambientLight', { intensity: 0.6 }),
     React.createElement('directionalLight', { position: [2, 2, 2], intensity: 1 }),
     React.createElement(RotatingCube),
-    React.createElement('mesh', 
+    React.createElement('mesh',
       { rotation: [-Math.PI / 2, 0, 0], position: [0, -0.5, 0] },
       React.createElement('planeGeometry', { args: [10, 10] }),
       React.createElement('meshStandardMaterial', { color: '#888888' })
@@ -2694,8 +2902,8 @@ function Scene() {
 }
 
 function App() {
-  return React.createElement(Canvas, 
-    { 
+  return React.createElement(Canvas,
+    {
       style: { width: '100%', height: '100%' },
       camera: { position: [3, 3, 3], fov: 75 },
       gl: { antialias: true }

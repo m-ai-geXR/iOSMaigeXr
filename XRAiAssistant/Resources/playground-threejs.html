@@ -423,7 +423,12 @@
         <button class="menu-btn" onclick="formatCode()">{ } Format</button>
         <button class="menu-btn" onclick="clearCode()">🗑 Clear</button>
         <button class="menu-btn" onclick="saveScene()">💾 Save</button>
-        <button class="menu-btn" onclick="downloadScene()">⬇ Download</button>
+        <select class="menu-btn" onchange="exportScene(this.value); this.value='';" title="Export Scene">
+            <option value="">📦 Export Scene</option>
+            <option value="glb">GLB (Binary glTF)</option>
+            <option value="gltf">glTF (Text + Assets)</option>
+            <option value="json">Three.js Scene JSON</option>
+        </select>
         <button class="menu-btn" onclick="newScene()">📄 New</button>
         <button class="menu-btn" onclick="openDocumentation()">📖 Docs</button>
         <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
@@ -1500,12 +1505,186 @@ console.log("✅ DEBUG scene ready - Look for BRIGHT GREEN spinning cube!");`;
             const code = editor ? editor.getValue() : '';
             notifySwift('downloadRequested', { code: code });
         }
-        
+
+        /**
+         * Export Scene - Universal 3D Scene Export System (Three.js)
+         * Supports GLB (binary glTF), glTF (text + assets), and Three.js Scene JSON
+         * Adheres to m{ai}geXR export capabilities specification
+         */
+        async function exportScene(format) {
+            if (!format) {
+                console.log('⚠️ Export cancelled - no format selected');
+                return;
+            }
+
+            console.log(`🚀 Exporting scene as ${format.toUpperCase()}...`);
+            console.log('🔍 Checking window.scene:', window.scene);
+            console.log('🔍 window.scene type:', typeof window.scene);
+            console.log('🔍 window.scene children:', window.scene ? window.scene.children?.length : 'N/A');
+
+            // Ensure we have a valid scene
+            if (!window.scene) {
+                console.error('❌ No active scene to export');
+                alert('Please run the scene first before exporting');
+                return;
+            }
+
+            const scene = window.scene;
+            console.log('✅ Scene ready for export, children count:', scene.children.length);
+
+            try {
+                switch(format) {
+                    case 'glb':
+                        await exportGLB(scene);
+                        break;
+                    case 'gltf':
+                        await exportGLTF(scene);
+                        break;
+                    case 'json':
+                        exportThreeJSONNative(scene);
+                        break;
+                    default:
+                        console.error(`❌ Unsupported export format: ${format}`);
+                }
+            } catch (error) {
+                console.error(`❌ Export failed: ${error.message}`);
+                alert(`Export failed: ${error.message}`);
+            }
+        }
+
+        /**
+         * Export as GLB (Binary glTF) - PREFERRED DEFAULT
+         * Single-file, portable, universally supported
+         */
+        async function exportGLB(scene) {
+            console.log('📦 Preparing GLB export...');
+
+            // Dynamically import GLTFExporter
+            const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
+
+            console.log('✅ GLTFExporter loaded, exporting scene...');
+
+            // Create exporter and export as GLB (binary)
+            const exporter = new GLTFExporter();
+
+            exporter.parse(
+                scene,
+                (result) => {
+                    console.log('✅ GLB export successful');
+
+                    // Convert ArrayBuffer to base64 for Swift transfer
+                    const bytes = new Uint8Array(result);
+                    let binary = '';
+                    for (let i = 0; i < bytes.byteLength; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    const base64 = btoa(binary);
+
+                    console.log(`📦 GLB file size: ${(result.byteLength / 1024).toFixed(2)} KB`);
+
+                    // Send to Swift for saving
+                    notifySwift('sceneExported', {
+                        format: 'glb',
+                        filename: 'maigeXR_scene.glb',
+                        data: base64,
+                        size: result.byteLength,
+                        success: true
+                    });
+
+                    alert(`✅ GLB exported successfully! (${(result.byteLength / 1024).toFixed(2)} KB)\n\nThe file will be saved to your device.`);
+                },
+                (error) => {
+                    console.error('❌ GLB export error:', error);
+                    throw error;
+                },
+                { binary: true } // Export as binary GLB
+            );
+        }
+
+        /**
+         * Export as glTF (Text + Assets) - EDITABLE FORMAT
+         * Multiple files: .gltf + .bin + textures
+         * Use when editable asset graphs are required
+         */
+        async function exportGLTF(scene) {
+            console.log('📦 Preparing glTF export...');
+
+            // Dynamically import GLTFExporter
+            const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
+
+            console.log('✅ GLTFExporter loaded, exporting scene...');
+
+            // Create exporter and export as glTF (text)
+            const exporter = new GLTFExporter();
+
+            exporter.parse(
+                scene,
+                (result) => {
+                    console.log('✅ glTF export successful');
+
+                    // result is object for glTF (text)
+                    const output = JSON.stringify(result, null, 2);
+                    const base64 = btoa(unescape(encodeURIComponent(output)));
+
+                    console.log(`📦 glTF file size: ${(output.length / 1024).toFixed(2)} KB`);
+
+                    // Send to Swift for saving
+                    notifySwift('sceneExported', {
+                        format: 'gltf',
+                        filename: 'maigeXR_scene.gltf',
+                        data: base64,
+                        size: output.length,
+                        success: true
+                    });
+
+                    alert(`✅ glTF exported successfully! (${(output.length / 1024).toFixed(2)} KB)\n\nThe file will be saved to your device.`);
+                },
+                (error) => {
+                    console.error('❌ glTF export error:', error);
+                    throw error;
+                },
+                { binary: false } // Export as text glTF
+            );
+        }
+
+        /**
+         * Export as Three.js Scene JSON
+         * Engine-specific format for internal reload, persistence, debugging
+         * Non-portable, but captures full Three.js scene graph
+         */
+        function exportThreeJSONNative(scene) {
+            console.log('📦 Preparing Three.js Scene JSON export...');
+
+            // Serialize the entire scene to Three.js JSON format
+            const sceneJSON = JSON.stringify(scene.toJSON(), null, 2);
+            const base64 = btoa(unescape(encodeURIComponent(sceneJSON)));
+
+            console.log(`📦 JSON file size: ${(sceneJSON.length / 1024).toFixed(2)} KB`);
+            console.log('✅ Three.js Scene JSON exported successfully');
+
+            // Send to Swift for saving
+            notifySwift('sceneExported', {
+                format: 'json',
+                filename: 'maigeXR_scene_threejs.json',
+                data: base64,
+                size: sceneJSON.length,
+                success: true
+            });
+
+            alert(`✅ Scene JSON exported successfully! (${(sceneJSON.length / 1024).toFixed(2)} KB)\n\nThe file will be saved to your device.`);
+        }
+
+        // Make export function globally accessible
+        window.exportScene = exportScene;
+        window.exportGLB = exportGLB;
+        window.exportGLTF = exportGLTF;
+        window.exportThreeJSONNative = exportThreeJSONNative;
+
         function newScene() {
             clearCode();
             runCode();
         }
-        
+
         function openDocumentation() {
             // Open Three.js documentation in Safari
             window.location.href = 'https://threejs.org/docs/';
