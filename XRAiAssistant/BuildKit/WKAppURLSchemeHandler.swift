@@ -44,7 +44,11 @@ public class WKAppURLSchemeHandler: NSObject, WKURLSchemeHandler {
         "/vendor/aframe.js": "aframe-1.7.0.min.js",
         "/vendor/aframe-1.7.0.min.js": "aframe-1.7.0.min.js",
         "/aframe-1.7.0.min.js": "aframe-1.7.0.min.js",
-        
+
+        // JSZip - for scene save functionality
+        "/vendor/jszip.min.js": "jszip.min.js",
+        "/jszip.min.js": "jszip.min.js",
+
         // Other libraries
         "/vendor/reactylon.js": "reactylon-1.0.0.js"
     ]
@@ -55,16 +59,25 @@ public class WKAppURLSchemeHandler: NSObject, WKURLSchemeHandler {
             urlSchemeTask.didFailWithError(URLError(.badURL))
             return
         }
-        
-        let path = url.path
+
+        // Handle URLs in format: app://filename or app:///path/filename
+        let path: String
+        if url.path.isEmpty || url.path == "/" {
+            // URL format: app://jszip.min.js (host is the filename)
+            path = "/" + (url.host ?? "")
+        } else {
+            // URL format: app:///jszip.min.js (standard path)
+            path = url.path
+        }
+
         print("📦 Serving vendor asset: \(path)")
-        
+
         // Check if this is a vendor asset request
         if let assetFileName = vendorMappings[path] {
             serveVendorAsset(assetFileName: assetFileName, for: urlSchemeTask)
         } else {
             // Handle other app:// URLs if needed
-            print("⚠️ Unknown app:// URL: \(url)")
+            print("⚠️ Unknown app:// URL: \(url) (path: \(path))")
             urlSchemeTask.didFailWithError(URLError(.fileDoesNotExist))
         }
     }
@@ -74,10 +87,11 @@ public class WKAppURLSchemeHandler: NSObject, WKURLSchemeHandler {
     }
     
     private func serveVendorAsset(assetFileName: String, for task: WKURLSchemeTask) {
-        guard let assetPath = Bundle.main.path(forResource: assetFileName.replacingOccurrences(of: ".js", with: ""), 
-                                              ofType: "js", 
-                                              inDirectory: "Vendor") else {
+        // Vendor files are at the root of the app bundle, not in a subdirectory
+        guard let assetPath = Bundle.main.path(forResource: assetFileName.replacingOccurrences(of: ".js", with: ""),
+                                              ofType: "js") else {
             print("❌ Vendor asset not found: \(assetFileName)")
+            print("🔍 Bundle path: \(Bundle.main.bundlePath)")
             task.didFailWithError(URLError(.fileDoesNotExist))
             return
         }

@@ -8,7 +8,12 @@
       "Bash(open:*)",
       "Bash(swift package:*)",
       "Bash(killall:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(node -c:*)",
+      "Bash(awk:*)",
+      "Bash(python3:*)",
+      "Bash(find:*)",
+      "Bash(xargs -I {} find {} -name \"jszip.min.js\")"
     ],
     "deny": [],
     "ask": []

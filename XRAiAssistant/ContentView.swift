@@ -1571,6 +1571,8 @@ struct ContentView: View {
             testEditorInjection()
         case "sceneExported":
             handleSceneExport(data: data)
+        case "sceneSaved":
+            handleSceneSave(data: data)
         default:
             print("Unknown action: \(action)")
         }
@@ -1624,7 +1626,56 @@ struct ContentView: View {
             }
         }
     }
-    
+
+    private func handleSceneSave(data: [String: Any]) {
+        guard let format = data["format"] as? String,
+              let filename = data["filename"] as? String,
+              let base64Data = data["data"] as? String,
+              let success = data["success"] as? Bool else {
+            print("❌ Invalid scene save data")
+            return
+        }
+
+        guard success else {
+            print("❌ Scene save failed")
+            return
+        }
+
+        print("💾 Received scene package: \(filename) (\(format))")
+
+        // Decode base64 data
+        guard let decodedData = Data(base64Encoded: base64Data) else {
+            print("❌ Failed to decode base64 data")
+            return
+        }
+
+        // Get documents directory
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let fileURL = documentsPath.appendingPathComponent(filename)
+
+        do {
+            // Write file to documents directory
+            try decodedData.write(to: fileURL)
+            print("✅ Scene package saved successfully to: \(fileURL.path)")
+
+            // Get file size for logging
+            let fileSize = (Double(decodedData.count) / 1024.0)
+            print("📊 Package size: \(String(format: "%.2f", fileSize)) KB")
+
+            // Show share sheet to save/share the .zip file
+            DispatchQueue.main.async {
+                self.exportedFileURL = fileURL
+                self.showingExportSheet = true
+            }
+        } catch {
+            print("❌ Failed to save scene package: \(error.localizedDescription)")
+            DispatchQueue.main.async {
+                self.errorMessage = "❌ Save failed: \(error.localizedDescription)"
+                self.showingError = true
+            }
+        }
+    }
+
     private func runScene() {
         guard let webView = webView else {
             errorMessage = "WebView not available"
