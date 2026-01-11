@@ -49,6 +49,10 @@ public class WKAppURLSchemeHandler: NSObject, WKURLSchemeHandler {
         "/vendor/jszip.min.js": "jszip.min.js",
         "/jszip.min.js": "jszip.min.js",
 
+        // Playground utilities - shared functions across all playgrounds
+        "/vendor/playground-utils.js": "playground-utils.js",
+        "/playground-utils.js": "playground-utils.js",
+
         // Other libraries
         "/vendor/reactylon.js": "reactylon-1.0.0.js"
     ]
