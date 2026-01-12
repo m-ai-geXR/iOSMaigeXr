@@ -84,6 +84,7 @@ struct ContentView: View {
     @State private var pendingCodeSandboxCode: String?
     @State private var pendingCodeSandboxFramework: String?
     @State private var codeSandboxCreateFunction: ((String) -> Void)?
+    @State private var createdSandboxURL: String?  // URL of the created CodeSandbox for "Open Sandbox" button
 
     // Image attachment support
     @State private var selectedPhotos: [PhotosPickerItem] = []
@@ -1183,10 +1184,11 @@ struct ContentView: View {
                                 onSandboxCreated: { url in
                                     print("🎉 CodeSandbox created: \(url)")
 
-                                    // Show success message
+                                    // Store the sandbox URL for "Open Sandbox" button
                                     DispatchQueue.main.async {
-                                        // You could add a success toast or notification here
+                                        self.createdSandboxURL = url
                                         print("✅ React Three Fiber scene deployed to CodeSandbox successfully!")
+                                        print("🔗 Open sandbox URL: \(url)")
                                     }
                                 },
                                 onTriggerCreate: { createFunction in
@@ -1231,13 +1233,13 @@ struct ContentView: View {
                             .cornerRadius(12)
                         }
 
-                        // Floating Screenshot Button (positioned to left of console button)
+                        // Floating Screenshot Button (positioned to left, avoiding overlap)
                         VStack {
                             Spacer()
                             HStack {
                                 Spacer()
 
-                                // Screenshot button - 20px to the left of console button
+                                // Screenshot button - positioned left to avoid CodeSandbox button
                                 Button(action: captureSceneScreenshot) {
                                     Image(systemName: "camera.fill")
                                         .font(.title2)
@@ -1250,10 +1252,26 @@ struct ContentView: View {
                                             borderColor: .neonCyan
                                         )
                                 }
-                                .padding(.trailing, 20) // 20px spacing to left of console button
-                                .padding(.bottom, 20)
-                                .padding(.trailing, 48) // Account for console button width
+                                
+                                // Open Sandbox button - only show when CodeSandbox URL is available
+                                if createdSandboxURL != nil {
+                                    Button(action: openSandboxInBrowser) {
+                                        Image(systemName: "arrow.up.right.square.fill")
+                                            .font(.title2)
+                                            .foregroundColor(.white)
+                                            .frame(width: 48, height: 48)
+                                            .glassEffect(
+                                                tintColor: .cyberpunkDarkGray,
+                                                opacity: 0.8,
+                                                cornerRadius: 24,
+                                                borderColor: .neonPurple
+                                            )
+                                    }
+                                }
+                                
+                                Spacer()
                             }
+                            .padding(.bottom, 80) // Increased bottom padding to position above bottom buttons
                         }
 
                     }
@@ -1289,39 +1307,59 @@ struct ContentView: View {
                 
                 // Run Scene Tab
                 Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        currentView = .scene
-                    }
+                    print("🎯 Run Scene button clicked (currentView: \(currentView == .scene ? "scene" : "chat"))")
 
                     // Check if we're in CodeSandbox mode (React Three Fiber)
                     let shouldUseCodeSandbox = useSandpackForR3F && chatViewModel.getCurrentLibrary().id == "reactThreeFiber"
 
                     if shouldUseCodeSandbox {
-                        print("🚀 User clicked Run Scene for React Three Fiber")
+                        print("🚀 User clicked Run Scene for React Three Fiber (CodeSandbox mode)")
 
-                        // If we already have pending code, CodeSandboxWebView will pick it up
-                        if pendingCodeSandboxCode == nil || pendingCodeSandboxCode?.isEmpty == true {
-                            // No pending code, store the last generated code
+                        // Always store the latest code when clicking Run Scene
+                        // This ensures clicking Run Scene again after navigating back will work
+                        if !lastGeneratedCode.isEmpty {
                             pendingCodeSandboxCode = lastGeneratedCode
                             pendingCodeSandboxFramework = chatViewModel.getCurrentLibrary().id
                             print("✅ Stored code for CodeSandbox: \(lastGeneratedCode.count) characters")
                         } else {
-                            print("✅ Using existing pending code: \(pendingCodeSandboxCode?.count ?? 0) characters")
+                            print("⚠️ No code to store for CodeSandbox")
                         }
 
-                        // CodeSandboxWebView will now load and automatically create the sandbox
-                        // because we've switched to .scene view
+                        // Switch to scene view (will trigger CodeSandbox creation)
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            currentView = .scene
+                        }
                     } else if !lastGeneratedCode.isEmpty {
-                        print("Injecting AI code into Scene tab and running...")
-                        isInjectingCode = true
+                        print("🚀 User clicked Run Scene for local playground")
 
-                        // Wait longer for Scene tab to be visible and WebView to be ready
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                            self.injectCodeWithRetry(lastGeneratedCode, maxRetries: 6)
+                        // If already on scene view, just re-inject
+                        if currentView == .scene {
+                            print("🔄 Already on scene view - re-injecting code")
+                            isInjectingCode = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                self.injectCodeWithRetry(lastGeneratedCode, maxRetries: 6)
+                            }
+                        } else {
+                            // Switch to scene view first, then inject
+                            print("🔄 Switching to scene view and injecting code")
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                currentView = .scene
+                            }
+
+                            isInjectingCode = true
+                            // Wait longer for Scene tab to be visible and WebView to be ready
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                self.injectCodeWithRetry(lastGeneratedCode, maxRetries: 6)
+                            }
                         }
                     } else {
-                        print("No AI-generated code available, running default scene")
-                        runScene()
+                        print("⚠️ No AI-generated code available, running default scene")
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            currentView = .scene
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            self.runScene()
+                        }
                     }
                 }) {
                     VStack(spacing: 4) {
@@ -2132,6 +2170,24 @@ struct ContentView: View {
             // Note: Screenshots are automatically saved to conversation history via captureSceneScreenshotAuto()
             // This manual screenshot is just for user reference
             print("💾 Screenshot captured (use auto-screenshot for conversation history)")
+        }
+    }
+
+    /// Opens the CodeSandbox URL in the external browser
+    private func openSandboxInBrowser() {
+        guard let sandboxURL = createdSandboxURL,
+              let url = URL(string: sandboxURL) else {
+            print("⚠️ Cannot open sandbox - URL not available")
+            return
+        }
+
+        print("🌐 Opening CodeSandbox in external browser: \(sandboxURL)")
+        UIApplication.shared.open(url, options: [:]) { success in
+            if success {
+                print("✅ Successfully opened CodeSandbox in browser")
+            } else {
+                print("❌ Failed to open CodeSandbox in browser")
+            }
         }
     }
 

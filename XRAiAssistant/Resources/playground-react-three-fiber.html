@@ -33,12 +33,58 @@
         }
         
         #editor-container {
-            flex: 0 0 50%;
+            position: fixed;
+            right: 0;
+            top: 0;
             width: 50%;
             height: 100%;
             background: #1e1e1e;
-            border-right: 1px solid #333;
+            border-left: 1px solid #333;
             overflow: hidden;
+            transform: translateX(0);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1001;
+        }
+
+        #editor-container.hidden {
+            transform: translateX(100%);
+        }
+
+        /* Swipe handle for opening editor */
+        #editor-handle {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px 0 0 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1000;
+            transition: background 0.2s, width 0.2s, opacity 0.3s;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #editor-handle.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #editor-handle:hover {
+            background: rgba(255, 255, 255, 0.2);
+            width: 35px;
+        }
+
+        #editor-handle::after {
+            content: '‹';
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 24px;
+            font-weight: bold;
         }
         
         #toolbar {
@@ -166,12 +212,18 @@
         }
         
         #canvas-container {
-            flex: 0 0 50%;
+            position: fixed;
+            left: 0;
+            top: 0;
             width: 50%;
             height: 100%;
             background: #000;
-            position: relative;
             overflow: hidden;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #canvas-container.full-width {
+            width: 100%;
         }
         
         #root {
@@ -272,6 +324,9 @@
     </style>
 </head>
 <body>
+    <!-- Editor swipe handle -->
+    <div id="editor-handle" title="Open Code Editor"></div>
+
     <div id="main-container">
         <div id="editor-container">
             <div id="toolbar">
@@ -290,6 +345,8 @@
                         <option value="gltf">glTF (Text + Assets)</option>
                         <option value="json">Three.js Scene JSON</option>
                     </select>
+                    <button id="toggle-console-btn" style="background: #17a2b8; border: none; color: white; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-right: 5px;" title="Toggle Console">📊 Console</button>
+                    <button id="close-editor-button" style="background: #dc3545; border: none; color: white; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;" title="Close Editor">✕</button>
                 </div>
             </div>
             <div id="editor"></div>
@@ -331,7 +388,108 @@
         };
         
         let librariesReady = false;
-        
+
+        /**
+         * Setup swipeable/draggable editor panel
+         * Editor visible by default, can be hidden and reopened
+         */
+        function setupSwipeableEditor() {
+            const editorContainer = document.getElementById('editor-container');
+            const editorHandle = document.getElementById('editor-handle');
+            const closeButton = document.getElementById('close-editor-button');
+            const canvasContainer = document.getElementById('canvas-container');
+            let isEditorOpen = true; // Start visible
+
+            // Open editor function
+            function openEditor() {
+                editorContainer.classList.remove('hidden');
+                editorHandle.classList.remove('visible');
+                canvasContainer.classList.remove('full-width');
+                isEditorOpen = true;
+                console.log('📝 Editor opened');
+            }
+
+            // Close editor function
+            function closeEditor() {
+                editorContainer.classList.add('hidden');
+                editorHandle.classList.add('visible');
+                canvasContainer.classList.add('full-width');
+                isEditorOpen = false;
+                console.log('✕ Editor closed');
+            }
+
+            // Handle click
+            if (editorHandle) {
+                editorHandle.addEventListener('click', openEditor);
+            }
+            if (closeButton) {
+                closeButton.addEventListener('click', closeEditor);
+            }
+
+            // Handle bidirectional swipe gestures
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let isSwiping = false;
+            let swipeDirection = null; // 'open' or 'close'
+
+            document.addEventListener('touchstart', (e) => {
+                const touch = e.touches[0];
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+
+                // If editor is open and touch starts on editor area
+                if (isEditorOpen && touchStartX > window.innerWidth * 0.5) {
+                    isSwiping = true;
+                    swipeDirection = 'close';
+                }
+                // If editor is closed and touch starts near right edge
+                else if (!isEditorOpen && touchStartX > window.innerWidth - 50) {
+                    isSwiping = true;
+                    swipeDirection = 'open';
+                }
+            }, { passive: true });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!isSwiping) return;
+
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - touchStartX; // Positive = swipe right, Negative = swipe left
+                const deltaY = Math.abs(touch.clientY - touchStartY);
+
+                // Only trigger if horizontal swipe (not vertical scroll)
+                if (Math.abs(deltaX) > 50 && deltaY < 30) {
+                    if (swipeDirection === 'close' && deltaX > 50) {
+                        // Swipe right on editor to close it
+                        closeEditor();
+                        isSwiping = false;
+                    } else if (swipeDirection === 'open' && deltaX < -50) {
+                        // Swipe left from edge to open editor
+                        openEditor();
+                        isSwiping = false;
+                    }
+                }
+            }, { passive: true });
+
+            document.addEventListener('touchend', () => {
+                isSwiping = false;
+                swipeDirection = null;
+            }, { passive: true });
+
+            // Keyboard shortcut: Cmd/Ctrl + E to toggle editor
+            document.addEventListener('keydown', (e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+                    e.preventDefault();
+                    if (isEditorOpen) {
+                        closeEditor();
+                    } else {
+                        openEditor();
+                    }
+                }
+            });
+
+            console.log('✅ Swipeable editor setup complete - editor visible by default');
+        }
+
         // Check if basic libraries loaded via script tags and set up globals immediately
         console.log('🔍 XCODE DEBUG: Checking script tag loaded libraries...');
         console.log('   React:', typeof window.React);
@@ -341,6 +499,9 @@
         // Wait for DOM and create globals immediately
         document.addEventListener('DOMContentLoaded', function() {
             console.log('📄 XCODE DEBUG: DOM loaded, setting up globals...');
+
+            // Setup swipeable editor functionality
+            setupSwipeableEditor();
             
             setTimeout(() => {
                 // Check again and create globals
@@ -643,7 +804,52 @@
                     script.onerror = () => reject(new Error('THREE CDN failed'));
                     document.head.appendChild(script);
                 });
-                
+
+                // Load THREE addons for post-processing
+                console.log('📦 Loading THREE.js post-processing addons...');
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.type = 'module';
+                    script.textContent = `
+                        import { EffectComposer } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js';
+                        import { RenderPass } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/RenderPass.js';
+                        import { UnrealBloomPass } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+                        import { OutputPass } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/OutputPass.js';
+                        import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+
+                        window.EffectComposer = EffectComposer;
+                        window.RenderPass = RenderPass;
+                        window.UnrealBloomPass = UnrealBloomPass;
+                        window.OutputPass = OutputPass;
+                        window.OrbitControls = OrbitControls;
+
+                        window.postProcessingReady = true;
+                        console.log('✅ Post-processing addons loaded:', {
+                            EffectComposer: typeof EffectComposer,
+                            UnrealBloomPass: typeof UnrealBloomPass,
+                            OrbitControls: typeof OrbitControls
+                        });
+                    `;
+                    document.head.appendChild(script);
+
+                    // Poll for readiness
+                    const checkReady = setInterval(() => {
+                        if (window.postProcessingReady) {
+                            clearInterval(checkReady);
+                            resolve();
+                        }
+                    }, 50);
+
+                    // Timeout after 5 seconds
+                    setTimeout(() => {
+                        clearInterval(checkReady);
+                        if (!window.postProcessingReady) {
+                            console.warn('⚠️ Post-processing addons timeout - continuing anyway');
+                            resolve(); // Don't fail, just continue
+                        }
+                    }, 5000);
+                });
+
                 // Wait for all basic libraries to settle
                 await new Promise(resolve => setTimeout(resolve, 500));
                 
@@ -756,11 +962,25 @@
                             camera.position.set(0, 0, 5);
                         }
                         
-                        const renderer = new window.THREE.WebGLRenderer({ 
+                        const renderer = new window.THREE.WebGLRenderer({
                             canvas: canvasRef.current,
-                            antialias: props.gl?.antialias !== false
+                            antialias: props.gl?.antialias !== false,
+                            preserveDrawingBuffer: true
                         });
                         renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight);
+                        renderer.setPixelRatio(window.devicePixelRatio); // HiDPI support for Retina displays
+
+                        // Shadow mapping for realistic shadows
+                        renderer.shadowMap.enabled = true;
+                        renderer.shadowMap.type = window.THREE.PCFSoftShadowMap;
+
+                        // Tone mapping for proper HDR and cinematic look
+                        renderer.toneMapping = window.THREE.ACESFilmicToneMapping;
+                        renderer.toneMappingExposure = 1.0;
+
+                        // Output color space for proper color rendering
+                        renderer.outputColorSpace = window.THREE.SRGBColorSpace;
+
                         renderer.setClearColor(0x1a1a2e, 1); // Dark blue background
                         
                         // Store references globally for child components
@@ -1789,6 +2009,12 @@
             document.getElementById('save-button').addEventListener('click', saveScene);
             document.getElementById('console-clear').addEventListener('click', clearConsole);
 
+            // Console toggle button
+            const toggleConsoleBtn = document.getElementById('toggle-console-btn');
+            if (toggleConsoleBtn) {
+                toggleConsoleBtn.addEventListener('click', toggleConsole);
+            }
+
             // Export scene dropdown listener
             const exportButton = document.getElementById('export-button');
             if (exportButton) {
@@ -1812,11 +2038,20 @@
         function showConsole() {
             document.getElementById('console').classList.add('show');
         }
-        
+
         function hideConsole() {
             document.getElementById('console').classList.remove('show');
         }
-        
+
+        function toggleConsole() {
+            const consoleEl = document.getElementById('console');
+            if (consoleEl.classList.contains('show')) {
+                hideConsole();
+            } else {
+                showConsole();
+            }
+        }
+
         function clearConsole() {
             if (consoleElement) {
                 consoleElement.innerHTML = '';
@@ -3162,19 +3397,24 @@ function createDirectThreeJSScene(container) {
         function getDefaultCode() {
             return `// Welcome to React Three Fiber!
 // Create declarative 3D scenes with React components
-// Using React.createElement syntax for browser compatibility
+// Using browser-compatible globals (no ES6 imports needed)
 
-import React, { useRef } from 'react'
-import { createRoot } from 'react-dom/client'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
-import * as THREE from 'three'
+// Access libraries from window globals
+const { useRef, useEffect, createElement, Fragment } = window.React;
+const { createRoot } = window.ReactDOM;
+const { Canvas, useFrame, useThree } = window.ReactThreeFiber;
+const { OrbitControls } = window.Drei;
+const THREE = window.THREE;
+
+// ⚠️ IMPORTANT: When creating components with arrays, pass 'key' prop directly:
+// ❌ BAD:  const props = {key: i, ...}; createElement(Component, {...props})
+// ✅ GOOD: const props = {...}; createElement(Component, {key: i, ...props})
 
 // Scene Export Helper - exposes Three.js scene for export functionality
 function SceneExporter() {
   const { scene } = useThree();
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Expose scene to window for export functionality
     window.__r3f_scene = scene;
     console.log('✅ Scene exposed for export:', scene);
@@ -3195,44 +3435,76 @@ function RotatingCube() {
     if (meshRef.current) {
       meshRef.current.rotation.x += delta * 0.5;
       meshRef.current.rotation.y += delta * 0.2;
+      // Add floating animation for dynamic feel
+      meshRef.current.position.y = 1 + Math.sin(state.clock.elapsedTime) * 0.3;
     }
   });
 
-  return React.createElement('mesh',
-    { ref: meshRef, position: [0, 1, 0] },
-    React.createElement('boxGeometry', { args: [1, 1, 1] }),
-    React.createElement('meshStandardMaterial', { color: 'hotpink' })
+  return createElement('mesh',
+    { ref: meshRef, position: [0, 1, 0], castShadow: true },
+    createElement('boxGeometry', { args: [1.5, 1.5, 1.5] }),
+    createElement('meshStandardMaterial', {
+      color: '#ff0080',
+      emissive: '#ff0080',        // Neon pink glow
+      emissiveIntensity: 0.5,     // Moderate glow intensity
+      metalness: 0.8,             // Metallic surface
+      roughness: 0.2              // Smooth, reflective surface
+    })
   );
 }
 
 function Scene() {
-  return React.createElement(React.Fragment, null,
-    React.createElement(SceneExporter), // Add scene exporter helper
-    React.createElement('ambientLight', { intensity: 0.6 }),
-    React.createElement('directionalLight', { position: [2, 2, 2], intensity: 1 }),
-    React.createElement(RotatingCube),
-    React.createElement('mesh',
-      { rotation: [-Math.PI / 2, 0, 0], position: [0, -0.5, 0] },
-      React.createElement('planeGeometry', { args: [10, 10] }),
-      React.createElement('meshStandardMaterial', { color: '#888888' })
+  return createElement(Fragment, null,
+    createElement(SceneExporter), // Add scene exporter helper
+    // Enhanced lighting setup for better visual quality
+    createElement('ambientLight', { intensity: 0.4 }),
+    createElement('directionalLight', {
+      position: [5, 5, 5],
+      intensity: 1,
+      castShadow: true,
+      'shadow-mapSize': [1024, 1024] // Higher quality shadows
+    }),
+    createElement('pointLight', {
+      position: [-5, 5, -5],
+      intensity: 0.8,
+      color: '#ff00ff'              // Magenta accent light
+    }),
+    createElement(RotatingCube),
+    createElement('mesh',
+      { rotation: [-Math.PI / 2, 0, 0], position: [0, -0.5, 0], receiveShadow: true },
+      createElement('planeGeometry', { args: [10, 10] }),
+      createElement('meshStandardMaterial', {
+        color: '#0f0f20',           // Dark cyberpunk ground
+        roughness: 0.8,
+        metalness: 0.2
+      })
     ),
-    React.createElement(OrbitControls)
+    createElement(OrbitControls)
   );
 }
 
 function App() {
-  return React.createElement(Canvas,
+  return createElement(Canvas,
     {
       style: { width: '100%', height: '100%' },
       camera: { position: [3, 3, 3], fov: 75 },
-      gl: { antialias: true }
+      gl: {
+        antialias: true,
+        alpha: false,
+        powerPreference: 'high-performance',
+        toneMapping: THREE.ACESFilmicToneMapping,
+        toneMappingExposure: 1.0,
+        outputColorSpace: THREE.SRGBColorSpace
+      },
+      shadows: true,
+      shadowMap: { type: THREE.PCFSoftShadowMap }
     },
-    React.createElement(Scene)
+    createElement(Scene)
   );
 }
 
 const root = createRoot(document.getElementById('root'));
-root.render(React.createElement(App));`;
+root.render(createElement(App));`;
         }
         
         function loadDefaultScene() {
@@ -3266,26 +3538,39 @@ root.render(React.createElement(App));`;
                 const TestScene = () => {
                     return window.React.createElement(window.ReactThreeFiber.Canvas, 
                         { style: { width: '100%', height: '100%' } },
-                        // Add comprehensive lighting
-                        window.React.createElement('ambientLight', { intensity: 0.5 }),
-                        window.React.createElement('directionalLight', { 
-                            position: [2, 2, 2], 
+                        // Enhanced lighting setup matching default template
+                        window.React.createElement('ambientLight', { intensity: 0.4 }),
+                        window.React.createElement('directionalLight', {
+                            position: [5, 5, 5],
                             intensity: 1,
-                            castShadow: true 
+                            castShadow: true,
+                            'shadow-mapSize': [1024, 1024]
                         }),
-                        window.React.createElement('pointLight', { 
-                            position: [-2, 2, -2], 
-                            intensity: 0.5,
-                            color: '#ffffff'
+                        window.React.createElement('pointLight', {
+                            position: [-5, 5, -5],
+                            intensity: 0.8,
+                            color: '#ff00ff'
                         }),
-                        // Add a simple test object
-                        window.React.createElement('mesh', 
-                            { position: [0, 0, 0] },
-                            window.React.createElement('boxGeometry', { args: [1, 1, 1] }),
-                            window.React.createElement('meshStandardMaterial', { 
-                                color: '#ff6b6b',
-                                roughness: 0.3,
-                                metalness: 0.1
+                        // Add neon-style test object
+                        window.React.createElement('mesh',
+                            { position: [0, 1, 0], castShadow: true },
+                            window.React.createElement('boxGeometry', { args: [1.5, 1.5, 1.5] }),
+                            window.React.createElement('meshStandardMaterial', {
+                                color: '#00ffff',
+                                emissive: '#00ffff',
+                                emissiveIntensity: 0.5,
+                                roughness: 0.2,
+                                metalness: 0.8
+                            })
+                        ),
+                        // Add ground plane
+                        window.React.createElement('mesh',
+                            { rotation: [-Math.PI / 2, 0, 0], position: [0, -0.5, 0], receiveShadow: true },
+                            window.React.createElement('planeGeometry', { args: [10, 10] }),
+                            window.React.createElement('meshStandardMaterial', {
+                                color: '#0f0f20',
+                                roughness: 0.8,
+                                metalness: 0.2
                             })
                         ),
                         // Add OrbitControls if available

@@ -541,134 +541,22 @@ struct CodeSandboxWebView: UIViewRepresentable {
             return
         }
 
-        print("🌐 CodeSandbox WebView - Loading sandbox with Sandpack: \(id)")
-        print("✅ Using Sandpack embed (designed for WebView)")
+        // FIX: Use CodeSandbox EMBED URL (matches Android exactly)
+        // The embed URL provides swipe-to-reveal editor functionality
+        // Android uses: https://codesandbox.io/embed/{id}?view=preview&hidenavigation=1
+        let embedURL = "https://codesandbox.io/embed/\(id)?view=preview&hidenavigation=1"
+        
+        // The full sandbox URL is already passed via onSandboxCreated callback in createAndLoadSandbox
+        let fullSandboxURL = "https://codesandbox.io/s/\(id)"
 
-        // Create Sandpack HTML that loads the sandbox
-        let sandpackHTML = createSandpackHTML(sandboxID: id)
-        webView.loadHTMLString(sandpackHTML, baseURL: URL(string: "https://codesandbox.io"))
+        print("🌐 CodeSandbox WebView - Loading embed (matches Android): \(embedURL)")
+        print("🔗 Full sandbox URL for browser: \(fullSandboxURL)")
+        print("✅ Embed mode with swipe-to-reveal editor")
+
+        if let url = URL(string: embedURL) {
+            webView.load(URLRequest(url: url))
+        }
     }
-
-    private func createSandpackHTML(sandboxID: String) -> String {
-        // Show a play button that the user clicks to load the preview
-        // The .csb.app preview URL shows a consent screen, so we let users initiate it
-        print("🎨 Creating play button for sandbox: \(sandboxID)")
-        print("🔗 Preview URL: https://\(sandboxID).csb.app/")
-
-        return """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Load Preview</title>
-            <style>
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }
-                body {
-                    width: 100%;
-                    height: 100vh;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: white;
-                    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-                }
-                .container {
-                    text-align: center;
-                    padding: 40px;
-                }
-                h1 {
-                    font-size: 24px;
-                    font-weight: 600;
-                    margin-bottom: 12px;
-                }
-                p {
-                    font-size: 16px;
-                    opacity: 0.9;
-                    margin-bottom: 32px;
-                }
-                .play-button {
-                    width: 120px;
-                    height: 120px;
-                    background: rgba(255, 255, 255, 0.2);
-                    border: 3px solid white;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin: 0 auto;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    backdrop-filter: blur(10px);
-                }
-                .play-button:hover {
-                    background: rgba(255, 255, 255, 0.3);
-                    transform: scale(1.05);
-                }
-                .play-button:active {
-                    transform: scale(0.95);
-                }
-                .play-icon {
-                    width: 0;
-                    height: 0;
-                    border-left: 30px solid white;
-                    border-top: 20px solid transparent;
-                    border-bottom: 20px solid transparent;
-                    margin-left: 8px;
-                }
-                .loading {
-                    display: none;
-                    margin-top: 24px;
-                }
-                .loading.active {
-                    display: block;
-                }
-                .spinner {
-                    border: 3px solid rgba(255, 255, 255, 0.3);
-                    border-radius: 50%;
-                    border-top-color: white;
-                    width: 40px;
-                    height: 40px;
-                    animation: spin 1s linear infinite;
-                    margin: 0 auto 16px;
-                }
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>3D Scene Ready</h1>
-                <p>Tap to load your React Three Fiber preview</p>
-                <div class="play-button" onclick="loadPreview()">
-                    <div class="play-icon"></div>
-                </div>
-                <div class="loading" id="loading">
-                    <div class="spinner"></div>
-                    <p>Loading preview...</p>
-                </div>
-            </div>
-            <script>
-                function loadPreview() {
-                    document.querySelector('.play-button').style.display = 'none';
-                    document.getElementById('loading').classList.add('active');
-                    // Navigate to the preview URL
-                    window.location.href = 'https://\(sandboxID).csb.app/';
-                }
-            </script>
-        </body>
-        </html>
-        """
-    }
-
-
-
 
 }
 
