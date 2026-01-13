@@ -85,6 +85,7 @@ struct ContentView: View {
     @State private var pendingCodeSandboxFramework: String?
     @State private var codeSandboxCreateFunction: ((String) -> Void)?
     @State private var createdSandboxURL: String?  // URL of the created CodeSandbox for "Open Sandbox" button
+    @State private var sandboxRecreationID = UUID()  // Change this to force CodeSandbox recreation
 
     // Image attachment support
     @State private var selectedPhotos: [PhotosPickerItem] = []
@@ -796,7 +797,7 @@ struct ContentView: View {
             viewModel: chatViewModel,
             storageManager: conversationStorage,
             onRunCode: { code, libraryId in
-                print("🎯 Running code with library: \(libraryId ?? "current")")
+                print("🎯 Inline 'Run the Scene' button clicked with library: \(libraryId ?? "current")")
 
                 // If libraryId is provided and different from current, switch to it temporarily
                 if let targetLibraryId = libraryId, targetLibraryId != chatViewModel.currentLibraryId {
@@ -804,14 +805,36 @@ struct ContentView: View {
                     chatViewModel.selectLibrary(id: targetLibraryId)
                 }
 
-                // Switch to scene view and inject code
-                currentView = .scene
+                // Store code for use
                 currentCode = code
                 lastGeneratedCode = code
 
-                // Inject after a short delay to ensure view is loaded
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    injectCodeWithRetry(code, maxRetries: 3)
+                // Check if we should use CodeSandbox for React Three Fiber
+                let shouldUseCodeSandbox = useSandpackForR3F && chatViewModel.getCurrentLibrary().id == "reactThreeFiber"
+
+                if shouldUseCodeSandbox {
+                    print("🚀 Inline button: Using CodeSandbox for React Three Fiber")
+
+                    // Store code and force view recreation (same as tab bar button)
+                    pendingCodeSandboxCode = code
+                    pendingCodeSandboxFramework = chatViewModel.getCurrentLibrary().id
+                    sandboxRecreationID = UUID()
+                    print("🔄 Inline button: Changed sandbox recreation ID to force new sandbox creation")
+
+                    // Switch to scene view (will trigger CodeSandbox creation)
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        currentView = .scene
+                    }
+                } else {
+                    print("🚀 Inline button: Using local playground injection")
+
+                    // Switch to scene view and inject code for local playgrounds
+                    currentView = .scene
+
+                    // Inject after a short delay to ensure view is loaded
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        injectCodeWithRetry(code, maxRetries: 3)
+                    }
                 }
             }
         )
@@ -1196,7 +1219,7 @@ struct ContentView: View {
                                     self.codeSandboxCreateFunction = createFunction
                                 }
                             )
-                            .id(chatViewModel.getCurrentLibrary().id)  // Force reload when library changes
+                            .id("\(chatViewModel.getCurrentLibrary().id)-\(sandboxRecreationID)")  // Force reload when library OR recreation ID changes
                         } else {
                             // Use traditional local playground
                             PlaygroundWebView(
@@ -1316,16 +1339,20 @@ struct ContentView: View {
                         print("🚀 User clicked Run Scene for React Three Fiber (CodeSandbox mode)")
 
                         // Always store the latest code when clicking Run Scene
-                        // This ensures clicking Run Scene again after navigating back will work
                         if !lastGeneratedCode.isEmpty {
                             pendingCodeSandboxCode = lastGeneratedCode
                             pendingCodeSandboxFramework = chatViewModel.getCurrentLibrary().id
                             print("✅ Stored code for CodeSandbox: \(lastGeneratedCode.count) characters")
+
+                            // Force CodeSandbox view to recreate by changing its ID
+                            // This ensures a NEW sandbox is created even if already on scene view
+                            sandboxRecreationID = UUID()
+                            print("🔄 Changed sandbox recreation ID to force new sandbox creation")
                         } else {
                             print("⚠️ No code to store for CodeSandbox")
                         }
 
-                        // Switch to scene view (will trigger CodeSandbox creation)
+                        // Switch to scene view (will trigger CodeSandbox creation with new ID)
                         withAnimation(.easeInOut(duration: 0.3)) {
                             currentView = .scene
                         }
@@ -2089,10 +2116,17 @@ struct ContentView: View {
             self.pendingCodeSandboxCode = code
             self.pendingCodeSandboxFramework = framework.rawValue
             print("✅ Stored code for native API CodeSandbox creation")
-            print("⏸️ NOT auto-switching to Scene tab - user must click 'Run Scene' button")
 
-            // DO NOT auto-switch to scene view - let user read the AI response first
-            // User will click "Run Scene" button when ready
+            // Force CodeSandbox view to recreate by changing its ID
+            // This ensures a NEW sandbox is created (same as tab bar button)
+            self.sandboxRecreationID = UUID()
+            print("🔄 Changed sandbox recreation ID to force new sandbox creation")
+
+            // Auto-switch to scene view to show the CodeSandbox
+            print("🔄 Auto-switching to Scene tab to display CodeSandbox")
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.currentView = .scene
+            }
         }
 
         // Wait a moment for the view to switch and CodeSandboxWebView to load
