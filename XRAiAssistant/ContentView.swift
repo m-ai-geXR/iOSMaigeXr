@@ -809,8 +809,9 @@ struct ContentView: View {
                 currentCode = code
                 lastGeneratedCode = code
 
-                // Check if we should use CodeSandbox for React Three Fiber
-                let shouldUseCodeSandbox = useSandpackForR3F && chatViewModel.getCurrentLibrary().id == "reactThreeFiber"
+                // ALWAYS use CodeSandbox for React Three Fiber
+                let shouldUseCodeSandbox = chatViewModel.getCurrentLibrary().id == "reactThreeFiber"
+                print("🔍 Inline button - Library: \(chatViewModel.getCurrentLibrary().id), useCodeSandbox: \(shouldUseCodeSandbox)")
 
                 if shouldUseCodeSandbox {
                     print("🚀 Inline button: Using CodeSandbox for React Three Fiber")
@@ -1159,7 +1160,12 @@ struct ContentView: View {
         VStack(spacing: 0) {
             ZStack {
                         // Check if we should use CodeSandbox for React Three Fiber or Reactylon
-                        if useSandpackForR3F && (chatViewModel.getCurrentLibrary().id == "reactThreeFiber" || chatViewModel.getCurrentLibrary().id == "reactylon") {
+                        let currentLibraryId = chatViewModel.getCurrentLibrary().id
+                        let _ = print("🔍 Scene View Check - useSandpackForR3F: \(useSandpackForR3F), currentLibraryId: \(currentLibraryId)")
+
+                        // ALWAYS use CodeSandbox for React Three Fiber (ignore toggle for R3F)
+                        if (currentLibraryId == "reactThreeFiber" || currentLibraryId == "reactylon") {
+                            let _ = print("✅ Using CodeSandbox for \(currentLibraryId)")
                             CodeSandboxWebView(
                                 webView: $webView,
                                 framework: chatViewModel.getCurrentLibrary().id,
@@ -1221,7 +1227,8 @@ struct ContentView: View {
                             )
                             .id("\(chatViewModel.getCurrentLibrary().id)-\(sandboxRecreationID)")  // Force reload when library OR recreation ID changes
                         } else {
-                            // Use traditional local playground
+                            // Use traditional local playground for other frameworks
+                            let _ = print("📝 Using local playground for \(currentLibraryId)")
                             PlaygroundWebView(
                                 webView: $webView,
                                 playgroundTemplate: chatViewModel.getPlaygroundTemplate(),
@@ -1245,8 +1252,8 @@ struct ContentView: View {
                                 ProgressView()
                                     .scaleEffect(1.5)
                                     .tint(.blue)
-                                Text(useSandpackForR3F && chatViewModel.getCurrentLibrary().id == "reactThreeFiber" ?
-                                    "Deploying to Sandpack..." : "Injecting AI Code...")
+                                Text(chatViewModel.getCurrentLibrary().id == "reactThreeFiber" ?
+                                    "Deploying to CodeSandbox..." : "Injecting AI Code...")
                                     .font(.headline)
                                     .foregroundColor(.blue)
                                     .padding(.top, 8)
@@ -1332,8 +1339,9 @@ struct ContentView: View {
                 Button(action: {
                     print("🎯 Run Scene button clicked (currentView: \(currentView == .scene ? "scene" : "chat"))")
 
-                    // Check if we're in CodeSandbox mode (React Three Fiber)
-                    let shouldUseCodeSandbox = useSandpackForR3F && chatViewModel.getCurrentLibrary().id == "reactThreeFiber"
+                    // ALWAYS use CodeSandbox for React Three Fiber
+                    let shouldUseCodeSandbox = chatViewModel.getCurrentLibrary().id == "reactThreeFiber"
+                    print("🔍 Run Scene - Library: \(chatViewModel.getCurrentLibrary().id), useCodeSandbox: \(shouldUseCodeSandbox)")
 
                     if shouldUseCodeSandbox {
                         print("🚀 User clicked Run Scene for React Three Fiber (CodeSandbox mode)")
@@ -1791,7 +1799,8 @@ struct ContentView: View {
         }
         
         // Use different readiness checks based on Sandpack vs regular playground
-        let isUsingSandpack = useSandpackForR3F && chatViewModel.getCurrentLibrary().id == "reactThreeFiber"
+        // ALWAYS use CodeSandbox for React Three Fiber
+        let isUsingSandpack = chatViewModel.getCurrentLibrary().id == "reactThreeFiber"
 
         let checkReadinessJS: String
 
@@ -2072,8 +2081,8 @@ struct ContentView: View {
     private func buildAndRunCode(code: String, framework: FrameworkKind) async {
         print("🏗️ Building and running \(framework.displayName) code")
 
-        // Check if we should use CodeSandbox for supported frameworks
-        let shouldUseCodeSandbox = useSandpackForR3F && (
+        // ALWAYS use CodeSandbox for React Three Fiber and Reactylon
+        let shouldUseCodeSandbox = (
             chatViewModel.getCurrentLibrary().id == "reactThreeFiber" ||
             chatViewModel.getCurrentLibrary().id == "reactylon"
         )
@@ -2284,8 +2293,18 @@ struct ContentView: View {
 
     private func loadContentViewSettings() {
         print("📁 Loading ContentView settings...")
-        useSandpackForR3F = UserDefaults.standard.bool(forKey: "XRAiAssistant_UseSandpackForR3F")
-        print("✅ Sandpack setting loaded: \(useSandpackForR3F)")
+
+        // Check if the key exists - if not, default to true (CodeSandbox enabled)
+        if UserDefaults.standard.object(forKey: "XRAiAssistant_UseSandpackForR3F") == nil {
+            // First time - default to CodeSandbox enabled
+            useSandpackForR3F = true
+            UserDefaults.standard.set(true, forKey: "XRAiAssistant_UseSandpackForR3F")
+            print("✅ First launch - CodeSandbox enabled by default")
+        } else {
+            // Load saved preference
+            useSandpackForR3F = UserDefaults.standard.bool(forKey: "XRAiAssistant_UseSandpackForR3F")
+            print("✅ Sandpack setting loaded: \(useSandpackForR3F)")
+        }
     }
 
     // MARK: - CodeSandbox HTML Loading

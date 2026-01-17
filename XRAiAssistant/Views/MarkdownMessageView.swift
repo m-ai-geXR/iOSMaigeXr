@@ -5,12 +5,33 @@ struct MarkdownMessageView: View {
     let content: String
     let isUser: Bool
     @State private var copiedCodeBlocks: Set<Int> = []
+    @State private var showCopiedFullMessage = false
 
     var body: some View {
         VStack(alignment: isUser ? .trailing : .leading, spacing: 8) {
             ForEach(Array(parseContent().enumerated()), id: \.offset) { index, block in
                 renderBlock(block, index: index)
             }
+
+            // Show "Copied!" indicator when full message is copied
+            if showCopiedFullMessage {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption)
+                    Text("Message copied!")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color.green.opacity(0.9))
+                .cornerRadius(6)
+                .transition(.opacity)
+            }
+        }
+        .onLongPressGesture(minimumDuration: 0.5) {
+            copyFullMessageToClipboard()
         }
     }
 
@@ -216,6 +237,33 @@ struct MarkdownMessageView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             copiedCodeBlocks.remove(index)
         }
+    }
+
+    private func copyFullMessageToClipboard() {
+        #if os(iOS)
+        UIPasteboard.general.string = content
+        #elseif os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(content, forType: .string)
+        #endif
+
+        // Show copied feedback with animation
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showCopiedFullMessage = true
+        }
+
+        // Reset after 2 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showCopiedFullMessage = false
+            }
+        }
+
+        // Haptic feedback
+        #if os(iOS)
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
+        #endif
     }
 
     private func headingFont(for level: Int) -> Font {
