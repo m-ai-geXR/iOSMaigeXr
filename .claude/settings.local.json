@@ -13,7 +13,19 @@
       "Bash(awk:*)",
       "Bash(python3:*)",
       "Bash(find:*)",
-      "Bash(xargs -I {} find {} -name \"jszip.min.js\")"
+      "Bash(xargs -I {} find {} -name \"jszip.min.js\")",
+      "Bash(echo $GITHUB_TOKEN)",
+      "Bash(if [ -z \"$GITHUB_TOKEN\" ])",
+      "Bash(then)",
+      "Bash(echo \"   echo ''export GITHUB_TOKEN=\"\"your_token_here\"\"'' >> ~/.zshrc\")",
+      "Bash(else)",
+      "Bash(echo:*)",
+      "Bash(fi)",
+      "Bash([ -z \"$GITHUB_TOKEN\" ])",
+      "Bash(then echo \"❌ NOT SET\")",
+      "Bash(else echo \"✅ SET \\($#GITHUB_TOKEN characters\\)\")",
+      "Bash(gh api:*)",
+      "Bash(xcrun devicectl:*)"
     ],
     "deny": [],
     "ask": []

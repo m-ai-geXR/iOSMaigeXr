@@ -25,6 +25,12 @@
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
         import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+        import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
+        import { FilmPass } from 'three/addons/postprocessing/FilmPass.js';
+        import { RGBShiftShader } from 'three/addons/shaders/RGBShiftShader.js';
+        import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+        import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+        import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
         import { createInspector } from 'three-inspect/vanilla';
 
         // Make THREE and addons globally available
@@ -34,11 +40,17 @@
         window.RenderPass = RenderPass;
         window.UnrealBloomPass = UnrealBloomPass;
         window.OutputPass = OutputPass;
+        window.GlitchPass = GlitchPass;
+        window.FilmPass = FilmPass;
+        window.RGBShiftShader = RGBShiftShader;
+        window.ShaderPass = ShaderPass;
+        window.BokehPass = BokehPass;
+        window.SMAAPass = SMAAPass;
         window.createInspector = createInspector;
 
         console.log('✅ super-three v0.173.0 loaded from CDN, version:', THREE.REVISION);
         console.log('✅ OrbitControls available:', typeof OrbitControls !== 'undefined');
-        console.log('✅ Postprocessing addons available');
+        console.log('✅ Postprocessing effects available: EffectComposer, RenderPass, UnrealBloomPass, OutputPass, GlitchPass, FilmPass, RGBShiftShader, ShaderPass, BokehPass, SMAAPass');
         console.log('✅ three-inspect createInspector available:', typeof createInspector !== 'undefined');
 
         // Dispatch event to signal Three.js is ready
