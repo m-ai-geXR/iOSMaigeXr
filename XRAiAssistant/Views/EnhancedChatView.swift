@@ -432,27 +432,11 @@ struct EnhancedChatView: View {
                             .font(.caption2)
                             .foregroundColor(.gray)
 
-                        // ALWAYS show "Run the Scene" button for AI messages, but extract code smartly
-                        Button(action: {
-                            // Try to extract code first, fallback to full content if no code blocks found
-                            if let code = extractCode(from: message.content) {
-                                print("🎯 Running extracted code (\(code.count) chars) with library: \(message.libraryId ?? "current")")
-                                onRunCode?(code, message.libraryId)
-                            } else {
-                                print("⚠️ No code blocks found, running full message content with library: \(message.libraryId ?? "current")")
-                                onRunCode?(message.content, message.libraryId)
-                            }
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "play.fill")
-                                    .font(.caption)
-                                Text("Run the Scene")
-                                    .font(.caption)
-                                    .underline() // Make it look like a hyperlink
-                            }
-                            .foregroundColor(extractCode(from: message.content) != nil ? .neonGreen : .warningNeon)
-                        }
-                        .buttonStyle(PlainButtonStyle())
+                        // ALWAYS show "Run the Scene" button for AI messages
+                        RunSceneButton(
+                            message: message,
+                            onRunCode: onRunCode
+                        )
                     }
                     .frame(maxWidth: 600, alignment: .leading)
                 }
@@ -461,12 +445,9 @@ struct EnhancedChatView: View {
         }
     }
 
-    private func extractCode(from content: String) -> String? {
-        // DEBUG: Print full content to understand the format
-        print("🔍 [Legacy] Attempting code extraction:")
-        print("📏 Length: \(content.count)")
-        print("📝 First 300 chars: \(content.prefix(300))")
-        print("📝 Last 100 chars: \(content.suffix(100))")
+    static func extractCode(from content: String) -> String? {
+        // Extract code from markdown code blocks
+        // Reduced logging to prevent spam on every render
 
         // STRICT: Only extract code from TRIPLE backtick blocks (``` not `)
         // Find the start of the code block
@@ -481,27 +462,24 @@ struct EnhancedChatView: View {
                 let afterMarkerStart = content.index(range.upperBound, offsetBy: 0, limitedBy: content.endIndex) ?? content.endIndex
                 
                 // Make sure we're not matching part of a longer backtick sequence
-                if !beforeMarker.hasSuffix("`") && 
+                if !beforeMarker.hasSuffix("`") &&
                    (afterMarkerStart == content.endIndex || !content[afterMarkerStart...].hasPrefix("`")) {
                     codeStart = range.upperBound
                     foundMarker = marker
-                    print("✅ Found code block start: '\(marker)'")
                     break
                 }
             }
         }
 
         guard let start = codeStart else {
-            print("❌ No code block start marker found")
             return nil
         }
 
         // Find the end of the code block (closing triple backticks)
         let afterStart = content[start...]
-        
+
         // Look for newline followed by ``` (the proper closing)
         guard let endRange = afterStart.range(of: "\n```") ?? afterStart.range(of: "```") else {
-            print("❌ No closing ``` found")
             return nil
         }
 
@@ -509,19 +487,13 @@ struct EnhancedChatView: View {
         let codeRange = start..<endRange.lowerBound
         var code = String(content[codeRange]).trimmingCharacters(in: .whitespacesAndNewlines)
 
-        print("✅ Raw extracted code length: \(code.count)")
-        print("📝 First 100 chars of code: \(code.prefix(100))")
-
         // Remove any artifacts that might be at the end
         let artifactsToRemove = ["[/INSERT_CODE]", "[RUN_SCENE]", "```"]
         for artifact in artifactsToRemove {
             if code.hasSuffix(artifact) {
                 code = String(code.dropLast(artifact.count)).trimmingCharacters(in: .whitespacesAndNewlines)
-                print("🧹 Removed trailing artifact: \(artifact)")
             }
         }
-
-        print("✅ Final extracted code length: \(code.count)")
         
         // Sanity check: ignore if it's too short (probably not real code)
         if code.count < 10 {
@@ -903,4 +875,44 @@ struct EnhancedChatView: View {
     }
 
     return PreviewWrapper()
+}
+
+// MARK: - Run Scene Button Component
+// Separate component to properly cache code extraction and avoid re-rendering issues
+struct RunSceneButton: View {
+    let message: ChatMessage
+    let onRunCode: ((String, String?) -> Void)?
+
+    // Cache the extracted code using @State to prevent re-extraction on every render
+    @State private var extractedCode: String?
+    @State private var isInitialized = false
+
+    var body: some View {
+        Button(action: {
+            // Try to extract code first, fallback to full content if no code blocks found
+            if let code = extractedCode {
+                print("🎯 Running extracted code (\(code.count) chars) with library: \(message.libraryId ?? "current")")
+                onRunCode?(code, message.libraryId)
+            } else {
+                print("⚠️ No code blocks found, running full message content with library: \(message.libraryId ?? "current")")
+                onRunCode?(message.content, message.libraryId)
+            }
+        }) {
+            HStack(spacing: 4) {
+                Image(systemName: "play.fill")
+                    .font(.caption)
+                Text("Run the Scene")
+                    .font(.caption)
+                    .underline()
+            }
+            .foregroundColor(extractedCode != nil ? .neonGreen : .warningNeon)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .onAppear {
+            if !isInitialized {
+                extractedCode = EnhancedChatView.extractCode(from: message.content)
+                isInitialized = true
+            }
+        }
+    }
 }

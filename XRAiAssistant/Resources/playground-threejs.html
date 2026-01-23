@@ -1131,9 +1131,13 @@
 
                 controls.update();
 
-                // Execute any scene animations
-                if (scene && scene.userData && scene.userData.animate) {
-                    scene.userData.animate();
+                // Execute any scene animations (check both .animate and .update)
+                if (scene && scene.userData) {
+                    if (scene.userData.animate) {
+                        scene.userData.animate();
+                    } else if (scene.userData.update) {
+                        scene.userData.update();
+                    }
                 }
 
                 if (scene && camera && renderer) {
@@ -1303,14 +1307,31 @@ console.log("✅ DEBUG scene ready - Look for BRIGHT GREEN spinning cube!");`;
                 // Clear existing objects but preserve lighting
                 clearScene();
 
-                // Clean user code to remove conflicting animation loops
-                // Remove standalone animate() function definitions that call composer.render()
-                code = code.replace(/function\s+animate\s*\(\s*\)\s*\{[^}]*requestAnimationFrame\s*\(\s*animate\s*\)[^}]*composer\.render\s*\(\s*\)[^}]*\}\s*animate\s*\(\s*\)\s*;?/g, '');
+                // Check if user code already sets scene.userData.animate or scene.userData.update
+                // If so, skip the conversion - user is following the correct pattern
+                const hasUserDataAnimate = code.includes('scene.userData.animate') || code.includes('scene.userData.update');
 
-                // Remove arrow function animate loops
-                code = code.replace(/const\s+animate\s*=\s*\(\s*\)\s*=>\s*\{[^}]*requestAnimationFrame\s*\(\s*animate\s*\)[^}]*composer\.render\s*\(\s*\)[^}]*\}\s*;?\s*animate\s*\(\s*\)\s*;?/g, '');
+                if (hasUserDataAnimate) {
+                    console.log('✅ User code already uses scene.userData.animate/update pattern');
+                } else {
+                    // Check if user has a standalone animate() function that should be removed
+                    const hasStandaloneAnimate = code.match(/function\s+animate\s*\(\s*\)\s*\{[\s\S]*?requestAnimationFrame\s*\(\s*animate\s*\)/) ||
+                                                  code.match(/const\s+animate\s*=\s*\(\s*\)\s*=>\s*\{[\s\S]*?requestAnimationFrame\s*\(\s*animate\s*\)/);
 
-                console.log('🧹 Cleaned user code to remove conflicting animation loops');
+                    if (hasStandaloneAnimate) {
+                        console.log('⚠️ Found standalone animate() with requestAnimationFrame - this conflicts with global loop');
+                        console.log('ℹ️ Please use scene.userData.animate = function() { ... } instead');
+
+                        // Simply remove standalone animate functions that call requestAnimationFrame
+                        // User should restructure their code to use scene.userData.animate
+                        code = code.replace(/function\s+animate\s*\(\s*\)\s*\{[\s\S]*?\}\s*animate\s*\(\s*\)\s*;?/g, '');
+                        code = code.replace(/const\s+animate\s*=\s*\(\s*\)\s*=>\s*\{[\s\S]*?\}\s*;?\s*animate\s*\(\s*\)\s*;?/g, '');
+
+                        console.log('🧹 Removed conflicting animate() function - user should use scene.userData.animate pattern');
+                    } else {
+                        console.log('ℹ️ No standalone animate() function found in user code');
+                    }
+                }
 
                 // Execute the code in global context
                 const executeCode = new Function('THREE', 'scene', 'camera', 'renderer', 'controls', 'canvas',
