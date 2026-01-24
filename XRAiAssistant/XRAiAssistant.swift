@@ -2,6 +2,8 @@ import SwiftUI
 
 @main
 struct XRAiAssistant: App {
+    @State private var showSplash = true
+
     init() {
         // Run database migration on first launch
         Task {
@@ -23,8 +25,23 @@ struct XRAiAssistant: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .preferredColorScheme(.dark)
+            ZStack {
+                // Main app (hidden behind splash initially)
+                ContentView()
+                    .preferredColorScheme(.dark)
+                    .opacity(showSplash ? 0 : 1)
+
+                // Splash screen overlay
+                if showSplash {
+                    SplashScreenView {
+                        withAnimation(.easeOut(duration: 0.6)) {
+                            showSplash = false
+                        }
+                    }
+                    .transition(.opacity)
+                    .zIndex(1)
+                }
+            }
         }
     }
 }
