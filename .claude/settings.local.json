@@ -25,7 +25,8 @@
       "Bash(then echo \"❌ NOT SET\")",
       "Bash(else echo \"✅ SET \\($#GITHUB_TOKEN characters\\)\")",
       "Bash(gh api:*)",
-      "Bash(xcrun devicectl:*)"
+      "Bash(xcrun devicectl:*)",
+      "Bash(swiftc:*)"
     ],
     "deny": [],
     "ask": []

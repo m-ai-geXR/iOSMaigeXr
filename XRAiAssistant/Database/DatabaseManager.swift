@@ -13,7 +13,8 @@ import GRDB
 class DatabaseManager: ObservableObject {
     static let shared = DatabaseManager()
 
-    private var dbQueue: DatabaseQueue!
+    private var _dbQueue: DatabaseQueue!
+    var dbQueue: DatabaseQueue? { _dbQueue }
     private let databaseFileName = "XRAiAssistant.sqlite"
 
     private init() {
@@ -32,8 +33,8 @@ class DatabaseManager: ObservableObject {
 
             print("📁 Database path: \(dbPath)")
 
-            dbQueue = try DatabaseQueue(path: dbPath)
-            try migrator.migrate(dbQueue)
+            _dbQueue = try DatabaseQueue(path: dbPath)
+            try migrator.migrate(_dbQueue)
 
             print("✅ Database initialized successfully")
         } catch {
@@ -170,13 +171,71 @@ class DatabaseManager: ObservableObject {
             print("✅ Migration v3_conversation_screenshots completed")
         }
 
+        // v4: Add favorites table
+        migrator.registerMigration("v4_favorites_table") { db in
+            print("🔄 Running migration: v4_favorites_table")
+
+            // Favorites table for bookmarking individual code snippets
+            try db.create(table: "favorites") { t in
+                t.column("id", .text).primaryKey().notNull()
+                t.column("message_id", .text).notNull()
+                    .references("messages", onDelete: .cascade)
+                t.column("conversation_id", .text).notNull()
+                    .references("conversations", onDelete: .cascade)
+                t.column("title", .text).notNull()
+                t.column("code_content", .text).notNull()
+                t.column("library_id", .text)
+                t.column("model_used", .text)
+                t.column("screenshot_base64", .text)
+                t.column("created_at", .datetime).notNull()
+                t.column("favorite_order", .integer)
+                t.column("tags", .text)
+            }
+
+            // Indexes for efficient queries
+            try db.create(index: "idx_favorites_message_id", on: "favorites", columns: ["message_id"])
+            try db.create(index: "idx_favorites_created_at", on: "favorites", columns: ["created_at"])
+
+            print("✅ Migration v4_favorites_table completed")
+        }
+
+        // v5: Recreate favorites table without foreign key constraints
+        // This allows favoriting legacy ChatMessages that aren't in the database
+        migrator.registerMigration("v5_favorites_no_fk") { db in
+            print("🔄 Running migration: v5_favorites_no_fk")
+
+            // Drop existing favorites table
+            try db.drop(table: "favorites")
+
+            // Recreate without foreign key constraints
+            try db.create(table: "favorites") { t in
+                t.column("id", .text).primaryKey().notNull()
+                t.column("message_id", .text).notNull()
+                t.column("conversation_id", .text).notNull()
+                t.column("title", .text).notNull()
+                t.column("code_content", .text).notNull()
+                t.column("library_id", .text)
+                t.column("model_used", .text)
+                t.column("screenshot_base64", .text)
+                t.column("created_at", .datetime).notNull()
+                t.column("favorite_order", .integer)
+                t.column("tags", .text)
+            }
+
+            // Indexes for efficient queries
+            try db.create(index: "idx_favorites_message_id", on: "favorites", columns: ["message_id"])
+            try db.create(index: "idx_favorites_created_at", on: "favorites", columns: ["created_at"])
+
+            print("✅ Migration v5_favorites_no_fk completed - Foreign keys removed")
+        }
+
         return migrator
     }
 
     // MARK: - Settings CRUD
 
     func saveSetting(key: String, value: Any) async throws {
-        try await dbQueue.write { db in
+        try await _dbQueue.write { db in
             let type: String
             let stringValue: String
 
@@ -217,7 +276,7 @@ class DatabaseManager: ObservableObject {
     }
 
     func loadSetting(key: String) async throws -> Any? {
-        try await dbQueue.read { db in
+        try await _dbQueue.read { db in
             guard let row = try Row.fetchOne(db, sql: "SELECT value, type FROM settings WHERE key = ?", arguments: [key]) else {
                 return nil
             }
@@ -242,7 +301,7 @@ class DatabaseManager: ObservableObject {
     }
 
     func loadAllSettings() async throws -> [String: Any] {
-        try await dbQueue.read { db in
+        try await _dbQueue.read { db in
             let rows = try Row.fetchAll(db, sql: "SELECT key, value, type FROM settings")
             var settings: [String: Any] = [:]
 
@@ -275,7 +334,7 @@ class DatabaseManager: ObservableObject {
     // MARK: - Conversation CRUD
 
     func saveConversation(_ conversation: Conversation) async throws {
-        try await dbQueue.write { db in
+        try await _dbQueue.write { db in
             let metadataJSON = try? JSONEncoder().encode(["custom": "data"])
 
             try db.execute(
@@ -343,7 +402,7 @@ class DatabaseManager: ObservableObject {
     }
 
     func loadConversations(limit: Int = 100, offset: Int = 0) async throws -> [Conversation] {
-        try await dbQueue.read { db in
+        try await _dbQueue.read { db in
             let rows = try Row.fetchAll(db, sql: """
                 SELECT * FROM conversations
                 WHERE is_archived = 0
@@ -404,7 +463,7 @@ class DatabaseManager: ObservableObject {
     }
 
     func deleteConversation(_ id: UUID) async throws {
-        try await dbQueue.write { db in
+        try await _dbQueue.write { db in
             try db.execute(sql: "DELETE FROM conversations WHERE id = ?", arguments: [id.uuidString])
         }
     }
@@ -412,7 +471,7 @@ class DatabaseManager: ObservableObject {
     // MARK: - Search
 
     func fullTextSearch(query: String, limit: Int = 50) async throws -> [EnhancedChatMessage] {
-        try await dbQueue.read { db in
+        try await _dbQueue.read { db in
             let rows = try Row.fetchAll(db, sql: """
                 SELECT m.* FROM messages m
                 JOIN messages_fts fts ON m.id = fts.id
@@ -438,7 +497,7 @@ class DatabaseManager: ObservableObject {
     // MARK: - Background Indexing Support (for Phase 4)
 
     func loadUnindexedConversations() async throws -> [Conversation] {
-        try await dbQueue.read { db in
+        try await _dbQueue.read { db in
             // Find conversations that don't have RAG embeddings
             let rows = try Row.fetchAll(db, sql: """
                 SELECT c.* FROM conversations c
@@ -477,7 +536,7 @@ class DatabaseManager: ObservableObject {
     // MARK: - RAG CRUD (Phase 3)
 
     func saveRAGDocument(_ document: RAGDocument, embedding: [Float]) async throws {
-        try await dbQueue.write { db in
+        try await _dbQueue.write { db in
             // Encode metadata to JSON
             let metadataData = try JSONEncoder().encode(document.metadata)
             let metadataString = String(data: metadataData, encoding: .utf8)
@@ -533,7 +592,7 @@ class DatabaseManager: ObservableObject {
     }
 
     func loadAllEmbeddings(sourceType: String? = nil) async throws -> [EmbeddingData] {
-        try await dbQueue.read { db in
+        try await _dbQueue.read { db in
             var sql = """
                 SELECT d.*, e.embedding FROM rag_documents d
                 JOIN rag_embeddings e ON d.id = e.document_id
@@ -582,7 +641,7 @@ class DatabaseManager: ObservableObject {
     }
 
     func loadEmbedding(documentId: String) async throws -> [Float]? {
-        try await dbQueue.read { db in
+        try await _dbQueue.read { db in
             guard let row = try Row.fetchOne(db, sql: """
                 SELECT embedding FROM rag_embeddings WHERE document_id = ?
                 """, arguments: [documentId]) else {
@@ -598,7 +657,7 @@ class DatabaseManager: ObservableObject {
     }
 
     func fullTextSearchRAG(query: String, limit: Int = 50, sourceType: String? = nil) async throws -> [RAGDocument] {
-        try await dbQueue.read { db in
+        try await _dbQueue.read { db in
             var sql = """
                 SELECT d.* FROM rag_documents d
                 JOIN rag_documents_fts fts ON d.id = fts.id
@@ -638,7 +697,7 @@ class DatabaseManager: ObservableObject {
     }
 
     func loadEmbeddingsForConversation(conversationId: UUID) async throws -> [[Float]] {
-        try await dbQueue.read { db in
+        try await _dbQueue.read { db in
             let rows = try Row.fetchAll(db, sql: """
                 SELECT e.embedding FROM rag_embeddings e
                 JOIN rag_documents d ON e.document_id = d.id

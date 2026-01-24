@@ -15,6 +15,11 @@ struct EnhancedChatView: View {
     @State private var selectedHistoryConversation: Conversation?
     @State private var isCompactView = false
 
+    // Favorites support
+    @State private var showFavorites = false
+    @State private var selectedFavorite: Favorite?
+    @State private var favoritedMessageIds: Set<UUID> = []
+
     // Image attachment support
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var selectedImages: [UIImage] = []
@@ -137,6 +142,13 @@ struct EnhancedChatView: View {
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showFavorites = true }) {
+                        Image(systemName: "star")
+                            .foregroundColor(.warningNeon)
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Button {
                             isCompactView.toggle()
@@ -169,14 +181,30 @@ struct EnhancedChatView: View {
                     selectedConversation: $selectedHistoryConversation
                 )
             }
+            .sheet(isPresented: $showFavorites) {
+                FavoritesView(
+                    storageManager: storageManager,
+                    isPresented: $showFavorites,
+                    selectedFavorite: $selectedFavorite
+                )
+            }
             .onChange(of: selectedHistoryConversation) { newConversation in
                 if let conversation = newConversation {
                     loadConversation(conversation)
                     selectedHistoryConversation = nil
                 }
             }
+            .onChange(of: selectedFavorite) { newFavorite in
+                if let favorite = newFavorite {
+                    loadAndRunFavorite(favorite)
+                    selectedFavorite = nil
+                }
+            }
         }
         .navigationViewStyle(StackNavigationViewStyle())
+        .onAppear {
+            loadFavoritedMessageIds()
+        }
     }
 
     // MARK: - Subviews
@@ -437,6 +465,17 @@ struct EnhancedChatView: View {
                             message: message,
                             onRunCode: onRunCode
                         )
+
+                        // Star/Favorite button for AI code messages
+                        if Self.extractCode(from: message.content) != nil {
+                            Button(action: {
+                                toggleFavorite(for: message)
+                            }) {
+                                Image(systemName: isFavorited(message.id) ? "star.fill" : "star")
+                                    .font(.caption)
+                                    .foregroundColor(isFavorited(message.id) ? .warningNeon : .cyberpunkGray)
+                            }
+                        }
                     }
                     .frame(maxWidth: 600, alignment: .leading)
                 }
@@ -857,6 +896,99 @@ struct EnhancedChatView: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    // MARK: - Favorites
+
+    private func loadAndRunFavorite(_ favorite: Favorite) {
+        // Set the 3D library if specified
+        if let libraryId = favorite.libraryId {
+            viewModel.libraryManager.selectLibrary(id: libraryId)
+        }
+
+        // Run the code automatically
+        onRunCode?(favorite.codeContent, favorite.libraryId)
+
+        print("▶️ Running favorite: \(favorite.title)")
+    }
+
+    private func isFavorited(_ messageId: String) -> Bool {
+        guard let uuid = UUID(uuidString: messageId) else { return false }
+        return favoritedMessageIds.contains(uuid)
+    }
+
+    private func toggleFavorite(for message: ChatMessage) {
+        Task {
+            do {
+                // Convert String ID to UUID
+                guard let messageUUID = UUID(uuidString: message.id) else {
+                    print("❌ Invalid message ID format: \(message.id)")
+                    return
+                }
+
+                // Check if already favorited
+                if let existing = try await storageManager.getFavoriteByMessageId(messageId: messageUUID) {
+                    // Remove favorite
+                    try await storageManager.deleteFavorite(id: existing.id)
+                    await MainActor.run {
+                        favoritedMessageIds.remove(messageUUID)
+                    }
+                    print("⭐ Removed favorite: \(existing.title)")
+                } else {
+                    // Add favorite
+                    guard let code = Self.extractCode(from: message.content) else {
+                        print("⚠️ No code found in message to favorite")
+                        return
+                    }
+
+                    let title = generateFavoriteTitle(from: code)
+                    let conversationId = currentConversation?.id ?? UUID()
+
+                    try await storageManager.saveFavorite(
+                        messageId: messageUUID,
+                        conversationId: conversationId,
+                        title: title,
+                        codeContent: code,
+                        libraryId: viewModel.getCurrentLibrary().id,
+                        modelUsed: viewModel.selectedModel,
+                        screenshotBase64: currentConversation?.screenshotBase64
+                    )
+
+                    await MainActor.run {
+                        favoritedMessageIds.insert(messageUUID)
+                    }
+                    print("⭐ Added favorite: \(title)")
+                }
+            } catch {
+                print("❌ Error toggling favorite: \(error)")
+            }
+        }
+    }
+
+    private func generateFavoriteTitle(from code: String) -> String {
+        // Extract first meaningful line or use code structure
+        let lines = code.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && !$0.hasPrefix("//") && !$0.hasPrefix("/*") }
+
+        if let firstLine = lines.first {
+            return String(firstLine.prefix(50))
+        }
+        return "Untitled Scene"
+    }
+
+    private func loadFavoritedMessageIds() {
+        Task {
+            do {
+                let favorites = try await storageManager.loadFavorites()
+                await MainActor.run {
+                    favoritedMessageIds = Set(favorites.map { $0.messageId })
+                }
+                print("📋 Loaded \(favorites.count) favorited message IDs")
+            } catch {
+                print("❌ Error loading favorited IDs: \(error)")
+            }
+        }
     }
 }
 

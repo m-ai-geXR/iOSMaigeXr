@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 
 // MARK: - Enhanced Chat Message with Threading Support
 struct EnhancedChatMessage: Identifiable, Codable, Equatable {
@@ -313,5 +314,174 @@ class ConversationStorageManager: ObservableObject {
         } else {
             saveConversationsUserDefaults()
         }
+    }
+
+    // MARK: - Favorites Management
+
+    func saveFavorite(
+        messageId: UUID,
+        conversationId: UUID,
+        title: String,
+        codeContent: String,
+        libraryId: String?,
+        modelUsed: String?,
+        screenshotBase64: String?
+    ) async throws {
+        guard let dbQueue = db.dbQueue else {
+            throw NSError(domain: "ConversationStorage", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "Database not initialized"])
+        }
+
+        let favorite = Favorite(
+            id: UUID(),
+            messageId: messageId,
+            conversationId: conversationId,
+            title: title,
+            codeContent: codeContent,
+            libraryId: libraryId,
+            modelUsed: modelUsed,
+            screenshotBase64: screenshotBase64,
+            createdAt: Date(),
+            favoriteOrder: nil,
+            tags: nil
+        )
+
+        try await dbQueue.write { db in
+            try db.execute(sql: """
+                INSERT INTO favorites (id, message_id, conversation_id, title, code_content,
+                                     library_id, model_used, screenshot_base64, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, arguments: [
+                favorite.id.uuidString,
+                favorite.messageId.uuidString,
+                favorite.conversationId.uuidString,
+                favorite.title,
+                favorite.codeContent,
+                favorite.libraryId,
+                favorite.modelUsed,
+                favorite.screenshotBase64,
+                favorite.createdAt
+            ])
+        }
+
+        print("⭐ Favorite saved: \(favorite.title)")
+    }
+
+    func loadFavorites() async throws -> [Favorite] {
+        guard let dbQueue = db.dbQueue else {
+            return []
+        }
+
+        return try await dbQueue.read { db in
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT * FROM favorites
+                ORDER BY created_at DESC
+            """)
+
+            return rows.compactMap { row in
+                guard let id = UUID(uuidString: row["id"]),
+                      let messageId = UUID(uuidString: row["message_id"]),
+                      let conversationId = UUID(uuidString: row["conversation_id"]),
+                      let title: String = row["title"],
+                      let codeContent: String = row["code_content"],
+                      let createdAt: Date = row["created_at"] else {
+                    return nil
+                }
+
+                let tagsString: String? = row["tags"]
+                let tags = tagsString?.components(separatedBy: ",").filter { !$0.isEmpty }
+
+                return Favorite(
+                    id: id,
+                    messageId: messageId,
+                    conversationId: conversationId,
+                    title: title,
+                    codeContent: codeContent,
+                    libraryId: row["library_id"],
+                    modelUsed: row["model_used"],
+                    screenshotBase64: row["screenshot_base64"],
+                    createdAt: createdAt,
+                    favoriteOrder: row["favorite_order"],
+                    tags: tags
+                )
+            }
+        }
+    }
+
+    func deleteFavorite(id: UUID) async throws {
+        guard let dbQueue = db.dbQueue else {
+            throw NSError(domain: "ConversationStorage", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "Database not initialized"])
+        }
+
+        try await dbQueue.write { db in
+            try db.execute(sql: "DELETE FROM favorites WHERE id = ?", arguments: [id.uuidString])
+        }
+        print("🗑️ Favorite deleted: \(id)")
+    }
+
+    func isFavorited(messageId: UUID) async throws -> Bool {
+        guard let dbQueue = db.dbQueue else {
+            return false
+        }
+
+        return try await dbQueue.read { db in
+            let count = try Int.fetchOne(db, sql: """
+                SELECT COUNT(*) FROM favorites WHERE message_id = ?
+            """, arguments: [messageId.uuidString])
+            return (count ?? 0) > 0
+        }
+    }
+
+    func getFavoriteByMessageId(messageId: UUID) async throws -> Favorite? {
+        guard let dbQueue = db.dbQueue else {
+            return nil
+        }
+
+        return try await dbQueue.read { db in
+            guard let row = try Row.fetchOne(db, sql: """
+                SELECT * FROM favorites WHERE message_id = ? LIMIT 1
+            """, arguments: [messageId.uuidString]) else {
+                return nil
+            }
+
+            guard let id = UUID(uuidString: row["id"]),
+                  let messageId = UUID(uuidString: row["message_id"]),
+                  let conversationId = UUID(uuidString: row["conversation_id"]),
+                  let title: String = row["title"],
+                  let codeContent: String = row["code_content"],
+                  let createdAt: Date = row["created_at"] else {
+                return nil
+            }
+
+            let tagsString: String? = row["tags"]
+            let tags = tagsString?.components(separatedBy: ",").filter { !$0.isEmpty }
+
+            return Favorite(
+                id: id,
+                messageId: messageId,
+                conversationId: conversationId,
+                title: title,
+                codeContent: codeContent,
+                libraryId: row["library_id"],
+                modelUsed: row["model_used"],
+                screenshotBase64: row["screenshot_base64"],
+                createdAt: createdAt,
+                favoriteOrder: row["favorite_order"],
+                tags: tags
+            )
+        }
+    }
+
+    func clearAllFavorites() async throws {
+        guard let dbQueue = db.dbQueue else {
+            throw NSError(domain: "ConversationStorage", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "Database not initialized"])
+        }
+
+        try await dbQueue.write { db in
+            try db.execute(sql: "DELETE FROM favorites")
+        }
+        print("🗑️ All favorites cleared")
     }
 }
