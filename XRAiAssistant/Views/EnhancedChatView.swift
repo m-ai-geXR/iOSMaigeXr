@@ -78,6 +78,20 @@ struct EnhancedChatView: View {
                                         },
                                         onRun: { code, libraryId in
                                             onRunCode?(code, libraryId)
+                                        },
+                                        onToggleFavorite: { enhancedMessage in
+                                            // Convert EnhancedChatMessage to ChatMessage for toggleFavorite
+                                            let chatMessage = ChatMessage(
+                                                id: enhancedMessage.id.uuidString,
+                                                content: enhancedMessage.content,
+                                                isUser: enhancedMessage.isUser,
+                                                timestamp: enhancedMessage.timestamp,
+                                                libraryId: enhancedMessage.libraryId
+                                            )
+                                            toggleFavorite(for: chatMessage)
+                                        },
+                                        isFavorited: { messageId in
+                                            return favoritedMessageIds.contains(messageId)
                                         }
                                     )
                                     .id(message.id)
@@ -204,6 +218,7 @@ struct EnhancedChatView: View {
         .navigationViewStyle(StackNavigationViewStyle())
         .onAppear {
             loadFavoritedMessageIds()
+            restoreCurrentConversationIfNeeded()
         }
     }
 
@@ -459,6 +474,46 @@ struct EnhancedChatView: View {
                         Text(formatTime(message.timestamp))
                             .font(.caption2)
                             .foregroundColor(.gray)
+
+                        // Reply button (always show when there are messages - threading works for all conversations)
+                        // Check if we have any saved conversations OR if current conversation exists
+                        if !viewModel.messages.isEmpty && viewModel.messages.count > 1 {
+                            Button(action: {
+                                // Convert String ID to UUID for reply functionality
+                                if let messageUUID = UUID(uuidString: message.id) {
+                                    replyingToMessageID = messageUUID
+
+                                    // Ensure conversation is created/updated for threading
+                                    if currentConversation == nil {
+                                        // Auto-create conversation if it doesn't exist
+                                        let enhancedMessages = viewModel.messages.map { EnhancedChatMessage(from: $0) }
+                                        let firstUserMessage = viewModel.messages.first(where: { $0.isUser })
+                                        let title = generateConversationTitle(from: firstUserMessage?.content ?? "New Conversation")
+
+                                        var newConversation = Conversation(
+                                            title: title,
+                                            messages: enhancedMessages,
+                                            library3DID: viewModel.libraryManager.selectedLibrary.id,
+                                            modelUsed: viewModel.selectedModel
+                                        )
+
+                                        storageManager.addConversation(newConversation)
+                                        currentConversation = newConversation
+                                    } else {
+                                        // Update existing conversation with latest messages
+                                        var updated = currentConversation!
+                                        updated.messages = viewModel.messages.map { EnhancedChatMessage(from: $0) }
+                                        currentConversation = updated
+                                        storageManager.updateConversation(updated)
+                                    }
+                                }
+                            }) {
+                                Label("Reply", systemImage: "arrowshape.turn.up.left")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
 
                         // ALWAYS show "Run the Scene" button for AI messages
                         RunSceneButton(
@@ -749,9 +804,10 @@ struct EnhancedChatView: View {
     }
 
     private func sendToAIAndUpdateConversation(_ userMessage: String, images: [UIImage] = [], in conversation: Conversation) async {
-        // Temporarily sync conversation to viewModel to get AI response
+        // Sync conversation to viewModel to get AI response
+        // The user message is already in the conversation, so we just sync all messages
         await MainActor.run {
-            // Clear viewModel messages and add conversation history
+            // Convert all conversation messages (including the new user message) to viewModel format
             viewModel.messages = conversation.messages.map { enhanced in
                 ChatMessage(
                     id: enhanced.id.uuidString,
@@ -761,16 +817,6 @@ struct EnhancedChatView: View {
                     libraryId: enhanced.libraryId
                 )
             }
-
-            // Add the new user message
-            let userChatMessage = ChatMessage(
-                id: UUID().uuidString,
-                content: userMessage,
-                isUser: true,
-                timestamp: Date(),
-                libraryId: viewModel.currentLibraryId
-            )
-            viewModel.messages.append(userChatMessage)
         }
 
         // Use viewModel's sendMessage which handles AI response
@@ -987,6 +1033,25 @@ struct EnhancedChatView: View {
                 print("📋 Loaded \(favorites.count) favorited message IDs")
             } catch {
                 print("❌ Error loading favorited IDs: \(error)")
+            }
+        }
+    }
+
+    private func restoreCurrentConversationIfNeeded() {
+        // If we have messages but no current conversation, try to restore from storage
+        // This handles the case where the view was recreated after switching to Scene tab
+        guard currentConversation == nil && !viewModel.messages.isEmpty else {
+            return
+        }
+
+        print("🔄 Restoring current conversation after view recreation...")
+
+        // Check if the most recent conversation matches our current messages
+        if let latestConversation = storageManager.conversations.first {
+            // Compare message count as a simple heuristic
+            if latestConversation.messages.count == viewModel.messages.count {
+                print("✅ Restored conversation: \(latestConversation.title)")
+                currentConversation = latestConversation
             }
         }
     }

@@ -8,6 +8,8 @@ struct ThreadedMessageView: View {
     let onReply: (UUID) -> Void
     let onToggleThread: (UUID) -> Void
     let onRun: ((_ code: String, _ libraryId: String?) -> Void)?
+    let onToggleFavorite: ((EnhancedChatMessage) -> Void)?
+    let isFavorited: ((UUID) -> Bool)?
 
     @State private var showReplyField = false
 
@@ -149,6 +151,18 @@ struct ThreadedMessageView: View {
                                 .foregroundColor(extractedCode != nil ? .green : .orange)
                             }
                             .buttonStyle(PlainButtonStyle())
+
+                            // Star/Favorite button for AI code messages
+                            if extractedCode != nil, let onToggleFavorite = onToggleFavorite, let isFavorited = isFavorited {
+                                Button(action: {
+                                    onToggleFavorite(message)
+                                }) {
+                                    Image(systemName: isFavorited(message.id) ? "star.fill" : "star")
+                                        .font(.caption)
+                                        .foregroundColor(isFavorited(message.id) ? .yellow : .gray)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
                         }
 
                         if hasReplies {
@@ -176,7 +190,9 @@ struct ThreadedMessageView: View {
                         ThreadReplyView(
                             message: reply,
                             onReply: onReply,
-                            onRun: onRun
+                            onRun: onRun,
+                            onToggleFavorite: onToggleFavorite,
+                            isFavorited: isFavorited
                         )
                     }
                 }
@@ -200,6 +216,8 @@ struct ThreadReplyView: View {
     let message: EnhancedChatMessage
     let onReply: (UUID) -> Void
     let onRun: ((_ code: String, _ libraryId: String?) -> Void)?
+    let onToggleFavorite: ((EnhancedChatMessage) -> Void)?
+    let isFavorited: ((UUID) -> Bool)?
 
     private var extractedCode: String? {
         let content = message.content
@@ -330,6 +348,18 @@ struct ThreadReplyView: View {
                             .foregroundColor(extractedCode != nil ? .green : .orange)
                         }
                         .buttonStyle(PlainButtonStyle())
+
+                        // Star/Favorite button for AI code messages in replies
+                        if extractedCode != nil, let onToggleFavorite = onToggleFavorite, let isFavorited = isFavorited {
+                            Button(action: {
+                                onToggleFavorite(message)
+                            }) {
+                                Image(systemName: isFavorited(message.id) ? "star.fill" : "star")
+                                    .font(.caption2)
+                                    .foregroundColor(isFavorited(message.id) ? .yellow : .gray)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
                     }
                 }
             }
@@ -399,7 +429,11 @@ struct ThreadReplyView: View {
                             },
                             onRun: { code, libraryId in
                                 print("Run code: \(code) with library: \(libraryId ?? "none")")
-                            }
+                            },
+                            onToggleFavorite: { message in
+                                print("Toggle favorite: \(message.id)")
+                            },
+                            isFavorited: { _ in false }
                         )
                     }
                 }
