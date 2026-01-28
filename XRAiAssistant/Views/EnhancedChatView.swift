@@ -757,26 +757,40 @@ struct EnhancedChatView: View {
                 (imagesCopy.count == 1 ? "\(messageContent) [📷 1 image]" : "\(messageContent) [📷 \(imagesCopy.count) images]") :
                 messageContent
 
+            // Capture parent ID before clearing
+            let parentID = replyingToMessageID
+
             let newMessage = EnhancedChatMessage(
                 content: displayContent,
                 isUser: true,
-                threadParentID: replyingToMessageID
+                threadParentID: parentID
             )
             updatedConversation.messages.append(newMessage)
 
             // Update parent's replies array
-            if let parentID = replyingToMessageID,
+            if let parentID = parentID,
                let parentIndex = updatedConversation.messages.firstIndex(where: { $0.id == parentID }) {
                 updatedConversation.messages[parentIndex].replies.append(newMessage.id)
             }
 
             currentConversation = updatedConversation
             storageManager.updateConversation(updatedConversation)
+
+            // Get parent message BEFORE clearing replyingToMessageID
+            let parentMessage = parentID != nil ?
+                updatedConversation.messages.first(where: { $0.id == parentID }) : nil
+
+            // Clear reply state
             replyingToMessageID = nil
 
-            // Send to AI and get response
+            // Send to AI and get response with parent context if this is a reply
             Task {
-                await sendToAIAndUpdateConversation(messageContent, images: imagesCopy, in: updatedConversation)
+                await sendToAIAndUpdateConversation(
+                    messageContent,
+                    images: imagesCopy,
+                    in: updatedConversation,
+                    replyingTo: parentMessage
+                )
             }
         } else {
             // Legacy path - send through existing ViewModel
@@ -803,7 +817,7 @@ struct EnhancedChatView: View {
         }
     }
 
-    private func sendToAIAndUpdateConversation(_ userMessage: String, images: [UIImage] = [], in conversation: Conversation) async {
+    private func sendToAIAndUpdateConversation(_ userMessage: String, images: [UIImage] = [], in conversation: Conversation, replyingTo parentMessage: EnhancedChatMessage? = nil) async {
         // Sync conversation to viewModel to get AI response
         // The user message is already in the conversation, so we just sync all messages
         await MainActor.run {
@@ -819,12 +833,39 @@ struct EnhancedChatView: View {
             }
         }
 
+        // Build enhanced message with parent context if replying
+        var enhancedUserMessage = userMessage
+
+        if let parent = parentMessage {
+            // Extract code from parent message if it exists
+            let parentCode = EnhancedChatView.extractCode(from: parent.content)
+
+            // Build context-aware message
+            var contextMessage = "I'm replying to your previous message"
+
+            if !parent.isUser {
+                contextMessage += " where you provided"
+                if let code = parentCode {
+                    contextMessage += " the following code:\n\n```\n\(code)\n```\n\n"
+                } else {
+                    contextMessage += ":\n\n> \(String(parent.content.prefix(300)))\(parent.content.count > 300 ? "..." : "")\n\n"
+                }
+            }
+
+            contextMessage += "My request: \(userMessage)"
+            enhancedUserMessage = contextMessage
+
+            print("🔄 Enhanced reply with parent context:")
+            print("📝 Parent had code: \(parentCode != nil)")
+            print("📝 Enhanced message length: \(enhancedUserMessage.count)")
+        }
+
         // Use viewModel's sendMessage which handles AI response
         await MainActor.run {
             if !images.isEmpty {
-                viewModel.sendMessageWithImages(userMessage, images: images)
+                viewModel.sendMessageWithImages(enhancedUserMessage, images: images)
             } else {
-                viewModel.sendMessage(userMessage)
+                viewModel.sendMessage(enhancedUserMessage)
             }
         }
 
