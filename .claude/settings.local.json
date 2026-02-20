@@ -26,7 +26,9 @@
       "Bash(else echo \"✅ SET \\($#GITHUB_TOKEN characters\\)\")",
       "Bash(gh api:*)",
       "Bash(xcrun devicectl:*)",
-      "Bash(swiftc:*)"
+      "Bash(swiftc:*)",
+      "Bash(pod install:*)",
+      "Bash(export LANG=en_US.UTF-8:*)"
     ],
     "deny": [],
     "ask": []

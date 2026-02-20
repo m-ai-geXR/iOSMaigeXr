@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		88A46D6C2F49101D004E08D1 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 88A46D6B2F49101D004E08D1 /* GoogleMobileAds */; };
 		88B669732EDE393A00C547AF /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 88B669722EDE393A00C547AF /* GRDB */; };
 		BAD367A92D84AED6000EB786 /* LlamaStackClient in Frameworks */ = {isa = PBXBuildFile; productRef = BAD367A82D84AED6000EB786 /* LlamaStackClient */; };
 		BAD367AA2D84AED7000EB786 /* AIProxy in Frameworks */ = {isa = PBXBuildFile; productRef = BAD367AB2D84AED7000EB786 /* AIProxy */; };
@@ -35,12 +36,20 @@
 			);
 			target = 26BF95832D3D743A00168182 /* XRAiAssistantTests */;
 		};
+		88A46D702F4916CE004E08D1 /* Exceptions for "XRAiAssistant" folder in "XRAiAssistant" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 26AF95732D3D743800168181 /* XRAiAssistant */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		26AF95762D3D743800168181 /* XRAiAssistant */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				88A46D702F4916CE004E08D1 /* Exceptions for "XRAiAssistant" folder in "XRAiAssistant" target */,
 				885DBF3F2F11D39D0029AF87 /* Exceptions for "XRAiAssistant" folder in "XRAiAssistantTests" target */,
 			);
 			path = XRAiAssistant;
@@ -58,6 +67,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				88A46D6C2F49101D004E08D1 /* GoogleMobileAds in Frameworks */,
 				88B669732EDE393A00C547AF /* GRDB in Frameworks */,
 				BAD367A92D84AED6000EB786 /* LlamaStackClient in Frameworks */,
 				BAD367AA2D84AED7000EB786 /* AIProxy in Frameworks */,
@@ -123,6 +133,7 @@
 				BAD367A82D84AED6000EB786 /* LlamaStackClient */,
 				BAD367AB2D84AED7000EB786 /* AIProxy */,
 				88B669722EDE393A00C547AF /* GRDB */,
+				88A46D6B2F49101D004E08D1 /* GoogleMobileAds */,
 			);
 			productName = XRAiAssistant;
 			productReference = 26AF95742D3D743800168181 /* XRAiAssistant.app */;
@@ -181,6 +192,7 @@
 				BAD367A72D84AED6000EB786 /* XCRemoteSwiftPackageReference "llama-stack-client-swift" */,
 				BAD367AC2D84AED7000EB786 /* XCRemoteSwiftPackageReference "AIProxySwift" */,
 				88B669712EDE393A00C547AF /* XCRemoteSwiftPackageReference "GRDB" */,
+				887425122F490C4E003C4748 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 26AF95752D3D743800168181 /* Products */;
@@ -366,6 +378,8 @@
 				DEVELOPMENT_TEAM = T28W526VKC;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = XRAiAssistant/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -399,6 +413,8 @@
 				DEVELOPMENT_TEAM = T28W526VKC;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = XRAiAssistant/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -492,6 +508,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		887425122F490C4E003C4748 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 13.0.0;
+			};
+		};
 		88B669712EDE393A00C547AF /* XCRemoteSwiftPackageReference "GRDB" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/groue/GRDB.swift";
@@ -519,6 +543,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		88A46D6B2F49101D004E08D1 /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 887425122F490C4E003C4748 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
+		};
 		88B669722EDE393A00C547AF /* GRDB */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 88B669712EDE393A00C547AF /* XCRemoteSwiftPackageReference "GRDB" */;

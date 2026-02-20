@@ -228,4 +228,4 @@ build.log
 /app/build/generated/
 
 # Room schema export (optional - some teams track this)
-# /app/schemas/
+# /app/schemas/.env
