@@ -10,12 +10,20 @@ import Foundation
 
 class EmbeddingService {
     private let apiKey: String
-    private let embeddingModel = "togethercomputer/m2-bert-80M-8k-retrieval"
+    private let embeddingModel = "BAAI/bge-base-en-v1.5"
     private let embeddingDimension = 768
 
     init(apiKey: String) {
         self.apiKey = apiKey
         print("🧠 EmbeddingService initialized with model: \(embeddingModel)")
+    }
+
+    // MARK: - Text Truncation
+
+    /// Truncate text to fit within BAAI/bge-base-en-v1.5's 512-token limit (~2000 chars)
+    private func truncateToTokenLimit(_ text: String, maxChars: Int = 2000) -> String {
+        guard text.count > maxChars else { return text }
+        return String(text.prefix(maxChars))
     }
 
     // MARK: - Single Embedding Generation
@@ -26,7 +34,8 @@ class EmbeddingService {
             throw EmbeddingError.emptyText
         }
 
-        print("🧠 Generating embedding for text (\(text.count) chars)...")
+        let truncatedText = truncateToTokenLimit(text)
+        print("🧠 Generating embedding for text (\(truncatedText.count) chars)...")
 
         let url = URL(string: "https://api.together.xyz/v1/embeddings")!
         var request = URLRequest(url: url)
@@ -36,7 +45,7 @@ class EmbeddingService {
 
         let body: [String: Any] = [
             "model": embeddingModel,
-            "input": text
+            "input": truncatedText
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -77,9 +86,10 @@ class EmbeddingService {
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
 
+        let truncatedTexts = texts.map { truncateToTokenLimit($0) }
         let body: [String: Any] = [
             "model": embeddingModel,
-            "input": texts
+            "input": truncatedTexts
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 

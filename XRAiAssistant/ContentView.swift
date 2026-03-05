@@ -174,6 +174,13 @@ struct ContentView: View {
                     color: .warningNeon
                 )
 
+                // xAI API Key
+                providerAPIKeyView(
+                    provider: "xAI",
+                    description: "Get your API key from console.x.ai",
+                    color: .neonPink
+                )
+
                 // CodeSandbox API Key (Optional)
                 codeSandboxAPIKeyView()
             }

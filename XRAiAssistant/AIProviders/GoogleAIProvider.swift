@@ -19,8 +19,8 @@ class GoogleAIProvider: AIProvider {
     let models: [AIModel] = [
         // Gemini 3 Series (Newest & Most Powerful)
         AIModel(
-            id: "gemini-3-pro-preview",
-            displayName: "Gemini 3 Pro",
+            id: "gemini-3.1-pro-preview",
+            displayName: "Gemini 3.1 Pro",
             description: "Newest and most powerful general-purpose model - top-tier reasoning, writing, planning, coding, multimodal understanding",
             pricing: "FREE tier available",
             provider: "Google AI",
@@ -88,7 +88,7 @@ class GoogleAIProvider: AIProvider {
             "generationConfig": [
                 "temperature": temperature,
                 "topP": topP,
-                "maxOutputTokens": 8000
+                "maxOutputTokens": 65536
             ]
         ]
 
@@ -103,8 +103,8 @@ class GoogleAIProvider: AIProvider {
         return AsyncThrowingStream<String, Error> { continuation in
             Task {
                 do {
-                    // Use streamGenerateContent endpoint for streaming
-                    guard let url = URL(string: "\(baseURL)/models/\(model):streamGenerateContent?key=\(apiKey)") else {
+                    // Use streamGenerateContent with alt=sse for SSE streaming
+                    guard let url = URL(string: "\(baseURL)/models/\(model):streamGenerateContent?key=\(apiKey)&alt=sse") else {
                         throw AIProviderError.configurationError("Invalid URL")
                     }
 
@@ -129,41 +129,36 @@ class GoogleAIProvider: AIProvider {
                         }
                     }
 
-                    print("📥 Receiving streaming response...")
+                    print("📥 Receiving Google AI SSE stream...")
 
-                    var fullResponse = ""
+                    var lineBuffer = ""
                     var totalTextYielded = 0
 
-                    // Accumulate all bytes into full response
                     for try await byte in asyncBytes {
-                        fullResponse.append(Character(UnicodeScalar(byte)))
-                    }
+                        let char = Character(UnicodeScalar(byte))
 
-                    print("📊 Received \(fullResponse.count) total bytes")
+                        if char == "\n" {
+                            let line = lineBuffer.trimmingCharacters(in: .whitespaces)
+                            lineBuffer = ""
 
-                    // Parse as JSON array
-                    if let jsonData = fullResponse.data(using: .utf8),
-                       let jsonArray = try? JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]] {
+                            if line.hasPrefix("data: ") {
+                                let jsonString = String(line.dropFirst(6))
 
-                        print("✅ Parsed JSON array with \(jsonArray.count) chunks")
-
-                        // Process each chunk and extract text
-                        for (index, chunk) in jsonArray.enumerated() {
-                            if let candidates = chunk["candidates"] as? [[String: Any]],
-                               let firstCandidate = candidates.first,
-                               let content = firstCandidate["content"] as? [String: Any],
-                               let parts = content["parts"] as? [[String: Any]],
-                               let firstPart = parts.first,
-                               let text = firstPart["text"] as? String {
-
-                                print("📦 Chunk \(index + 1): Yielding \(text.count) chars")
-                                totalTextYielded += text.count
-                                continuation.yield(text)
+                                if let jsonData = jsonString.data(using: .utf8),
+                                   let chunk = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                                   let candidates = chunk["candidates"] as? [[String: Any]],
+                                   let firstCandidate = candidates.first,
+                                   let content = firstCandidate["content"] as? [String: Any],
+                                   let parts = content["parts"] as? [[String: Any]],
+                                   let firstPart = parts.first,
+                                   let text = firstPart["text"] as? String {
+                                    totalTextYielded += text.count
+                                    continuation.yield(text)
+                                }
                             }
+                        } else {
+                            lineBuffer.append(char)
                         }
-                    } else {
-                        print("❌ Failed to parse response as JSON array")
-                        print("📄 Response preview (first 500 chars): \(String(fullResponse.prefix(500)))")
                     }
 
                     print("🏁 Google AI stream complete (\(totalTextYielded) total chars yielded)")
