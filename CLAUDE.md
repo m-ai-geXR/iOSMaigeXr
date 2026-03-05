@@ -216,10 +216,11 @@ XRAiAssistant uses a **multi-provider architecture** that supports multiple AI s
    - Gemini 3.0 Flash Thinking (Explicit reasoning)
    - Gemini 1.5 Flash/Pro (Stable models)
 
-3. **Anthropic Claude** - Advanced reasoning
-   - Claude Sonnet 4 (Latest high-performance)
-   - Claude Opus 4 (World's best coding model)
-   - Claude 3.5 Sonnet/Haiku
+3. **Anthropic Claude** - Advanced reasoning (UPDATED 2026-03-04) ✨
+   - Claude Opus 4.6 (Latest - Most intelligent for agents & coding)
+   - Claude Sonnet 4.6 (Best speed/intelligence combination)
+   - Claude Haiku 4.5 (Fastest with near-frontier intelligence)
+   - Legacy: Opus 4.5, Sonnet 4.5, Opus 4.1, Sonnet 4.0, Opus 4.0
 
 4. **OpenAI** - GPT models (UPGRADED 2025-12-30) ✨
    - GPT-5.2 (Latest - Best for coding)

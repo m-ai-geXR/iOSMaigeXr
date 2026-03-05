@@ -100,16 +100,30 @@ class OpenAIProvider: AIProvider {
         let openAIMessages = messages.map { message in
             convertMessageToOpenAIFormat(message)
         }
-        
+
+        // Model-specific max tokens
+        // GPT-5.2: 64K output, GPT-4o: 16K output, o-series: 100K output
+        let maxTokens: Int
+        if model.contains("gpt-5.2") {
+            maxTokens = 64_000  // GPT-5.2 supports 64K output
+        } else if model.contains("o1") || model.contains("o3") {
+            maxTokens = 100_000  // o-series reasoning models support up to 100K
+        } else if model.contains("gpt-4o") {
+            maxTokens = 16_384  // GPT-4o supports 16K output
+        } else {
+            maxTokens = 16_000  // Safe default
+        }
+
         let requestBody: [String: Any] = [
             "model": model,
             "messages": openAIMessages,
             "temperature": temperature,
             "top_p": topP,
+            "max_tokens": maxTokens,
             "stream": true
         ]
-        
-        print("🚀 OpenAI request: model=\(model), temp=\(temperature), top-p=\(topP)")
+
+        print("🚀 OpenAI request: model=\(model), temp=\(temperature), top-p=\(topP), max-tokens=\(maxTokens)")
         
         return AsyncThrowingStream<String, Error> { continuation in
             Task {

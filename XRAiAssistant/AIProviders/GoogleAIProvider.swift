@@ -83,12 +83,23 @@ class GoogleAIProvider: AIProvider {
             }
         }
 
+        // Model-specific max output tokens
+        // Gemini 2.5 Pro & 3.1 Pro: 64K, Flash models: 8K default (but support up to 64K)
+        let maxOutputTokens: Int
+        if model.contains("2.5-pro") || model.contains("3.1-pro") || model.contains("3-pro") {
+            maxOutputTokens = 65_536  // 64K for Pro models
+        } else if model.contains("flash") {
+            maxOutputTokens = 65_536  // Flash models support up to 64K when configured
+        } else {
+            maxOutputTokens = 32_768  // Safe default for other models
+        }
+
         var requestBody: [String: Any] = [
             "contents": contents,
             "generationConfig": [
                 "temperature": temperature,
                 "topP": topP,
-                "maxOutputTokens": 65536
+                "maxOutputTokens": maxOutputTokens
             ]
         ]
 
@@ -98,7 +109,7 @@ class GoogleAIProvider: AIProvider {
             ]
         }
 
-        print("🚀 Google AI request: model=\(model), temp=\(temperature), top-p=\(topP)")
+        print("🚀 Google AI request: model=\(model), temp=\(temperature), top-p=\(topP), max-output-tokens=\(maxOutputTokens)")
 
         return AsyncThrowingStream<String, Error> { continuation in
             Task {

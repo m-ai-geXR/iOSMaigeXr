@@ -87,16 +87,29 @@ class TogetherAIProvider: AIProvider {
             }
         }
         
+        // Model-specific max tokens
+        // DeepSeek R1 and Llama 3.3 70B support 32K+ output, smaller models 8-16K
+        let maxTokens: Int
+        if model.contains("DeepSeek-R1") || model.contains("Llama-3.3-70B") {
+            maxTokens = 32_000  // Large models support 32K output
+        } else if model.contains("Llama-3.1") || model.contains("Llama-3-") {
+            maxTokens = 16_000  // Medium Llama models support 16K
+        } else if model.contains("Qwen") {
+            maxTokens = 8_000   // Qwen models typically 8K
+        } else {
+            maxTokens = 8_000   // Safe default for other models
+        }
+
         let requestBody = TogetherAIChatCompletionRequestBody(
             messages: togetherMessages,
             model: model,
-            maxTokens: 4000,
+            maxTokens: maxTokens,
             stream: true,
             temperature: temperature,
             topP: topP
         )
-        
-        print("🚀 Together.ai request: model=\(model), temp=\(temperature), top-p=\(topP), max-tokens=4000")
+
+        print("🚀 Together.ai request: model=\(model), temp=\(temperature), top-p=\(topP), max-tokens=\(maxTokens)")
         
         return AsyncThrowingStream<String, Error> { continuation in
             Task {
