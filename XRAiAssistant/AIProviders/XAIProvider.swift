@@ -72,7 +72,8 @@ class XAIProvider: AIProvider {
         messages: [AIMessage],
         model: String,
         temperature: Double,
-        topP: Double
+        topP: Double,
+        effort: AIEffort
     ) async throws -> AsyncThrowingStream<String, Error> {
 
         guard let apiKey = apiKey else {

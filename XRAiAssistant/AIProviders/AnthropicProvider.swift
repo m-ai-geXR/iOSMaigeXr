@@ -14,81 +14,73 @@ class AnthropicProvider: AIProvider {
         supportedImageFormats: ["image/jpeg", "image/png", "image/gif", "image/webp"],
         maxImageSize: 5 * 1024 * 1024,  // 5MB
         maxImagesPerMessage: 20,
-        maxTokens: 1_000_000  // Claude 4.6 context window (1M with beta header, 200K standard)
+        maxTokens: 1_000_000  // Claude 5 series context window (1M)
     )
 
     let models: [AIModel] = [
-        // Claude 4.6 Series (Latest - February 2026)
+        // Claude 5 Series (current generation)
         AIModel(
-            id: "claude-opus-4-6",
-            displayName: "Claude Opus 4.6",
-            description: "Most intelligent model for building agents and coding - 200K/1M context",
+            id: "claude-fable-5-1",
+            displayName: "Claude Fable 5.1",
+            description: "Most capable model for the hardest reasoning and agentic work - 1M context",
+            pricing: "$10.00/$50.00 per 1M tokens",
+            provider: "Anthropic",
+            supportsVision: true,
+            control: .effort,
+            maxOutputTokens: 64_000
+        ),
+        AIModel(
+            id: "claude-opus-5",
+            displayName: "Claude Opus 5",
+            description: "Frontier intelligence for agents and coding - 1M context",
             pricing: "$5.00/$25.00 per 1M tokens",
             provider: "Anthropic",
             isDefault: true,
-            supportsVision: true
+            supportsVision: true,
+            control: .effort,
+            maxOutputTokens: 64_000
         ),
         AIModel(
-            id: "claude-sonnet-4-6",
-            displayName: "Claude Sonnet 4.6",
-            description: "Best combination of speed and intelligence - 200K/1M context",
-            pricing: "$3.00/$15.00 per 1M tokens",
+            id: "claude-sonnet-5",
+            displayName: "Claude Sonnet 5",
+            description: "Best combination of speed, cost and intelligence - 1M context",
+            pricing: "$2.00/$10.00 per 1M tokens",
             provider: "Anthropic",
-            supportsVision: true
+            supportsVision: true,
+            control: .effort,
+            maxOutputTokens: 64_000
         ),
-
-        // Claude 4.5 Series (September-November 2025)
         AIModel(
             id: "claude-haiku-4-5",
             displayName: "Claude Haiku 4.5",
             description: "Fastest model with near-frontier intelligence - 200K context",
             pricing: "$1.00/$5.00 per 1M tokens",
             provider: "Anthropic",
-            supportsVision: true
+            supportsVision: true,
+            control: .sampling,
+            maxOutputTokens: 32_000
         ),
+
+        // Claude 4.6 Series (previous generation - kept as fallback)
         AIModel(
-            id: "claude-opus-4-5",
-            displayName: "Claude Opus 4.5",
-            description: "High-performance legacy model - 200K context",
+            id: "claude-opus-4-6",
+            displayName: "Claude Opus 4.6",
+            description: "Previous-generation flagship - 200K/1M context",
             pricing: "$5.00/$25.00 per 1M tokens",
             provider: "Anthropic",
-            supportsVision: true
+            supportsVision: true,
+            control: .sampling,
+            maxOutputTokens: 64_000
         ),
         AIModel(
-            id: "claude-sonnet-4-5",
-            displayName: "Claude Sonnet 4.5",
-            description: "Balanced legacy model - 200K/1M context",
+            id: "claude-sonnet-4-6",
+            displayName: "Claude Sonnet 4.6",
+            description: "Previous-generation balanced model - 200K/1M context",
             pricing: "$3.00/$15.00 per 1M tokens",
             provider: "Anthropic",
-            supportsVision: true
-        ),
-
-        // Claude 4.1 Series (August 2025)
-        AIModel(
-            id: "claude-opus-4-1",
-            displayName: "Claude Opus 4.1",
-            description: "Exceptional model for specialized reasoning tasks - 200K context",
-            pricing: "$15.00/$75.00 per 1M tokens",
-            provider: "Anthropic",
-            supportsVision: true
-        ),
-
-        // Claude 4 Series (May 2025)
-        AIModel(
-            id: "claude-sonnet-4-0",
-            displayName: "Claude Sonnet 4.0",
-            description: "Original Sonnet 4 version - 200K/1M context",
-            pricing: "$3.00/$15.00 per 1M tokens",
-            provider: "Anthropic",
-            supportsVision: true
-        ),
-        AIModel(
-            id: "claude-opus-4-0",
-            displayName: "Claude Opus 4.0",
-            description: "Original Opus 4 version - 200K context",
-            pricing: "$15.00/$75.00 per 1M tokens",
-            provider: "Anthropic",
-            supportsVision: true
+            supportsVision: true,
+            control: .sampling,
+            maxOutputTokens: 64_000
         )
     ]
 
@@ -101,7 +93,8 @@ class AnthropicProvider: AIProvider {
         messages: [AIMessage],
         model: String,
         temperature: Double,
-        topP: Double
+        topP: Double,
+        effort: AIEffort
     ) async throws -> AsyncThrowingStream<String, Error> {
 
         guard let apiKey = apiKey else {
@@ -121,19 +114,9 @@ class AnthropicProvider: AIProvider {
             }
         }
 
-        // Build request body with model-specific max tokens
-        // Claude Opus 4.6: 128K max output, Sonnet 4.6/Haiku 4.5: 64K max output
-        let maxTokens: Int
-        if model.contains("opus-4-6") {
-            maxTokens = 128_000  // Opus 4.6 supports up to 128K output tokens
-        } else if model.contains("sonnet-4-6") || model.contains("haiku-4-5") ||
-                  model.contains("opus-4-5") || model.contains("sonnet-4-5") || model.contains("sonnet-4-0") {
-            maxTokens = 64_000   // Sonnet 4.6, Haiku 4.5, and newer 4.x models support 64K
-        } else if model.contains("opus-4-1") || model.contains("opus-4-0") {
-            maxTokens = 32_000   // Older Opus 4.1 and 4.0 support 32K
-        } else {
-            maxTokens = 16_000   // Safe default for any other models
-        }
+        let definition = models.first { $0.id == model }
+        let maxTokens = definition?.maxOutputTokens ?? 16_000
+        let control = definition?.control ?? .sampling
 
         var requestBody: [String: Any] = [
             "model": model,
@@ -142,21 +125,22 @@ class AnthropicProvider: AIProvider {
             "stream": true
         ]
 
-        // Claude 4 series models don't support both temperature and top_p simultaneously
-        // Use only temperature for Claude 4.x models
-        if model.contains("claude-sonnet-4") || model.contains("claude-opus-4") || model.contains("claude-haiku-4") {
+        switch control {
+        case .effort:
+            // Claude 5 series removed temperature/top_p — sending either is a 400.
+            requestBody["output_config"] = ["effort": effort.rawValue]
+            requestBody["thinking"] = ["type": "adaptive"]
+        case .sampling:
+            // Claude 4.x rejects temperature and top_p together; temperature alone is valid.
             requestBody["temperature"] = temperature
-        } else {
-            // Claude 3.x models support both parameters
-            requestBody["temperature"] = temperature
-            requestBody["top_p"] = topP
         }
 
         if let systemPrompt = systemPrompt {
             requestBody["system"] = systemPrompt
         }
 
-        print("🚀 Anthropic request: model=\(model), temp=\(temperature), top-p=\(topP), max-tokens=\(maxTokens)")
+        let controlLog = control == .effort ? "effort=\(effort.rawValue)" : "temp=\(temperature)"
+        print("🚀 Anthropic request: model=\(model), \(controlLog), max-tokens=\(maxTokens)")
 
         return AsyncThrowingStream<String, Error> { continuation in
             Task {

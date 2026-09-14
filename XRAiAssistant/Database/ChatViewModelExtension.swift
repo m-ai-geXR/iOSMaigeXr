@@ -23,6 +23,7 @@ extension ChatViewModel {
             try await db.saveSetting(key: "XRAiAssistant_SelectedModel", value: selectedModel)
             try await db.saveSetting(key: "XRAiAssistant_Temperature", value: temperature)
             try await db.saveSetting(key: "XRAiAssistant_TopP", value: topP)
+            try await db.saveSetting(key: "XRAiAssistant_Effort", value: effort.rawValue)
 
             // The AIProviderManager handles its own persistence automatically
 
@@ -76,13 +77,7 @@ extension ChatViewModel {
 
                 let isProviderModel = aiProviderManager.getModel(id: savedModel) != nil
 
-                // Model migration mappings
-                let invalidModelMappings: [String: String] = [
-                    "claude-sonnet-4.5-20250514": "claude-sonnet-4-5-20250929",
-                    "claude-sonnet-4-5-20250514": "claude-sonnet-4-5-20250929",
-                    "claude-opus-4.5-20250514": "claude-opus-4-1-20250805",
-                    "Qwen/Qwen2.5-Coder-32B-Instruct": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
-                ]
+                let invalidModelMappings = ChatViewModel.modelMigrations
 
                 await MainActor.run {
                     if let correctModel = invalidModelMappings[savedModel] {
@@ -96,14 +91,8 @@ extension ChatViewModel {
                         selectedModel = savedModel
                         print("🤖 Loaded saved model: \(getModelDisplayName(savedModel))")
                     } else {
-                        // Model no longer exists
-                        if savedModel.contains("claude") || savedModel.contains("anthropic") {
-                            selectedModel = "claude-sonnet-4-5-20250929"
-                            print("⚠️ Saved model '\(savedModel)' not found, switching to Claude Sonnet 4.5")
-                        } else {
-                            selectedModel = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
-                            print("⚠️ Saved model '\(savedModel)' not available, using default")
-                        }
+                        selectedModel = ChatViewModel.fallbackModel(for: savedModel)
+                        print("⚠️ Saved model '\(savedModel)' not available, switching to \(getModelDisplayName(selectedModel))")
                         Task {
                             try? await db.saveSetting(key: "XRAiAssistant_SelectedModel", value: selectedModel)
                         }
@@ -125,6 +114,15 @@ extension ChatViewModel {
                     topP = top
                 }
                 print("📊 Loaded top-p: \(top)")
+            }
+
+            // Load reasoning effort
+            if let raw = try await db.loadSetting(key: "XRAiAssistant_Effort") as? String,
+               let parsed = AIEffort(rawValue: raw) {
+                await MainActor.run {
+                    effort = parsed
+                }
+                print("🧠 Loaded effort: \(parsed.displayName)")
             }
 
             print("✅ Settings loaded from SQLite successfully")

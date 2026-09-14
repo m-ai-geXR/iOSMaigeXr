@@ -21,6 +21,8 @@ class ChatViewModel: ObservableObject {
     @Published var selectedModel: String = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
     @Published var temperature: Double = 0.7
     @Published var topP: Double = 0.9
+    /// Reasoning depth for models that use effort instead of temperature/top-p.
+    @Published var effort: AIEffort = .high
     @Published var apiKey: String = DEFAULT_API_KEY // Legacy - for backwards compatibility
     @Published var systemPrompt: String = ""
     
@@ -482,7 +484,8 @@ class ChatViewModel: ObservableObject {
                 messages: messages,
                 modelId: selectedModel,
                 temperature: temperature,
-                topP: topP
+                topP: topP,
+                effort: effort
             )
 
             var fullResponse = ""
@@ -671,7 +674,8 @@ class ChatViewModel: ObservableObject {
             messages: messages,
             modelId: selectedModel,
             temperature: temperature,
-            topP: topP
+            topP: topP,
+            effort: effort
         )
         
         var fullResponse = ""
@@ -733,6 +737,9 @@ class ChatViewModel: ObservableObject {
     }
     
     func getParameterDescription() -> String {
+        if usesEffortControl {
+            return "\(effort.displayName) Reasoning - \(effort.summary)"
+        }
         switch (temperature, topP) {
         case (0.0...0.3, 0.1...0.5):
             return "Precise & Focused - Perfect for debugging"
@@ -1381,8 +1388,61 @@ class ChatViewModel: ObservableObject {
         }
     }
     
+    /// True when the selected model takes a reasoning-effort level rather than
+    /// temperature/top-p, so the settings UI can show the right control.
+    var usesEffortControl: Bool {
+        aiProviderManager.control(for: selectedModel) == .effort
+    }
+
+    // MARK: - Model Migration
+
+    /// Retired or invalid model IDs mapped onto their current equivalents.
+    ///
+    /// Shared by the UserDefaults and SQLite settings loaders so a saved model
+    /// migrates identically whichever store it came from.
+    static let modelMigrations: [String: String] = [
+        // Anthropic: retired 4.x snapshots -> Claude 5 series
+        "claude-sonnet-4.5-20250514": "claude-sonnet-5",
+        "claude-sonnet-4-5-20250514": "claude-sonnet-5",
+        "claude-sonnet-4-5-20250929": "claude-sonnet-5",
+        "claude-sonnet-4-5": "claude-sonnet-5",
+        "claude-sonnet-4-0": "claude-sonnet-5",
+        "claude-opus-4.5-20250514": "claude-opus-5",
+        "claude-opus-4-1-20250805": "claude-opus-5",
+        "claude-opus-4-1": "claude-opus-5",
+        "claude-opus-4-5": "claude-opus-5",
+        "claude-opus-4-0": "claude-opus-5",
+        "claude-3-5-sonnet-20241022": "claude-sonnet-5",
+        "claude-3-5-haiku-20241022": "claude-haiku-4-5",
+        "claude-3-opus-20240229": "claude-opus-5",
+
+        // OpenAI: o-series shuts down 2026-10-23, GPT-4o superseded
+        "o1-2024-12-17": "gpt-5.6-sol",
+        "o1": "gpt-5.6-sol",
+        "o3-mini-2025-01-31": "gpt-5.6-terra",
+        "o3-mini": "gpt-5.6-terra",
+        "gpt-4o": "gpt-5.6-terra",
+        "gpt-4o-mini": "gpt-5.6-luna",
+        "gpt-5.2-pro": "gpt-6-astra",
+        "gpt-5.2-chat-latest": "gpt-5.6-sol",
+
+        // Together.ai non-serverless model migrations (to FREE alternatives)
+        "Qwen/Qwen2.5-Coder-32B-Instruct": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+    ]
+
+    /// Default model to fall back to when a saved ID no longer exists at all.
+    static func fallbackModel(for savedModel: String) -> String {
+        if savedModel.contains("claude") || savedModel.contains("anthropic") {
+            return "claude-opus-5"
+        }
+        if savedModel.hasPrefix("gpt-") || savedModel.hasPrefix("o1") || savedModel.hasPrefix("o3") {
+            return "gpt-5.6-sol"
+        }
+        return "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+    }
+
     // MARK: - Settings Persistence
-    
+
     /// Save current settings to UserDefaults
     func saveSettings() {
         print("💾 Saving settings to UserDefaults...")
@@ -1395,7 +1455,8 @@ class ChatViewModel: ObservableObject {
         UserDefaults.standard.set(selectedModel, forKey: "XRAiAssistant_SelectedModel")
         UserDefaults.standard.set(temperature, forKey: "XRAiAssistant_Temperature")
         UserDefaults.standard.set(topP, forKey: "XRAiAssistant_TopP")
-        
+        UserDefaults.standard.set(effort.rawValue, forKey: "XRAiAssistant_Effort")
+
         // Save CodeSandbox API key
         let codeSandboxKey = aiProviderManager.getAPIKey(for: "CodeSandbox")
         UserDefaults.standard.set(codeSandboxKey, forKey: "XRAiAssistant_CodeSandboxAPIKey")
@@ -1447,16 +1508,7 @@ class ChatViewModel: ObservableObject {
             let isLegacyModel = availableModels.contains(savedModel)
             let isProviderModel = aiProviderManager.getModel(id: savedModel) != nil
 
-            // Map known invalid model IDs to their correct versions
-            let invalidModelMappings: [String: String] = [
-                // Anthropic Claude migrations
-                "claude-sonnet-4.5-20250514": "claude-sonnet-4-5-20250929",  // Old fake ID -> Real Sonnet 4.5
-                "claude-sonnet-4-5-20250514": "claude-sonnet-4-5-20250929",  // Old fake ID variant -> Real Sonnet 4.5
-                "claude-opus-4.5-20250514": "claude-opus-4-1-20250805",      // Old fake Opus 4.5 -> Real Opus 4.1
-
-                // Together.ai non-serverless model migrations (to FREE alternatives)
-                "Qwen/Qwen2.5-Coder-32B-Instruct": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"  // Non-serverless -> FREE DeepSeek R1 70B
-            ]
+            let invalidModelMappings = ChatViewModel.modelMigrations
 
             // Check if we need to migrate from an invalid ID
             if let correctModel = invalidModelMappings[savedModel] {
@@ -1473,15 +1525,8 @@ class ChatViewModel: ObservableObject {
                 print("🤖 Loaded saved model: \(getModelDisplayName(savedModel))")
             } else {
                 // Model no longer exists, reset to default
-                if savedModel.contains("claude") || savedModel.contains("anthropic") {
-                    // User was using Claude, default to latest Claude Sonnet 4.5
-                    selectedModel = "claude-sonnet-4-5-20250929"
-                    print("⚠️ Saved model '\(savedModel)' not found, switching to Claude Sonnet 4.5 (Latest)")
-                } else {
-                    // Use legacy default
-                    print("⚠️ Saved model '\(savedModel)' no longer available, using default")
-                    selectedModel = availableModels.first ?? "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
-                }
+                selectedModel = ChatViewModel.fallbackModel(for: savedModel)
+                print("⚠️ Saved model '\(savedModel)' no longer available, switching to \(getModelDisplayName(selectedModel))")
                 // Save the corrected model
                 UserDefaults.standard.set(selectedModel, forKey: "XRAiAssistant_SelectedModel")
             }
@@ -1498,6 +1543,12 @@ class ChatViewModel: ObservableObject {
         if let savedTopP = savedTopP {
             topP = savedTopP
             print("🎯 Loaded saved top-p: \(savedTopP)")
+        }
+
+        if let savedEffort = UserDefaults.standard.string(forKey: "XRAiAssistant_Effort"),
+           let parsed = AIEffort(rawValue: savedEffort) {
+            effort = parsed
+            print("🧠 Loaded saved effort: \(parsed.displayName)")
         }
         
         // Load CodeSandbox API key

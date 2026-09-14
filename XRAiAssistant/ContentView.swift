@@ -290,8 +290,12 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 12) {
                 modelSelectionView
                 librarySelectionView
-                temperatureSliderView
-                topPSliderView
+                if chatViewModel.usesEffortControl {
+                    effortPickerView
+                } else {
+                    temperatureSliderView
+                    topPSliderView
+                }
                 parameterSummaryView
             }
             .padding(.vertical, 4)
@@ -420,6 +424,39 @@ struct ContentView: View {
         }
     }
     
+    private var effortPickerView: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Reasoning Effort")
+                    .font(.headline)
+                    .foregroundColor(.cyberpunkWhite)
+                Spacer()
+                Text(chatViewModel.effort.displayName)
+                    .font(.subheadline)
+                    .foregroundColor(.neonBlue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(Color.neonBlue.opacity(0.2))
+                    .cornerRadius(6)
+            }
+
+            Picker("Reasoning Effort", selection: $chatViewModel.effort) {
+                ForEach(AIEffort.allCases) { level in
+                    Text(level.displayName).tag(level)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(chatViewModel.effort.summary)
+                .font(.caption)
+                .foregroundColor(.cyberpunkGray)
+
+            Text("This model sets reasoning depth instead of temperature and top-p.")
+                .font(.caption2)
+                .foregroundColor(.cyberpunkGray)
+        }
+    }
+
     private var temperatureSliderView: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {

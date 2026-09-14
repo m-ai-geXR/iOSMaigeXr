@@ -77,6 +77,54 @@ struct AIProviderCapabilities {
     let maxTokens: Int
 }
 
+// MARK: - Generation Controls
+
+/// Which generation controls a model actually accepts.
+///
+/// Frontier models (Claude 5 series, GPT-5.6 / GPT-6) removed `temperature` and
+/// `top_p` from their APIs entirely and reject any request carrying them with a
+/// 400. They expose a discrete reasoning-effort level instead.
+enum AIModelControl: Equatable {
+    /// Legacy sampling knobs: `temperature` + `top_p`.
+    case sampling
+    /// Discrete reasoning effort. Sending temperature/top_p to these models is a 400.
+    case effort
+}
+
+/// Reasoning depth for models using `.effort` control.
+///
+/// Anthropic (`output_config.effort`) and OpenAI (`reasoning_effort`) happen to
+/// share the same five level names, so one type covers both providers.
+enum AIEffort: String, CaseIterable, Identifiable, Codable {
+    case low
+    case medium
+    case high
+    case xhigh
+    case max
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .low: return "Low"
+        case .medium: return "Medium"
+        case .high: return "High"
+        case .xhigh: return "Extra High"
+        case .max: return "Maximum"
+        }
+    }
+
+    var summary: String {
+        switch self {
+        case .low: return "Fastest and cheapest — simple scenes"
+        case .medium: return "Light reasoning for routine edits"
+        case .high: return "Balanced depth and cost (recommended)"
+        case .xhigh: return "Deeper reasoning for complex scenes"
+        case .max: return "Maximum depth — highest cost and latency"
+        }
+    }
+}
+
 // MARK: - AI Provider Protocol
 
 protocol AIProvider: AnyObject {
@@ -90,7 +138,8 @@ protocol AIProvider: AnyObject {
         messages: [AIMessage],
         model: String,
         temperature: Double,
-        topP: Double
+        topP: Double,
+        effort: AIEffort
     ) async throws -> AsyncThrowingStream<String, Error>
 }
 
@@ -104,6 +153,10 @@ struct AIModel {
     let provider: String
     let isDefault: Bool
     let supportsVision: Bool
+    let control: AIModelControl
+
+    /// Max output tokens this model accepts, used to build the request body.
+    let maxOutputTokens: Int
 
     init(
         id: String,
@@ -112,7 +165,9 @@ struct AIModel {
         pricing: String = "",
         provider: String,
         isDefault: Bool = false,
-        supportsVision: Bool = false
+        supportsVision: Bool = false,
+        control: AIModelControl = .sampling,
+        maxOutputTokens: Int = 16_000
     ) {
         self.id = id
         self.displayName = displayName
@@ -121,6 +176,8 @@ struct AIModel {
         self.provider = provider
         self.isDefault = isDefault
         self.supportsVision = supportsVision
+        self.control = control
+        self.maxOutputTokens = maxOutputTokens
     }
 }
 

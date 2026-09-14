@@ -88,27 +88,35 @@ class AIProviderManager: ObservableObject {
         messages: [AIMessage],
         modelId: String,
         temperature: Double,
-        topP: Double
+        topP: Double,
+        effort: AIEffort
     ) async throws -> AsyncThrowingStream<String, Error> {
-        
+
         guard let provider = getProvider(for: modelId) else {
             throw AIProviderError.modelNotSupported
         }
-        
+
         // Ensure provider is configured with API key
         let apiKey = getAPIKey(for: provider.name)
         if apiKey == "changeMe" {
             throw AIProviderError.configurationError("API key not configured for \(provider.name)")
         }
-        
+
         provider.configure(apiKey: apiKey)
-        
+
         return try await provider.generateResponse(
             messages: messages,
             model: modelId,
             temperature: temperature,
-            topP: topP
+            topP: topP,
+            effort: effort
         )
+    }
+
+    /// Which generation controls the given model accepts. Defaults to sampling
+    /// for unknown ids so legacy/custom models keep working.
+    func control(for modelId: String) -> AIModelControl {
+        getModel(id: modelId)?.control ?? .sampling
     }
     
     // MARK: - Persistence

@@ -13,71 +13,65 @@ class OpenAIProvider: AIProvider {
         supportedImageFormats: ["image/jpeg", "image/png", "image/webp", "image/gif"],
         maxImageSize: 20 * 1024 * 1024,  // 20MB
         maxImagesPerMessage: 10,
-        maxTokens: 400_000  // GPT-5.2 context (400K tokens)
+        maxTokens: 1_050_000  // GPT-5.6 / GPT-6 context (1.05M tokens)
     )
 
     let models: [AIModel] = [
-        // GPT-5.2 Series (Latest - December 2025)
+        // GPT-6 Series (current generation)
+        AIModel(
+            id: "gpt-6-astra",
+            displayName: "GPT-6 Astra",
+            description: "Most capable model, built for the hardest end-to-end work - 1.05M context",
+            pricing: "$10.00/$50.00 per 1M tokens",
+            provider: "OpenAI",
+            supportsVision: true,
+            control: .effort,
+            maxOutputTokens: 64_000
+        ),
+
+        // GPT-5.6 Series (current generation)
+        AIModel(
+            id: "gpt-5.6-sol",
+            displayName: "GPT-5.6 Sol",
+            description: "Flagship for complex professional work - 1.05M context",
+            pricing: "$4.00/$20.00 per 1M tokens",
+            provider: "OpenAI",
+            isDefault: true,
+            supportsVision: true,
+            control: .effort,
+            maxOutputTokens: 64_000
+        ),
+        AIModel(
+            id: "gpt-5.6-terra",
+            displayName: "GPT-5.6 Terra",
+            description: "Balances intelligence and cost - 1.05M context",
+            pricing: "$2.00/$12.00 per 1M tokens",
+            provider: "OpenAI",
+            supportsVision: true,
+            control: .effort,
+            maxOutputTokens: 64_000
+        ),
+        AIModel(
+            id: "gpt-5.6-luna",
+            displayName: "GPT-5.6 Luna",
+            description: "Optimized for cost-sensitive workloads - 1.05M context",
+            pricing: "$0.20/$1.20 per 1M tokens",
+            provider: "OpenAI",
+            supportsVision: true,
+            control: .effort,
+            maxOutputTokens: 64_000
+        ),
+
+        // GPT-5.2 (previous generation - kept as fallback)
         AIModel(
             id: "gpt-5.2",
             displayName: "GPT-5.2",
-            description: "Best model for coding and agentic tasks",
+            description: "Previous-generation coding and agentic model - 400K context",
             pricing: "$1.75/$14.00 per 1M tokens",
             provider: "OpenAI",
-            isDefault: true,
-            supportsVision: true
-        ),
-        AIModel(
-            id: "gpt-5.2-pro",
-            displayName: "GPT-5.2 Pro",
-            description: "Smartest and most trustworthy - highest accuracy",
-            pricing: "Premium tier",
-            provider: "OpenAI",
-            supportsVision: true
-        ),
-        AIModel(
-            id: "gpt-5.2-chat-latest",
-            displayName: "GPT-5.2 Chat (Latest)",
-            description: "Latest ChatGPT model with automatic updates",
-            pricing: "$1.75/$14.00 per 1M tokens",
-            provider: "OpenAI",
-            supportsVision: true
-        ),
-
-        // Reasoning Models (o-series)
-        AIModel(
-            id: "o1-2024-12-17",
-            displayName: "o1",
-            description: "Advanced reasoning model for complex problems",
-            pricing: "Premium tier",
-            provider: "OpenAI",
-            supportsVision: false
-        ),
-        AIModel(
-            id: "o3-mini-2025-01-31",
-            displayName: "o3-mini",
-            description: "Latest reasoning model with enhanced reasoning abilities",
-            pricing: "Economy tier",
-            provider: "OpenAI",
-            supportsVision: false
-        ),
-
-        // GPT-4o Series (Still Supported)
-        AIModel(
-            id: "gpt-4o",
-            displayName: "GPT-4o",
-            description: "Versatile high-intelligence flagship model",
-            pricing: "$2.50/$10.00 per 1M tokens",
-            provider: "OpenAI",
-            supportsVision: true
-        ),
-        AIModel(
-            id: "gpt-4o-mini",
-            displayName: "GPT-4o Mini",
-            description: "Fast and affordable small model for focused tasks",
-            pricing: "$0.15/$0.60 per 1M tokens",
-            provider: "OpenAI",
-            supportsVision: true
+            supportsVision: true,
+            control: .sampling,
+            maxOutputTokens: 64_000
         )
     ]
     
@@ -90,40 +84,44 @@ class OpenAIProvider: AIProvider {
         messages: [AIMessage],
         model: String,
         temperature: Double,
-        topP: Double
+        topP: Double,
+        effort: AIEffort
     ) async throws -> AsyncThrowingStream<String, Error> {
-        
+
         guard let apiKey = apiKey else {
             throw AIProviderError.configurationError("Provider not configured with API key")
         }
-        
+
         let openAIMessages = messages.map { message in
             convertMessageToOpenAIFormat(message)
         }
 
-        // Model-specific max tokens
-        // GPT-5.2: 64K output, GPT-4o: 16K output, o-series: 100K output
-        let maxTokens: Int
-        if model.contains("gpt-5.2") {
-            maxTokens = 64_000  // GPT-5.2 supports 64K output
-        } else if model.contains("o1") || model.contains("o3") {
-            maxTokens = 100_000  // o-series reasoning models support up to 100K
-        } else if model.contains("gpt-4o") {
-            maxTokens = 16_384  // GPT-4o supports 16K output
-        } else {
-            maxTokens = 16_000  // Safe default
-        }
+        let definition = models.first { $0.id == model }
+        let maxTokens = definition?.maxOutputTokens ?? 16_000
+        let control = definition?.control ?? .sampling
 
-        let requestBody: [String: Any] = [
+        var requestBody: [String: Any] = [
             "model": model,
             "messages": openAIMessages,
-            "temperature": temperature,
-            "top_p": topP,
-            "max_tokens": maxTokens,
             "stream": true
         ]
 
-        print("🚀 OpenAI request: model=\(model), temp=\(temperature), top-p=\(topP), max-tokens=\(maxTokens)")
+        switch control {
+        case .effort:
+            // GPT-5.6 / GPT-6 accept only the default temperature and top_p, and
+            // renamed the output cap. Sending the old fields is a 400.
+            requestBody["reasoning_effort"] = effort.rawValue
+            requestBody["max_completion_tokens"] = maxTokens
+        case .sampling:
+            requestBody["temperature"] = temperature
+            requestBody["top_p"] = topP
+            requestBody["max_tokens"] = maxTokens
+        }
+
+        let controlLog = control == .effort
+            ? "effort=\(effort.rawValue)"
+            : "temp=\(temperature), top-p=\(topP)"
+        print("🚀 OpenAI request: model=\(model), \(controlLog), max-tokens=\(maxTokens)")
         
         return AsyncThrowingStream<String, Error> { continuation in
             Task {
