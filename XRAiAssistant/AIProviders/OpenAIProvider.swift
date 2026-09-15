@@ -134,35 +134,43 @@ class OpenAIProvider: AIProvider {
                     request.httpMethod = "POST"
                     request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    // Reasoning models can think for minutes before the first token.
+                    // URLSession's 60s default is an inactivity timeout and trips
+                    // during that silence.
+                    request.timeoutInterval = 600
                     request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-                    
-                    let (data, response) = try await URLSession.shared.data(for: request)
-                    
+
+                    let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+
                     if let httpResponse = response as? HTTPURLResponse {
+                        print("📡 HTTP Status: \(httpResponse.statusCode)")
                         guard httpResponse.statusCode == 200 else {
-                            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-                            throw AIProviderError.networkError("HTTP \(httpResponse.statusCode): \(errorMessage)")
+                            var errorBody = ""
+                            for try await byte in asyncBytes {
+                                errorBody.append(Character(UnicodeScalar(byte)))
+                            }
+                            print("❌ Error response: \(errorBody)")
+                            throw AIProviderError.networkError("HTTP \(httpResponse.statusCode): \(errorBody)")
                         }
                     }
-                    
-                    let lines = String(data: data, encoding: .utf8)?.components(separatedBy: "\n") ?? []
-                    
-                    for line in lines {
-                        if line.hasPrefix("data: ") {
-                            let jsonString = String(line.dropFirst(6))
-                            
-                            if jsonString.trimmingCharacters(in: .whitespaces) == "[DONE]" {
-                                continuation.finish()
-                                return
-                            }
-                            
-                            if let jsonData = jsonString.data(using: .utf8),
-                               let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                               let choices = json["choices"] as? [[String: Any]],
-                               let delta = choices.first?["delta"] as? [String: Any],
-                               let content = delta["content"] as? String {
-                                continuation.yield(content)
-                            }
+
+                    print("📥 Receiving streaming response...")
+
+                    for try await line in asyncBytes.lines {
+                        guard line.hasPrefix("data: ") else { continue }
+                        let jsonString = String(line.dropFirst(6))
+
+                        if jsonString.trimmingCharacters(in: .whitespaces) == "[DONE]" {
+                            continuation.finish()
+                            return
+                        }
+
+                        if let jsonData = jsonString.data(using: .utf8),
+                           let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                           let choices = json["choices"] as? [[String: Any]],
+                           let delta = choices.first?["delta"] as? [String: Any],
+                           let content = delta["content"] as? String {
+                            continuation.yield(content)
                         }
                     }
                     continuation.finish()

@@ -154,6 +154,10 @@ class AnthropicProvider: AIProvider {
                     request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
                     request.setValue(apiVersion, forHTTPHeaderField: "anthropic-version")
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    // Adaptive thinking can run for minutes before the first token.
+                    // URLSession's 60s default is an inactivity timeout and trips
+                    // during that silence.
+                    request.timeoutInterval = 600
                     request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
                     let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
