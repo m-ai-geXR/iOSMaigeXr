@@ -197,6 +197,42 @@ enum AIParameter {
     case stream
 }
 
+// MARK: - Transient Failure Handling
+
+/// Retry policy for streaming requests.
+///
+/// Long-lived SSE connections to reasoning models get dropped mid-flight
+/// (URLError -1005, POSIX ENOTCONN) far more often than short requests, so a
+/// single drop should not fail the whole generation.
+enum AIRetry {
+    static let maxAttempts = 3
+
+    /// True for failures where the connection dropped or stalled, rather than
+    /// the request being rejected on its merits.
+    static func isTransient(_ error: Error) -> Bool {
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .networkConnectionLost, .timedOut, .cannotConnectToHost,
+                 .dnsLookupFailed, .secureConnectionFailed, .cannotFindHost:
+                return true
+            default:
+                return false
+            }
+        }
+        if case AIProviderError.networkError(let message) = error {
+            // Rate limits and server errors are worth retrying; 4xx are not.
+            return message.contains("HTTP 429") || message.contains("HTTP 5")
+        }
+        return false
+    }
+
+    /// Exponential backoff: 1s, 2s, 4s.
+    static func backoffNanoseconds(attempt: Int) -> UInt64 {
+        let seconds = min(pow(2.0, Double(attempt)), 8.0)
+        return UInt64(seconds * 1_000_000_000)
+    }
+}
+
 // MARK: - Error Handling
 
 enum AIProviderError: Error, LocalizedError {

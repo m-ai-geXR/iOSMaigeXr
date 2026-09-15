@@ -144,77 +144,99 @@ class AnthropicProvider: AIProvider {
 
         return AsyncThrowingStream<String, Error> { continuation in
             Task {
-                do {
-                    guard let url = URL(string: "\(baseURL)/messages") else {
-                        throw AIProviderError.configurationError("Invalid URL")
-                    }
+                var attempt = 0
 
-                    var request = URLRequest(url: url)
-                    request.httpMethod = "POST"
-                    request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-                    request.setValue(apiVersion, forHTTPHeaderField: "anthropic-version")
-                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                    // Adaptive thinking can run for minutes before the first token.
-                    // URLSession's 60s default is an inactivity timeout and trips
-                    // during that silence.
-                    request.timeoutInterval = 600
-                    request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+                while true {
+                    // Replaying a request after content already reached the consumer
+                    // would duplicate text, so only an attempt that yielded nothing
+                    // may be retried.
+                    var yieldedContent = false
 
-                    let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
-
-                    if let httpResponse = response as? HTTPURLResponse {
-                        print("📡 HTTP Status: \(httpResponse.statusCode)")
-                        guard httpResponse.statusCode == 200 else {
-                            var errorBody = ""
-                            for try await byte in asyncBytes {
-                                errorBody.append(Character(UnicodeScalar(byte)))
-                            }
-                            print("❌ Error response: \(errorBody)")
-                            throw AIProviderError.networkError("HTTP \(httpResponse.statusCode): \(errorBody)")
+                    do {
+                        guard let url = URL(string: "\(baseURL)/messages") else {
+                            throw AIProviderError.configurationError("Invalid URL")
                         }
-                    }
 
-                    print("📥 Receiving streaming response...")
+                        var request = URLRequest(url: url)
+                        request.httpMethod = "POST"
+                        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+                        request.setValue(apiVersion, forHTTPHeaderField: "anthropic-version")
+                        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                        // Adaptive thinking can run for minutes before the first token.
+                        // URLSession's 60s default is an inactivity timeout and trips
+                        // during that silence.
+                        request.timeoutInterval = 600
+                        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
-                    var buffer = ""
+                        let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
 
-                    for try await byte in asyncBytes {
-                        let char = Character(UnicodeScalar(byte))
-                        buffer.append(char)
+                        if let httpResponse = response as? HTTPURLResponse {
+                            print("📡 HTTP Status: \(httpResponse.statusCode)")
+                            guard httpResponse.statusCode == 200 else {
+                                var errorBody = ""
+                                for try await byte in asyncBytes {
+                                    errorBody.append(Character(UnicodeScalar(byte)))
+                                }
+                                print("❌ Error response: \(errorBody)")
+                                throw AIProviderError.networkError("HTTP \(httpResponse.statusCode): \(errorBody)")
+                            }
+                        }
 
-                        // Anthropic SSE format: "data: {...}\n\n"
-                        if buffer.hasSuffix("\n\n") {
-                            let lines = buffer.components(separatedBy: "\n")
+                        print("📥 Receiving streaming response...")
 
-                            for line in lines {
-                                if line.hasPrefix("data: ") {
-                                    let jsonString = String(line.dropFirst(6))
+                        var buffer = ""
 
-                                    if let jsonData = jsonString.data(using: .utf8),
-                                       let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                                       let type = json["type"] as? String {
+                        for try await byte in asyncBytes {
+                            let char = Character(UnicodeScalar(byte))
+                            buffer.append(char)
 
-                                        // Extract text from content_block_delta events
-                                        if type == "content_block_delta",
-                                           let delta = json["delta"] as? [String: Any],
-                                           let deltaType = delta["type"] as? String,
-                                           deltaType == "text_delta",
-                                           let text = delta["text"] as? String {
-                                            continuation.yield(text)
+                            // Anthropic SSE format: "data: {...}\n\n"
+                            if buffer.hasSuffix("\n\n") {
+                                let lines = buffer.components(separatedBy: "\n")
+
+                                for line in lines {
+                                    if line.hasPrefix("data: ") {
+                                        let jsonString = String(line.dropFirst(6))
+
+                                        if let jsonData = jsonString.data(using: .utf8),
+                                           let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                                           let type = json["type"] as? String {
+
+                                            // Extract text from content_block_delta events
+                                            if type == "content_block_delta",
+                                               let delta = json["delta"] as? [String: Any],
+                                               let deltaType = delta["type"] as? String,
+                                               deltaType == "text_delta",
+                                               let text = delta["text"] as? String {
+                                                continuation.yield(text)
+                                                yieldedContent = true
+                                            }
                                         }
                                     }
                                 }
+
+                                buffer = ""
                             }
-
-                            buffer = ""
                         }
-                    }
 
-                    print("🏁 Anthropic stream complete")
-                    continuation.finish()
-                } catch {
-                    print("❌ Anthropic error: \(error)")
-                    continuation.finish(throwing: error)
+                        print("🏁 Anthropic stream complete")
+                        continuation.finish()
+                        return
+                    } catch {
+                        let canRetry = !yieldedContent
+                            && attempt < AIRetry.maxAttempts
+                            && AIRetry.isTransient(error)
+
+                        guard canRetry else {
+                            print("❌ Anthropic error: \(error)")
+                            continuation.finish(throwing: error)
+                            return
+                        }
+
+                        print("⚠️ Anthropic transient failure (attempt \(attempt + 1)/\(AIRetry.maxAttempts)), retrying: \(error.localizedDescription)")
+                        try? await Task.sleep(nanoseconds: AIRetry.backoffNanoseconds(attempt: attempt))
+                        attempt += 1
+                    }
                 }
             }
         }

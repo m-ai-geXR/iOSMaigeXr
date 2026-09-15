@@ -125,58 +125,80 @@ class OpenAIProvider: AIProvider {
         
         return AsyncThrowingStream<String, Error> { continuation in
             Task {
-                do {
-                    guard let url = URL(string: "\(baseURL)/chat/completions") else {
-                        throw AIProviderError.configurationError("Invalid URL")
-                    }
-                    
-                    var request = URLRequest(url: url)
-                    request.httpMethod = "POST"
-                    request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                    // Reasoning models can think for minutes before the first token.
-                    // URLSession's 60s default is an inactivity timeout and trips
-                    // during that silence.
-                    request.timeoutInterval = 600
-                    request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+                var attempt = 0
 
-                    let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+                while true {
+                    // Replaying a request after content already reached the consumer
+                    // would duplicate text, so only an attempt that yielded nothing
+                    // may be retried.
+                    var yieldedContent = false
 
-                    if let httpResponse = response as? HTTPURLResponse {
-                        print("📡 HTTP Status: \(httpResponse.statusCode)")
-                        guard httpResponse.statusCode == 200 else {
-                            var errorBody = ""
-                            for try await byte in asyncBytes {
-                                errorBody.append(Character(UnicodeScalar(byte)))
-                            }
-                            print("❌ Error response: \(errorBody)")
-                            throw AIProviderError.networkError("HTTP \(httpResponse.statusCode): \(errorBody)")
+                    do {
+                        guard let url = URL(string: "\(baseURL)/chat/completions") else {
+                            throw AIProviderError.configurationError("Invalid URL")
                         }
-                    }
 
-                    print("📥 Receiving streaming response...")
+                        var request = URLRequest(url: url)
+                        request.httpMethod = "POST"
+                        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+                        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                        // Reasoning models can think for minutes before the first token.
+                        // URLSession's 60s default is an inactivity timeout and trips
+                        // during that silence.
+                        request.timeoutInterval = 600
+                        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
-                    for try await line in asyncBytes.lines {
-                        guard line.hasPrefix("data: ") else { continue }
-                        let jsonString = String(line.dropFirst(6))
+                        let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
 
-                        if jsonString.trimmingCharacters(in: .whitespaces) == "[DONE]" {
-                            continuation.finish()
+                        if let httpResponse = response as? HTTPURLResponse {
+                            print("📡 HTTP Status: \(httpResponse.statusCode)")
+                            guard httpResponse.statusCode == 200 else {
+                                var errorBody = ""
+                                for try await byte in asyncBytes {
+                                    errorBody.append(Character(UnicodeScalar(byte)))
+                                }
+                                print("❌ Error response: \(errorBody)")
+                                throw AIProviderError.networkError("HTTP \(httpResponse.statusCode): \(errorBody)")
+                            }
+                        }
+
+                        print("📥 Receiving streaming response...")
+
+                        for try await line in asyncBytes.lines {
+                            guard line.hasPrefix("data: ") else { continue }
+                            let jsonString = String(line.dropFirst(6))
+
+                            if jsonString.trimmingCharacters(in: .whitespaces) == "[DONE]" {
+                                continuation.finish()
+                                return
+                            }
+
+                            if let jsonData = jsonString.data(using: .utf8),
+                               let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                               let choices = json["choices"] as? [[String: Any]],
+                               let delta = choices.first?["delta"] as? [String: Any],
+                               let content = delta["content"] as? String {
+                                continuation.yield(content)
+                                yieldedContent = true
+                            }
+                        }
+                        continuation.finish()
+                        return
+                    } catch {
+                        let canRetry = !yieldedContent
+                            && attempt < AIRetry.maxAttempts
+                            && AIRetry.isTransient(error)
+
+                        guard canRetry else {
+                            print("❌ OpenAI error: \(error)")
+                            continuation.finish(throwing: error)
                             return
                         }
 
-                        if let jsonData = jsonString.data(using: .utf8),
-                           let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                           let choices = json["choices"] as? [[String: Any]],
-                           let delta = choices.first?["delta"] as? [String: Any],
-                           let content = delta["content"] as? String {
-                            continuation.yield(content)
-                        }
+                        print("⚠️ OpenAI transient failure (attempt \(attempt + 1)/\(AIRetry.maxAttempts)), retrying: \(error.localizedDescription)")
+                        try? await Task.sleep(nanoseconds: AIRetry.backoffNanoseconds(attempt: attempt))
+                        attempt += 1
                     }
-                    continuation.finish()
-                } catch {
-                    print("❌ OpenAI error: \(error)")
-                    continuation.finish(throwing: error)
                 }
             }
         }
