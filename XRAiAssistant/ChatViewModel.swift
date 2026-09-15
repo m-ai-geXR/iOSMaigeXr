@@ -595,7 +595,7 @@ class ChatViewModel: ObservableObject {
                 switch providerError {
                 case .configurationError(let message):
                     if message.contains("API key not configured") {
-                        errorMessage = "⚠️ API Key Required: Please configure your Together.ai API key in Settings (gear icon). Get your free API key at https://api.together.ai/settings/api-keys"
+                        errorMessage = "⚠️ API Key Required: Please configure your \(providerNameForSelectedModel) API key in Settings (gear icon). Get your API key at \(apiKeyURLForSelectedModel)"
                     } else {
                         errorMessage = "Configuration Error: \(message)"
                     }
@@ -603,9 +603,9 @@ class ChatViewModel: ObservableObject {
                     errorMessage = "Provider Error: \(providerError.localizedDescription)"
                 }
             } else if error.localizedDescription.contains("Invalid API key") {
-                errorMessage = "⚠️ Invalid API Key: Please check your Together.ai API key in Settings (gear icon). Get your API key at https://api.together.ai/settings/api-keys"
+                errorMessage = "⚠️ Invalid API Key: Please check your \(providerNameForSelectedModel) API key in Settings (gear icon). Get your API key at \(apiKeyURLForSelectedModel)"
             } else if error.localizedDescription.contains("401") {
-                errorMessage = "⚠️ Authentication Failed: Please verify your API key in Settings (gear icon). Make sure you're using a valid Together.ai API key."
+                errorMessage = "⚠️ Authentication Failed: Please verify your \(providerNameForSelectedModel) API key in Settings (gear icon)."
             } else {
                 errorMessage = "Failed to get response: \(error.localizedDescription)"
             }
@@ -629,25 +629,17 @@ class ChatViewModel: ObservableObject {
     internal func callLlamaInference(userMessage: String, systemPrompt: String) async throws -> String {
         print("🎯 Using selected model: \(selectedModel)")
         
-        // Always try new provider system first (it has better error handling)
+        // A model owned by a registered provider must never fall through to the
+        // Together.ai path below: posting e.g. an OpenAI model id to Together
+        // returns a model_not_available 404 that hides the real failure.
         if let provider = aiProviderManager.getProvider(for: selectedModel) {
             print("📍 Routing to: New Provider System (\(provider.name))")
-            do {
-                return try await callNewProviderSystem(userMessage: userMessage, systemPrompt: systemPrompt)
-            } catch {
-                // If it's a configuration error, don't fall back - show helpful error
-                if let providerError = error as? AIProviderError,
-                   case .configurationError(_) = providerError {
-                    throw error // Re-throw to show user-friendly message
-                }
-                // For other errors, we can fall back to legacy system
-                print("⚠️ New provider system failed, trying legacy: \(error)")
-            }
+            return try await callNewProviderSystem(userMessage: userMessage, systemPrompt: systemPrompt)
         }
-        
-        // Fallback to legacy system only for non-configuration errors
+
+        // Legacy path: only models with no registered provider reach here.
         print("🔧 LlamaStack toggle: \(useLlamaStackForLlamaModels ? "ENABLED" : "DISABLED (using Together.ai for all)")")
-        
+
         // Route to appropriate service based on configuration toggle
         if useLlamaStackForLlamaModels && selectedModel.contains("meta-llama") {
             // Use LlamaStackClient for Llama models (when toggle is enabled)
@@ -662,7 +654,9 @@ class ChatViewModel: ObservableObject {
     
     private func callNewProviderSystem(userMessage: String, systemPrompt: String) async throws -> String {
         print("🔧 New Provider System called with model: \(selectedModel)")
-        print("🔑 Current API key status: \(aiProviderManager.getAPIKey(for: "Together.ai") == "changeMe" ? "NOT_CONFIGURED (changeMe)" : "CONFIGURED")")
+        let activeProvider = providerNameForSelectedModel
+        let keyState = aiProviderManager.getAPIKey(for: activeProvider) == "changeMe" ? "NOT_CONFIGURED (changeMe)" : "CONFIGURED"
+        print("🔑 \(activeProvider) API key status: \(keyState)")
         
         let messages = [
             AIMessage(role: .system, text: systemPrompt),
@@ -1392,6 +1386,21 @@ class ChatViewModel: ObservableObject {
     /// temperature/top-p, so the settings UI can show the right control.
     var usesEffortControl: Bool {
         aiProviderManager.control(for: selectedModel) == .effort
+    }
+
+    /// Provider that owns the selected model, so key errors name the right service.
+    var providerNameForSelectedModel: String {
+        aiProviderManager.getProvider(for: selectedModel)?.name ?? "Together.ai"
+    }
+
+    var apiKeyURLForSelectedModel: String {
+        switch providerNameForSelectedModel {
+        case "OpenAI": return "https://platform.openai.com/api-keys"
+        case "Anthropic": return "https://console.anthropic.com"
+        case "Google AI": return "https://aistudio.google.com/apikey"
+        case "xAI": return "https://console.x.ai"
+        default: return "https://api.together.ai/settings/api-keys"
+        }
     }
 
     // MARK: - Model Migration
