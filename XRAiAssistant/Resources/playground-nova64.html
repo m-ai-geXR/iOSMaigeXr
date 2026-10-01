@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nova64 Playground</title>
+
+    <!-- Monaco Editor -->
+    <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+    <style>
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+            color: #fff;
+        }
+        
+        .header {
+            background: #2d2d30;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #3e3e42;
+            min-height: 40px;
+            /* SMALL SCREEN FIX: Enable horizontal scrolling for toolbar on small screens */
+            overflow-x: auto;
+            overflow-y: hidden;
+            flex-wrap: nowrap;
+            /* Smooth scrolling on mobile */
+            -webkit-overflow-scrolling: touch;
+            /* Custom scrollbar styling */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+        }
+
+        /* Custom scrollbar for webkit browsers (Chrome, Safari, Edge) */
+        .header::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .header::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .header::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .header::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .menu-btn {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s;
+            /* SMALL SCREEN FIX: Prevent buttons from shrinking */
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        
+        .menu-btn:hover {
+            background: #1177bb;
+        }
+        
+        .menu-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .main-container {
+            flex: 1;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .editor-container {
+            width: 0%;
+            background: #1e1e1e;
+            border-right: 1px solid #3e3e42;
+            position: relative;
+            overflow: hidden;
+            transition: width 0.3s ease-in-out;
+        }
+
+        .editor-container.open {
+            width: 100%;
+        }
+
+        .canvas-container {
+            width: 100%;
+            background: #252526;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: width 0.3s ease-in-out;
+            overflow: hidden;
+        }
+
+        .canvas-container.editor-open {
+            width: 0%;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            outline: none;
+            display: block;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        /* Hide canvas when editor is open */
+        .canvas-container.editor-open #renderCanvas {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .editor-toggle-btn {
+            position: fixed;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            padding: 12px 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 1000;
+            transition: all 0.3s ease-in-out;
+            box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .editor-toggle-btn:hover {
+            background: #1177bb;
+        }
+
+        .editor-toggle-btn:active {
+            background: #0e639c;
+        }
+
+        /* When editor is open, button moves to right edge */
+        .editor-toggle-btn.editor-open {
+            left: auto;
+            right: 0;
+            border-radius: 4px 0 0 4px;
+        }
+        
+        .footer {
+            background: #007acc;
+            padding: 4px 12px;
+            font-size: 11px;
+            text-align: center;
+            color: white;
+        }
+        
+        .error-display {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #f14c4c;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            max-width: 300px;
+            display: none;
+            z-index: 1000;
+        }
+        
+        /* Floating Console Window */
+        .console-window {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 400px;
+            height: 300px;
+            background: #1e1e1e;
+            border: 1px solid #007acc;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            z-index: 2000;
+            resize: both;
+            overflow: hidden;
+            min-width: 300px;
+            min-height: 200px;
+            max-width: 90vw;
+            max-height: 80vh;
+        }
+
+        .console-window.minimized {
+            height: auto !important;
+            min-height: auto;
+            resize: none;
+        }
+
+        .console-window.minimized .console-resize-handle {
+            display: none;
+        }
+
+        .console-window.hidden {
+            display: none;
+        }
+
+        .console-title-bar {
+            background: #007acc;
+            color: white;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: move;
+            user-select: none;
+            -webkit-user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .console-title {
+            flex: 1;
+        }
+
+        .console-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .console-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .console-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .console-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: auto;
+            padding: 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 11px;
+            color: #ccc;
+            background: #1e1e1e;
+            user-select: text;
+            -webkit-user-select: text;
+            cursor: text;
+        }
+
+        .console-window.minimized .console-content {
+            display: none;
+        }
+
+        .console-message {
+            margin: 2px 0;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .console-error {
+            color: #f14c4c;
+        }
+
+        .console-warning {
+            color: #ffcc02;
+        }
+
+        .console-log {
+            color: #ccc;
+        }
+
+        .console-resize-handle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 16px;
+            height: 16px;
+            cursor: nwse-resize;
+            background: linear-gradient(135deg, transparent 50%, #007acc 50%);
+            opacity: 0.5;
+        }
+
+        .console-window.minimized .console-resize-handle {
+            display: none;
+        }
+
+        /* Console Open Button (always visible in editor) */
+        .console-open-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            z-index: 1500;
+            transition: all 0.2s;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .console-open-btn:hover {
+            background: #1177bb;
+            transform: scale(1.1);
+        }
+
+        .console-open-btn:active {
+            background: #0e639c;
+            transform: scale(0.95);
+        }
+
+        .console-open-btn.hidden {
+            display: none;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #cccccc;
+            font-size: 14px;
+        }
+        
+        /* Remove media query - same behavior across all devices per requirements */
+        /* The editor starts hidden (width: 0%) on all screen sizes */
+    
+        /* ---- Nova64: the render surface is an iframe, not a canvas ---- */
+        #novaRunner {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            outline: none;
+            display: block;
+            background: #000;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        /* Hide the console when the editor is open (mirrors #renderCanvas) */
+        .canvas-container.editor-open #novaRunner {
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="menu-btn" onclick="runCode()">▶ Run</button>
+        <button class="menu-btn" onclick="formatCode()">{ } Format</button>
+        <button class="menu-btn" onclick="clearCode()">🗑 Clear</button>
+        <button class="menu-btn" onclick="newScene()">📄 New</button>
+        <button class="menu-btn" onclick="resetConsole()">⟲ Reset Console</button>
+        <button class="menu-btn" onclick="openDocumentation()">📖 Docs</button>
+        <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
+        <select class="menu-btn" onchange="loadExample(this.value); this.value='';">
+            <option value="">Demo</option>
+            <option value="starter">🎮 Starter Cart</option>
+            <option value="corridor">🚀 Retro Corridor Runner</option>
+            <option value="solar">🪐 Low-Poly Solar System</option>
+            <option value="grid">🎨 Interactive Color Grid</option>
+            <option value="vr">🥽 VR Tunnel</option>
+        </select>
+    </div>
+
+    <div class="main-container">
+        <div class="editor-container" id="editorContainer">
+            <div id="monaco-editor" style="width: 100%; height: 100%;"></div>
+            <button class="console-open-btn" id="consoleOpenBtn" title="Open Console">📟</button>
+        </div>
+        <div class="canvas-container" id="canvasContainer">
+            <button class="editor-toggle-btn" id="editorToggleBtn" onclick="toggleEditor()">CODE</button>
+            <!--
+              Nova64 is a console, not a library: it boots its own runtime and takes
+              carts over postMessage. hero-embed is the bare runner - no CRT bezel,
+              scanlines, hardware badge or fullscreen button - so nothing but the
+              game is on screen while you play.
+            -->
+            <iframe id="novaRunner" title="Nova64 Console"
+                    allow="xr-spatial-tracking; fullscreen; gamepad; autoplay; accelerometer; gyroscope"></iframe>
+            <div class="loading" id="loading">Booting Nova64 console...</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Nova64 Playground - Retro 3D Fantasy Console
+    </div>
+
+    <div class="error-display" id="errorDisplay"></div>
+
+    <!-- Floating Console Window -->
+    <div class="console-window" id="consoleWindow">
+        <div class="console-title-bar" id="consoleTitleBar">
+            <div class="console-title">Console</div>
+            <div class="console-controls">
+                <button class="console-btn" id="consoleCopyBtn" title="Copy All">📋</button>
+                <button class="console-btn" id="consoleClearBtn" title="Clear Console">🗑</button>
+                <button class="console-btn" id="consoleMinimizeBtn" title="Minimize">−</button>
+                <button class="console-btn" id="consoleToggleBtn" title="Expand">↕</button>
+                <button class="console-btn" id="consoleCloseBtn" title="Close">×</button>
+            </div>
+        </div>
+        <div class="console-content" id="consoleContent"></div>
+        <div class="console-resize-handle" id="consoleResizeHandle"></div>
+    </div>
+
+    <script>
+        // Cart sources. Kept in sync with Nova64Library.swift / Nova64Library.kt
+        // and verified against Nova64's own studio executor and namespace map.
+        var NOVA_EXAMPLES = {
+            starter: "        // Nova64 cart \u2014 retro 3D fantasy console\n        // Lifecycle: init() once, update(dt) every frame, draw() for the 2D HUD.\n        // No export keyword \u2014 the studio runner evaluates this with new Function().\n\n        let cubeId;\n        let orbId;\n        let groundId;\n        let elapsed = 0;\n\n        function init() {\n          // Backdrop and camera\n          nova64.scene.setClearColor(0x090a0f);\n          nova64.camera.setCameraPosition(0, 5, 11);\n          nova64.camera.setCameraTarget(0, 1, 0);\n          nova64.camera.setCameraFOV(60);\n\n          // Warm key light, cool fill \u2014 that cartridge-era look\n          nova64.light.setAmbientLight(0x404060, 0.8);\n          nova64.light.setLightDirection(-0.5, -1, -0.3);\n          nova64.light.setLightColor(0xffeedd);\n\n          // Fog gives cheap depth and hides the draw distance\n          nova64.light.setFog(0x090a0f, 18, 48);\n\n          // Hero cube\n          cubeId = nova64.scene.createCube(2, 0xff3366, [0, 1.5, 0]);\n          nova64.scene.setPBRProperties(cubeId, { metalness: 0.4, roughness: 0.35 });\n\n          // Low-poly orb \u2014 few segments on purpose\n          orbId = nova64.scene.createSphere(0.9, 0x33e1ff, [4, 1.2, -1], 10);\n\n          // Ground\n          groundId = nova64.scene.createPlane(60, 60, 0x1b2735, [0, -0.01, 0]);\n          nova64.scene.setFlatShading(groundId, true);\n\n          // Post-processing\n          nova64.fx.enableBloom();\n          nova64.fx.setBloomStrength(0.6);\n          nova64.fx.enableVignette();\n        }\n\n        function update(dt) {\n          elapsed += dt;\n\n          // Scale by dt so motion is framerate independent\n          nova64.scene.rotateMesh(cubeId, 0, dt * 1.2, 0);\n          nova64.scene.setPosition(cubeId, 0, 1.5 + Math.sin(elapsed * 2) * 0.4, 0);\n\n          // Orbit the orb around the cube\n          nova64.scene.setPosition(\n            orbId,\n            Math.cos(elapsed) * 4,\n            1.2,\n            Math.sin(elapsed) * 4\n          );\n        }\n\n        function draw() {\n          const white = nova64.draw.rgba8(255, 255, 255, 255);\n          nova64.draw.print('NOVA64 x m{ai}geXR', 8, 8, white, 1);\n        }",
+            corridor: "                let shipId;\n                let pillars = [];\n                let elapsed = 0;\n\n                function init() {\n                  nova64.scene.setClearColor(0x05060f);\n                  nova64.camera.setCameraPosition(0, 3.5, 9);\n                  nova64.camera.setCameraTarget(0, 1, 0);\n\n                  nova64.light.setAmbientLight(0x303050, 0.9);\n                  nova64.light.setLightDirection(-0.4, -1, -0.5);\n                  nova64.light.setFog(0x05060f, 14, 60);\n\n                  // A flat-shaded cone reads as a retro fighter\n                  shipId = nova64.scene.createCone(0.8, 2, 0xffcc33, [0, 1, 0]);\n                  nova64.scene.setFlatShading(shipId, true);\n                  nova64.scene.setRotation(shipId, Math.PI / 2, 0, 0);\n\n                  // A corridor of pillars to fly through\n                  for (let i = 0; i < 14; i++) {\n                    const side = i % 2 === 0 ? -5 : 5;\n                    const id = nova64.scene.createCube(1.2, 6, 1.2, 0x2a3f6b, [side, 2, -i * 6]);\n                    nova64.scene.setFlatShading(id, true);\n                    pillars.push(id);\n                  }\n\n                  nova64.scene.createPlane(80, 160, 0x101828, [0, -1, -40]);\n\n                  nova64.fx.enableBloom();\n                  nova64.fx.setBloomStrength(0.8);\n                  nova64.fx.enableVignette();\n                }\n\n                function update(dt) {\n                  elapsed += dt;\n\n                  let x = Math.sin(elapsed) * 2.5;\n                  if (nova64.input.btn(0)) x -= 3 * dt;\n                  if (nova64.input.btn(1)) x += 3 * dt;\n                  nova64.scene.setPosition(shipId, x, 1 + Math.sin(elapsed * 3) * 0.2, 0);\n\n                  // Scroll the pillars toward the camera and recycle them\n                  for (let i = 0; i < pillars.length; i++) {\n                    const p = nova64.scene.getPosition(pillars[i]);\n                    let z = p[2] + dt * 14;\n                    if (z > 12) z -= 84;\n                    nova64.scene.setPosition(pillars[i], p[0], p[1], z);\n                  }\n                }\n\n                function draw() {\n                  const cyan = nova64.draw.rgba8(80, 230, 255, 255);\n                  nova64.draw.print('NOVA64', 8, 8, cyan, 1);\n                  nova64.draw.print('DIST ' + Math.floor(elapsed * 14), 8, 22, cyan, 1);\n                }",
+            solar: "                let sunId;\n                let planets = [];\n                let elapsed = 0;\n\n                function init() {\n                  nova64.scene.setClearColor(0x02030a);\n                  nova64.camera.setCameraPosition(0, 12, 22);\n                  nova64.camera.setCameraTarget(0, 0, 0);\n\n                  // Starfield backdrop\n                  nova64.light.createSpaceSkybox();\n                  nova64.light.setAmbientLight(0x101020, 0.4);\n\n                  // The star, plus a point light inside it\n                  sunId = nova64.scene.createSphere(2.4, 0xffcc44, [0, 0, 0], 12);\n                  nova64.light.createPointLight(0xffdd88, 2.2, 90, 0, 0, 0);\n\n                  // Planets: [radius, color, orbitDistance, orbitSpeed]\n                  const defs = [\n                    [0.5, 0xc96a4a, 5.5, 1.5],\n                    [0.8, 0x4a9ec9, 8.5, 1.0],\n                    [0.7, 0x8a5fd6, 12.0, 0.7],\n                    [1.2, 0xd6a65f, 16.5, 0.45]\n                  ];\n\n                  for (let i = 0; i < defs.length; i++) {\n                    const d = defs[i];\n                    const id = nova64.scene.createSphere(d[0], d[1], [d[2], 0, 0], 10);\n                    nova64.scene.setFlatShading(id, true);\n                    planets.push({ id: id, dist: d[2], speed: d[3] });\n                  }\n\n                  nova64.fx.enableBloom();\n                  nova64.fx.setBloomStrength(1.1);\n                }\n\n                function update(dt) {\n                  elapsed += dt;\n\n                  nova64.scene.rotateMesh(sunId, 0, dt * 0.2, 0);\n\n                  for (let i = 0; i < planets.length; i++) {\n                    const p = planets[i];\n                    const a = elapsed * p.speed;\n                    nova64.scene.setPosition(\n                      p.id,\n                      Math.cos(a) * p.dist,\n                      0,\n                      Math.sin(a) * p.dist\n                    );\n                    nova64.scene.rotateMesh(p.id, 0, dt * 1.5, 0);\n                  }\n                }\n\n                function draw() {\n                  const amber = nova64.draw.rgba8(255, 210, 120, 255);\n                  nova64.draw.print('SYSTEM NOVA', 8, 8, amber, 1);\n                }",
+            grid: "                let cubes = [];\n                let elapsed = 0;\n                let paletteIndex = 0;\n\n                const PALETTES = [\n                  [0xff3366, 0xff9933, 0xffee33],\n                  [0x33e1ff, 0x3366ff, 0x8a5fd6],\n                  [0x33ff88, 0x22cc66, 0x116644]\n                ];\n\n                function init() {\n                  nova64.scene.setClearColor(0x0a0a14);\n                  nova64.camera.setCameraPosition(0, 14, 16);\n                  nova64.camera.setCameraTarget(0, 0, 0);\n\n                  nova64.light.setAmbientLight(0x404060, 0.7);\n                  nova64.light.setLightDirection(-0.3, -1, -0.4);\n\n                  // 8x8 grid \u2014 build once, animate forever\n                  const palette = PALETTES[0];\n                  for (let x = -4; x < 4; x++) {\n                    for (let z = -4; z < 4; z++) {\n                      const color = palette[(Math.abs(x) + Math.abs(z)) % palette.length];\n                      const id = nova64.scene.createCube(0.9, color, [x * 1.3, 0, z * 1.3]);\n                      cubes.push({ id: id, x: x, z: z });\n                    }\n                  }\n\n                  nova64.scene.createPlane(40, 40, 0x060610, [0, -1.5, 0]);\n                  nova64.fx.enableBloom();\n                  nova64.fx.enableVignette();\n                }\n\n                function update(dt) {\n                  elapsed += dt;\n\n                  // SPACE cycles the palette\n                  if (nova64.input.keyp('Space')) {\n                    paletteIndex = (paletteIndex + 1) % PALETTES.length;\n                    const palette = PALETTES[paletteIndex];\n                    for (let i = 0; i < cubes.length; i++) {\n                      const c = cubes[i];\n                      const color = palette[(Math.abs(c.x) + Math.abs(c.z)) % palette.length];\n                      nova64.scene.setPBRProperties(c.id, { color: color });\n                    }\n                  }\n\n                  // A wave travelling out from the centre\n                  for (let i = 0; i < cubes.length; i++) {\n                    const c = cubes[i];\n                    const d = nova64.util.dist(0, 0, c.x, c.z);\n                    const y = Math.sin(elapsed * 3 - d * 0.8) * 0.9;\n                    nova64.scene.setPosition(c.id, c.x * 1.3, y, c.z * 1.3);\n                  }\n                }\n\n                function draw() {\n                  const white = nova64.draw.rgba8(240, 240, 255, 255);\n                  nova64.draw.print('SPACE = PALETTE', 8, 8, white, 1);\n                }",
+            vr: "                let ringIds = [];\n                let elapsed = 0;\n                let inVR = false;\n\n                function init() {\n                  nova64.scene.setClearColor(0x050510);\n                  nova64.camera.setCameraPosition(0, 1.6, 6);\n                  nova64.camera.setCameraTarget(0, 1.6, 0);\n\n                  nova64.light.setAmbientLight(0x404060, 0.9);\n                  nova64.light.setLightDirection(-0.4, -1, -0.3);\n                  nova64.light.setFog(0x050510, 10, 40);\n\n                  // A tunnel of torus rings, nice to look around inside in VR.\n                  // Mesh colors are plain hex numbers.\n                  const RING_COLORS = [\n                    0xff3366, 0xff6633, 0xffcc33, 0x99ff33, 0x33ff88,\n                    0x33e1ff, 0x3366ff, 0x8a5fd6, 0xd633ff, 0xff33aa\n                  ];\n                  for (let i = 0; i < RING_COLORS.length; i++) {\n                    const id = nova64.scene.createTorus(2.2, 0.16, RING_COLORS[i], [0, 1.6, -i * 3.5]);\n                    ringIds.push(id);\n                  }\n\n                  nova64.scene.createPlane(60, 60, 0x0b0b18, [0, -0.5, 0]);\n\n                  nova64.fx.enableBloom();\n                  nova64.fx.setBloomStrength(1.2);\n\n                  // Ask for an immersive session. Harmless where WebXR is unavailable.\n                  if (nova64.xr.isXRSupported && nova64.xr.isXRSupported()) {\n                    nova64.xr.enableVR();\n                    inVR = true;\n                  }\n                }\n\n                function update(dt) {\n                  elapsed += dt;\n\n                  for (let i = 0; i < ringIds.length; i++) {\n                    nova64.scene.rotateMesh(ringIds[i], 0, 0, dt * (0.3 + i * 0.05));\n                    const p = nova64.scene.getPosition(ringIds[i]);\n                    let z = p[2] + dt * 4;\n                    if (z > 4) z -= 35;\n                    nova64.scene.setPosition(ringIds[i], 0, 1.6, z);\n                  }\n                }\n\n                function draw() {\n                  // Skip the flat HUD while immersed \u2014 it belongs on the 2D screen\n                  if (inVR && nova64.xr.isXRActive && nova64.xr.isXRActive()) return;\n                  const white = nova64.draw.rgba8(255, 255, 255, 255);\n                  nova64.draw.print('VR TUNNEL', 8, 8, white, 1);\n                }",
+        };
+
+        function getDefaultCode() {
+            return NOVA_EXAMPLES.starter;
+        }
+
+        // ====================================================================
+        // Nova64 Playground
+        //
+        // Nova64 is a console rather than a library: it boots its own runtime and
+        // then accepts "carts". So there is no engine to initialise here and no
+        // canvas we draw into - the console runs in an iframe and we push the
+        // editor buffer into it using Nova64's studio protocol:
+        //
+        //   runner -> us     { type: 'EXECUTE_READY' }
+        //   us     -> runner { type: 'EXECUTE_CODE', code }
+        //   runner -> us     { type: 'CART_LOG' | 'EXECUTE_SUCCESS' | 'EXECUTE_ERROR' }
+        //
+        // IMPORTANT - why this page must not be loaded from file://
+        // The runner answers us with `event.source.postMessage(msg, event.origin)`.
+        // That is correct usage, but it means our origin has to be a real
+        // scheme://host origin. A page loaded from file:// has an opaque origin,
+        // which serialises to the string "null"; postMessage then throws a
+        // SyntaxError *inside* the runner's EXECUTE_CODE handler, before it ever
+        // evaluates the cart - so the screen stays blank with no useful error.
+        //
+        // The native layers therefore load this page with an https base URL
+        // (see WebViewCoordinator on iOS and SceneScreen on Android). That also
+        // makes us same-origin with the runner, so its replies actually arrive.
+        // Everything this page needs is inlined for the same reason: an https
+        // document cannot pull subresources from file:// or app://.
+        // ====================================================================
+
+        var NOVA_RUNNER_ORIGIN = 'https://nova64.io';
+        var NOVA_RUNNER_PATH = '/hero-embed';   // bare runner: no bezel, no scanlines, no badge
+        var NOVA_CLEAR_COLOR = '0x090a0f';
+
+        var editor = null;
+        var consoleMessages = [];
+        var runnerReady = false;
+        var pendingCode = null;
+        var settleTimer = null;
+        var resizeTimer = null;
+        var lastRunnerSize = '';
+
+        // ------------------------------------------------------------------
+        // Native bridge (inlined - see the note above about subresources)
+        // ------------------------------------------------------------------
+        function notifyNative(action, data) {
+            try {
+                if (window.webkit && window.webkit.messageHandlers &&
+                    window.webkit.messageHandlers.playgroundHandler) {
+                    window.webkit.messageHandlers.playgroundHandler.postMessage({
+                        action: action, data: data || {}
+                    });
+                    return;
+                }
+                if (window.AndroidBridge && typeof window.AndroidBridge.postMessage === 'function') {
+                    window.AndroidBridge.postMessage(JSON.stringify({
+                        action: action, data: data || {}
+                    }));
+                }
+            } catch (e) {
+                // The bridge is optional; the page works standalone too.
+            }
+        }
+
+        // Status goes out as "consoleLog", which both native layers already
+        // handle. Inventing new action names only produces "Unknown action"
+        // noise in the host log, since nothing is listening for them.
+        function logToNative(level, message) {
+            notifyNative('consoleLog', { level: level, message: message });
+        }
+
+        // ------------------------------------------------------------------
+        // Console
+        // ------------------------------------------------------------------
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function updateConsoleDisplay() {
+            var consoleContent = document.getElementById('consoleContent');
+            if (consoleContent && consoleMessages.length > 0) {
+                consoleContent.innerHTML = consoleMessages.map(function (msg) {
+                    return '<div class="console-message console-' + msg.type + '">' +
+                           escapeHtml(msg.message) + '</div>';
+                }).join('');
+                consoleContent.scrollTop = consoleContent.scrollHeight;
+            }
+        }
+
+        function addConsoleMessage(type, message) {
+            consoleMessages.push({ type: type, message: String(message) });
+            if (consoleMessages.length > 100) {
+                consoleMessages = consoleMessages.slice(-100);
+            }
+            updateConsoleDisplay();
+        }
+
+        function clearConsole() {
+            consoleMessages = [];
+            var el = document.getElementById('consoleContent');
+            if (el) el.innerHTML = '';
+        }
+
+        function copyConsoleToClipboard() {
+            if (consoleMessages.length === 0) return;
+            var text = consoleMessages.map(function (m) {
+                return '[' + m.type.toUpperCase() + '] ' + m.message;
+            }).join('\n');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).catch(function () { fallbackCopy(text); });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch (e) {}
+            document.body.removeChild(ta);
+        }
+
+        function showConsole() {
+            var w = document.getElementById('consoleWindow');
+            var openBtn = document.getElementById('consoleOpenBtn');
+            if (w) w.classList.remove('hidden');
+            if (openBtn) openBtn.classList.add('hidden');
+        }
+
+        function hideConsole() {
+            var w = document.getElementById('consoleWindow');
+            var openBtn = document.getElementById('consoleOpenBtn');
+            if (w) w.classList.add('hidden');
+            if (openBtn) openBtn.classList.remove('hidden');
+        }
+
+        function toggleConsole() {
+            var w = document.getElementById('consoleWindow');
+            if (!w) return;
+            if (w.classList.contains('hidden')) showConsole(); else hideConsole();
+        }
+
+        // Mirror page output into the floating console, like the other playgrounds
+        (function captureConsole() {
+            var names = ['log', 'info', 'warn', 'error'];
+            names.forEach(function (name) {
+                var original = console[name] ? console[name].bind(console) : function () {};
+                console[name] = function () {
+                    var parts = [];
+                    for (var i = 0; i < arguments.length; i++) {
+                        var a = arguments[i];
+                        if (a && typeof a === 'object') {
+                            try { parts.push(JSON.stringify(a)); } catch (e) { parts.push(String(a)); }
+                        } else {
+                            parts.push(String(a));
+                        }
+                    }
+                    addConsoleMessage(name, parts.join(' '));
+                    original.apply(console, arguments);
+                };
+            });
+        })();
+
+        function showError(message, duration) {
+            var el = document.getElementById('errorDisplay');
+            if (el) {
+                el.textContent = message;
+                el.style.display = 'block';
+                if (duration !== 0) {
+                    setTimeout(function () { el.style.display = 'none'; }, duration || 8000);
+                }
+            }
+        }
+
+        function hideError() {
+            var el = document.getElementById('errorDisplay');
+            if (el) el.style.display = 'none';
+        }
+
+        // ------------------------------------------------------------------
+        // Editor / scene swap - identical behaviour to the other playgrounds
+        // ------------------------------------------------------------------
+        function toggleEditor() {
+            var editorContainer = document.getElementById('editorContainer');
+            var canvasContainer = document.getElementById('canvasContainer');
+            var toggleBtn = document.getElementById('editorToggleBtn');
+            if (!editorContainer || !canvasContainer || !toggleBtn) return;
+
+            if (!editorContainer.classList.contains('open')) {
+                // Show code editor (100%), hide scene (0%)
+                editorContainer.classList.add('open');
+                canvasContainer.classList.add('editor-open');
+                toggleBtn.classList.add('editor-open');
+                toggleBtn.textContent = 'SCENE';
+                setTimeout(function () {
+                    if (editor && editor.layout) editor.layout();
+                }, 300);
+            } else {
+                // Show scene (100%), hide code editor (0%)
+                editorContainer.classList.remove('open');
+                canvasContainer.classList.remove('editor-open');
+                toggleBtn.classList.remove('editor-open');
+                toggleBtn.textContent = 'CODE';
+                // The console sizes itself from the iframe, so re-fit after the swap
+                setTimeout(syncRunnerSize, 350);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Runner
+        // ------------------------------------------------------------------
+        function runnerUrl() {
+            var container = document.getElementById('canvasContainer');
+            var w = Math.max(320, Math.round((container && container.clientWidth) || window.innerWidth));
+            var h = Math.max(240, Math.round((container && container.clientHeight) || window.innerHeight));
+            lastRunnerSize = w + 'x' + h;
+            return NOVA_RUNNER_ORIGIN + NOVA_RUNNER_PATH +
+                   '?studio=1&w=' + w + '&h=' + h + '&clearColor=' + NOVA_CLEAR_COLOR;
+        }
+
+        function bootRunner() {
+            var frame = document.getElementById('novaRunner');
+            if (!frame) return;
+            runnerReady = false;
+            frame.src = runnerUrl();
+        }
+
+        // hero-embed renders at a fixed size, so when the viewport changes shape
+        // (rotation, editor swap) we re-boot the runner at the new size.
+        function syncRunnerSize() {
+            var container = document.getElementById('canvasContainer');
+            if (!container || container.clientWidth === 0) return;
+            var w = Math.max(320, Math.round(container.clientWidth));
+            var h = Math.max(240, Math.round(container.clientHeight));
+            if (lastRunnerSize === w + 'x' + h) return;
+
+            var code = editor ? editor.getValue() : null;
+            pendingCode = code;          // replayed as soon as the console is ready again
+            bootRunner();
+        }
+
+        window.addEventListener('resize', function () {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(syncRunnerSize, 400);
+        });
+
+        function postCart(code) {
+            var frame = document.getElementById('novaRunner');
+            if (!frame || !frame.contentWindow) return false;
+            frame.contentWindow.postMessage({ type: 'EXECUTE_CODE', code: code }, NOVA_RUNNER_ORIGIN);
+            return true;
+        }
+
+        window.addEventListener('message', function (event) {
+            var frame = document.getElementById('novaRunner');
+            if (!frame || event.source !== frame.contentWindow) return;
+
+            var data = event.data || {};
+
+            if (data.type === 'EXECUTE_READY') {
+                runnerReady = true;
+                var loading = document.getElementById('loading');
+                if (loading) loading.style.display = 'none';
+                console.log('✅ Nova64 console ready');
+                logToNative('info', 'Nova64 console ready');
+                if (pendingCode !== null) {
+                    var code = pendingCode;
+                    pendingCode = null;
+                    postCart(code);
+                }
+                return;
+            }
+
+            if (data.type === 'CART_LOG') {
+                addConsoleMessage('log', String(data.message || ''));
+                return;
+            }
+
+            if (data.type === 'EXECUTE_SUCCESS') {
+                clearTimeout(settleTimer);
+                hideError();
+                console.log('✅ Cart running');
+                logToNative('info', 'Nova64 cart running');
+                return;
+            }
+
+            if (data.type === 'EXECUTE_ERROR') {
+                clearTimeout(settleTimer);
+                var msg = String(data.error || 'Unknown cart error');
+                console.error('❌ Cart error: ' + msg);
+                showError('Cart error: ' + msg, 0);
+                showConsole();
+                logToNative('error', 'Nova64 cart error: ' + msg);
+            }
+        });
+
+        // ------------------------------------------------------------------
+        // Toolbar actions
+        // ------------------------------------------------------------------
+        function runCode() {
+            if (!editor) {
+                showError('Editor is not ready yet');
+                return false;
+            }
+            var code = editor.getValue();
+            if (!code || !code.trim()) {
+                showError('Nothing to run - the editor is empty');
+                return false;
+            }
+
+            hideError();
+
+            // Always show the scene when running, like the other playgrounds
+            var editorContainer = document.getElementById('editorContainer');
+            if (editorContainer && editorContainer.classList.contains('open')) {
+                toggleEditor();
+            }
+
+            if (!runnerReady) {
+                pendingCode = code;
+                console.log('⏳ Console still booting - cart queued');
+                return true;
+            }
+
+            postCart(code);
+
+            // The console confirms with EXECUTE_SUCCESS; if that never arrives we
+            // simply stop waiting rather than blocking the UI.
+            clearTimeout(settleTimer);
+            settleTimer = setTimeout(function () {
+                var loading = document.getElementById('loading');
+                if (loading) loading.style.display = 'none';
+            }, 2500);
+            return true;
+        }
+
+        function formatCode() {
+            if (editor && editor.getAction) {
+                var action = editor.getAction('editor.action.formatDocument');
+                if (action) action.run();
+            }
+        }
+
+        function clearCode() {
+            if (editor) editor.setValue('');
+        }
+
+        function newScene() {
+            if (editor) editor.setValue(getDefaultCode());
+            runCode();
+        }
+
+        // Re-boot the console itself - the equivalent of power-cycling the cartridge
+        function resetConsole() {
+            console.log('⟲ Rebooting Nova64 console...');
+            var loading = document.getElementById('loading');
+            if (loading) {
+                loading.textContent = 'Booting Nova64 console...';
+                loading.style.display = 'block';
+            }
+            pendingCode = editor ? editor.getValue() : null;
+            lastRunnerSize = '';
+            bootRunner();
+        }
+
+        function openDocumentation() {
+            logToNative('info', 'Opening Nova64 docs: https://nova64.io/docs/api-3d');
+            try { window.open('https://nova64.io/docs/api-3d', '_blank'); } catch (e) {}
+        }
+
+        function loadExample(name) {
+            if (!name) return;
+            var code = NOVA_EXAMPLES[name];
+            if (!code) return;
+            if (editor) {
+                editor.setValue(code);
+                runCode();
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Monaco
+        // ------------------------------------------------------------------
+        function initializeEditor() {
+            if (typeof require === 'undefined') {
+                createFallbackEditor();
+                return;
+            }
+            require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.45.0/min/vs' } });
+            require(['vs/editor/editor.main'], function () {
+                editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                    value: getDefaultCode(),
+                    language: 'javascript',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    fontSize: 14,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    wordWrap: 'on',
+                    tabSize: 2,
+                    lineNumbers: 'on'
+                });
+
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, function () {
+                    runCode();
+                });
+
+                exposeEditorGlobals();
+                console.log('✅ Monaco editor initialized for Nova64');
+            }, function () {
+                createFallbackEditor();
+            });
+        }
+
+        function createFallbackEditor() {
+            console.warn('⚠️ Monaco unavailable - using a plain textarea');
+            var container = document.getElementById('monaco-editor');
+            container.innerHTML =
+                '<textarea id="fallback-editor" style="width:100%;height:100%;background:#1e1e1e;' +
+                'color:#fff;font-family:Monaco,Consolas,monospace;font-size:14px;border:none;' +
+                'outline:none;padding:10px;resize:none;"></textarea>';
+            var ta = document.getElementById('fallback-editor');
+            ta.value = getDefaultCode();
+            editor = {
+                getValue: function () { return ta.value; },
+                setValue: function (v) { ta.value = v; },
+                focus: function () { ta.focus(); },
+                layout: function () {},
+                getAction: function () { return null; },
+                addCommand: function () {},
+                setPosition: function () {},
+                getPosition: function () { return null; },
+                executeEdits: function () { return false; }
+            };
+            exposeEditorGlobals();
+        }
+
+        // Hooks the native layer calls. The iOS and Android bridges look for
+        // setFullEditorContent first and fall back to the others.
+        function exposeEditorGlobals() {
+            window.editor = editor;
+            window.monacoEditor = editor;
+            window.codeEditor = editor;
+
+            window.setFullEditorContent = function (codeString) {
+                if (!editor) return false;
+                try {
+                    editor.setValue(codeString);
+                    if (editor.setPosition) editor.setPosition({ lineNumber: 1, column: 1 });
+                    if (editor.layout) editor.layout();
+
+                    // Verify, the way the other playgrounds do
+                    var verification = editor.getValue();
+                    if (verification !== codeString) {
+                        console.warn('⚠️ Nova64 setFullEditorContent verification failed');
+                        return false;
+                    }
+
+                    // Auto-run, exactly like the other playgrounds.
+                    //
+                    // This is load-bearing: the native injector has several
+                    // strategies and only its *fallback* path calls runCode() —
+                    // when setFullEditorContent succeeds it returns
+                    // SUCCESS_METHOD_1 immediately and never runs anything. So
+                    // every playground auto-runs here, and without it the cart
+                    // just sits in the editor and the console stays blank.
+                    //
+                    // Deferred so this function still returns a boolean
+                    // synchronously, which is what the native side reads.
+                    setTimeout(function () {
+                        console.log('🚀 Auto-running the injected Nova64 cart...');
+                        runCode();
+                    }, 300);
+
+                    return true;
+                } catch (e) {
+                    console.error('❌ setFullEditorContent error: ' + e.message);
+                    return false;
+                }
+            };
+
+            window.setEditorContent = window.setFullEditorContent;
+            window.getEditorContent = function () { return editor ? editor.getValue() : ''; };
+
+            window.insertCodeAtCursor = function (code) {
+                if (!editor) return false;
+                if (typeof monaco !== 'undefined' && editor.getPosition && editor.getPosition()) {
+                    var p = editor.getPosition();
+                    editor.executeEdits('', [{
+                        range: new monaco.Range(p.lineNumber, p.column, p.lineNumber, p.column),
+                        text: code
+                    }]);
+                    editor.focus();
+                    return true;
+                }
+                editor.setValue(editor.getValue() + '\n' + code);
+                return true;
+            };
+
+            window.editorReady = true;
+            logToNative('info', 'Nova64 editor ready');
+        }
+
+        // ------------------------------------------------------------------
+        // Console window chrome (drag, resize, buttons)
+        // ------------------------------------------------------------------
+        function wireConsoleWindow() {
+            var w = document.getElementById('consoleWindow');
+            var bar = document.getElementById('consoleTitleBar');
+            var handle = document.getElementById('consoleResizeHandle');
+
+            var copyBtn = document.getElementById('consoleCopyBtn');
+            var clearBtn = document.getElementById('consoleClearBtn');
+            var minBtn = document.getElementById('consoleMinimizeBtn');
+            var expBtn = document.getElementById('consoleToggleBtn');
+            var closeBtn = document.getElementById('consoleCloseBtn');
+            var openBtn = document.getElementById('consoleOpenBtn');
+
+            if (copyBtn) copyBtn.onclick = copyConsoleToClipboard;
+            if (clearBtn) clearBtn.onclick = clearConsole;
+            if (minBtn) minBtn.onclick = function () { w.classList.toggle('minimized'); };
+            if (expBtn) expBtn.onclick = function () {
+                w.style.height = (parseInt(w.style.height || '220', 10) > 300) ? '220px' : '420px';
+            };
+            if (closeBtn) closeBtn.onclick = hideConsole;
+            if (openBtn) openBtn.onclick = showConsole;
+
+            // Drag by the title bar
+            if (w && bar) {
+                var dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+                var start = function (e) {
+                    dragging = true;
+                    var p = e.touches ? e.touches[0] : e;
+                    sx = p.clientX; sy = p.clientY;
+                    ox = w.offsetLeft; oy = w.offsetTop;
+                    e.preventDefault();
+                };
+                var move = function (e) {
+                    if (!dragging) return;
+                    var p = e.touches ? e.touches[0] : e;
+                    w.style.left = (ox + p.clientX - sx) + 'px';
+                    w.style.top = (oy + p.clientY - sy) + 'px';
+                    w.style.right = 'auto';
+                    w.style.bottom = 'auto';
+                    e.preventDefault();
+                };
+                var end = function () { dragging = false; };
+                bar.addEventListener('mousedown', start);
+                bar.addEventListener('touchstart', start, { passive: false });
+                document.addEventListener('mousemove', move);
+                document.addEventListener('touchmove', move, { passive: false });
+                document.addEventListener('mouseup', end);
+                document.addEventListener('touchend', end);
+            }
+
+            // Resize by the corner handle
+            if (w && handle) {
+                var sizing = false, rx = 0, ry = 0, rw = 0, rh = 0;
+                var rstart = function (e) {
+                    sizing = true;
+                    var p = e.touches ? e.touches[0] : e;
+                    rx = p.clientX; ry = p.clientY;
+                    rw = w.offsetWidth; rh = w.offsetHeight;
+                    e.preventDefault();
+                    e.stopPropagation();
+                };
+                var rmove = function (e) {
+                    if (!sizing) return;
+                    var p = e.touches ? e.touches[0] : e;
+                    w.style.width = Math.max(220, rw + p.clientX - rx) + 'px';
+                    w.style.height = Math.max(120, rh + p.clientY - ry) + 'px';
+                    e.preventDefault();
+                };
+                var rend = function () { sizing = false; };
+                handle.addEventListener('mousedown', rstart);
+                handle.addEventListener('touchstart', rstart, { passive: false });
+                document.addEventListener('mousemove', rmove);
+                document.addEventListener('touchmove', rmove, { passive: false });
+                document.addEventListener('mouseup', rend);
+                document.addEventListener('touchend', rend);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Boot
+        // ------------------------------------------------------------------
+        window.addEventListener('error', function (event) {
+            addConsoleMessage('error', 'Page error: ' + (event.message || 'unknown'));
+        });
+
+        window.addEventListener('unhandledrejection', function (event) {
+            var r = event.reason;
+            addConsoleMessage('error', 'Unhandled rejection: ' + (r && r.message ? r.message : String(r)));
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            hideConsole();
+            wireConsoleWindow();
+            initializeEditor();
+            bootRunner();
+
+            // If the console never reports ready it is almost always the network:
+            // the runtime is served from nova64.io.
+            setTimeout(function () {
+                if (!runnerReady) {
+                    var loading = document.getElementById('loading');
+                    if (loading) loading.textContent = 'Nova64 console did not start - check your connection';
+                    console.warn('⚠️ Nova64 runner did not report ready. The runtime is loaded from ' +
+                                 NOVA_RUNNER_ORIGIN + ', so this usually means no network connection.');
+                }
+            }, 20000);
+        });
+
+        // Exposed for debugging and for the native layer
+        window.nova64Playground = {
+            runCode: runCode,
+            resetConsole: resetConsole,
+            getDefaultCode: getDefaultCode,
+            isRunnerReady: function () { return runnerReady; },
+            toggleConsole: toggleConsole,
+            toggleEditor: toggleEditor
+        };
+    </script>
+</body>
+</html>
