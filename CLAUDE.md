@@ -483,6 +483,15 @@ See: https://openai.com/pricing
    - HTML-based 3D scenes
    - WebXR support
 
+6. **Nova64** - Retro 3D fantasy console (https://nova64.io)
+   - N64/PS1-era low-poly rendering on top of Three.js
+   - Grouped `nova64.*` API (scene, camera, light, fx, draw, input, util, xr, ...)
+   - Carts are `init()` / `update(dt)` / `draw()` with **no `export` keyword**:
+     the studio runner evaluates cart source with `new Function()`
+   - Not a script to inject — [Resources/playground-nova64.html](XRAiAssistant/Resources/playground-nova64.html)
+     embeds Nova64's hosted studio runner and pushes cart source over postMessage
+   - Implementation: [Library3D/Nova64Library.swift](XRAiAssistant/Library3D/Nova64Library.swift)
+
 ### Framework Manager
 
 The [Library3DManager](XRAiAssistant/Library3D/Library3DManager.swift) orchestrates:
