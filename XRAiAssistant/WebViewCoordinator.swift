@@ -223,12 +223,29 @@ struct PlaygroundWebView: UIViewRepresentable {
         var htmlLoaded = false
         
         print("🔍 Attempting to load playground template: \(playgroundTemplate)")
+
+        // Nova64's studio runner answers us with postMessage(msg, event.origin).
+        // A document loaded from file:// has an opaque origin that serialises to the
+        // string "null", which is not a parseable URL — so that call throws inside the
+        // runner's EXECUTE_CODE handler BEFORE it evaluates the cart, and the scene
+        // just stays blank with no useful error. Giving the page an https base URL
+        // gives it a real origin, and makes it same-origin with the runner so the
+        // runner's replies actually arrive. playground-nova64.html is fully
+        // self-contained for this reason — an https document cannot load app:// or
+        // file:// subresources.
+        let isNova64Playground = playgroundTemplate.contains("nova64")
+        let playgroundBaseURL: URL? = isNova64Playground
+            ? URL(string: "https://nova64.io/maigexr-playground/")
+            : Bundle.main.resourceURL
+        if isNova64Playground {
+            print("🎮 Nova64 playground: using https base URL for a non-opaque origin")
+        }
         
         // Strategy 1: Try direct bundle resource lookup (templates are in main bundle root)
         if let htmlPath = Bundle.main.path(forResource: playgroundTemplate, ofType: "html") {
             do {
                 let htmlContent = try String(contentsOfFile: htmlPath)
-                if let baseURL = Bundle.main.resourceURL {
+                if let baseURL = playgroundBaseURL {
                     print("✅ Loading HTML from main bundle: \(htmlPath)")
                     print("🔗 Base URL: \(baseURL)")
                     webView.loadHTMLString(htmlContent, baseURL: baseURL)
@@ -250,7 +267,7 @@ struct PlaygroundWebView: UIViewRepresentable {
                 let htmlPath = Bundle.main.path(forResource: "\(playgroundTemplate).html", ofType: nil) {
             do {
                 let htmlContent = try String(contentsOfFile: htmlPath)
-                if let baseURL = Bundle.main.resourceURL {
+                if let baseURL = playgroundBaseURL {
                     print("✅ Loading HTML with .html extension: \(htmlPath)")
                     webView.loadHTMLString(htmlContent, baseURL: baseURL)
                     htmlLoaded = true
@@ -274,7 +291,7 @@ struct PlaygroundWebView: UIViewRepresentable {
                         let fullPath = (resourcePath as NSString).appendingPathComponent(fileName)
                         do {
                             let htmlContent = try String(contentsOfFile: fullPath)
-                            if let baseURL = Bundle.main.resourceURL {
+                            if let baseURL = playgroundBaseURL {
                                 print("✅ Loading HTML from bundle search: \(fullPath)")
                                 webView.loadHTMLString(htmlContent, baseURL: baseURL)
                                 htmlLoaded = true
