@@ -162,7 +162,8 @@ enum Library3DFactory {
             ThreeJSLibrary(),
             AFrameLibrary(),
             ReactThreeFiberLibrary(),
-            ReactylonLibrary()
+            ReactylonLibrary(),
+            Nova64Library()
         ]
     }
     
