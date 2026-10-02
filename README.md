@@ -13,6 +13,7 @@ library set and system prompts with the Android (`AndroidMaigeXr/`) and desktop
 [![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
 [![iOS](https://img.shields.io/badge/iOS-18.0+-blue.svg)](https://developer.apple.com/ios/)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
+[![Sponsor seacloud9](https://img.shields.io/badge/Sponsor-seacloud9-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/seacloud9)
 
 **iOS 18.0+** · Swift 5.9+ · requires a Mac with Xcode
 
