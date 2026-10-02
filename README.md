@@ -1,386 +1,317 @@
-# 🚀 m{ai}geXR - AI-Powered Extended Reality Development for iOS
+# m{ai}geXR iOS
 
-> **The Ultimate Mobile XR Development Environment**
-> Revolutionizing 3D and Extended Reality development by combining Babylon.js, Together AI, and native iOS into an AI-assisted creative platform.
+**AI-powered 3D and Extended Reality development, on iPhone and iPad.**
+
+Describe a scene in plain English; m{ai}geXR writes the code for your chosen 3D
+framework, runs it in an embedded playground, and keeps editing it as you keep
+talking.
+
+SwiftUI client bridged to a WebKit playground, sharing its model catalog, 3D
+library set and system prompts with the Android (`AndroidMaigeXr/`) and desktop
+(`WebMaigeXr/`) clients.
 
 [![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
-[![iOS](https://img.shields.io/badge/iOS-15.0+-blue.svg)](https://developer.apple.com/ios/)
-[![License](https://img.shields.io/badge/License-Open%20Source-green.svg)](LICENSE)
-[![Together AI](https://img.shields.io/badge/Together%20AI-Integrated-purple.svg)](https://together.ai)
-[![XR Ready](https://img.shields.io/badge/XR-Ready-brightgreen.svg)](https://www.babylonjs.com/community/)
+[![iOS](https://img.shields.io/badge/iOS-18.0+-blue.svg)](https://developer.apple.com/ios/)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-## 🌟 **What Makes m{ai}geXR Special**
-
-This isn't just another 3D playground—it's a **paradigm shift** toward AI-assisted Extended Reality development:
-
-- 🧠 **Professional AI Control**: Dual-parameter system (Temperature + Top-p) for precise creativity tuning
-- 🔒 **Privacy-First RAG**: Local SQLite vector search for on-device knowledge enhancement  
-- 📱 **Native iOS Performance**: SwiftUI + WebKit bridge for seamless XR development
-- 🎨 **Universal Framework Support**: Babylon.js today, Three.js/R3F/A-Frame/XR8 coming soon
-- ⚡ **Real-time Code Generation**: AI writes, corrects, and explains 3D/XR scenes instantly
+**iOS 18.0+** · Swift 5.9+ · requires a Mac with Xcode
 
 ---
 
-## 🚨 **Important Setup Required**
+## Features
 
-**⚠️ API Key Setup**: m{ai}geXR comes with `apiKey = "changeMe"` by default for security. You MUST configure your API key:
+### Multi-provider AI
 
-1. **Get your free Together AI API key**: Visit [together.ai](https://together.ai) and sign up
-2. **Open m{ai}geXR**: Launch the app on iOS Simulator or device
-3. **Open Settings**: Tap the gear icon in the bottom tab bar
-4. **Enter API Key**: Replace "changeMe" with your actual Together AI API key
-5. **Select Model**: Choose from 6+ available AI models (free options available)
+Five providers, each with its own client under
+[XRAiAssistant/AIProviders/](XRAiAssistant/AIProviders/):
 
-**Without a valid API key, the AI features will not work.**
+| Provider | Models |
+|---|---|
+| **Together.ai** | DeepSeek R1 70B (free), Llama 3.3 70B (free), Llama 3 8B Lite, Llama 3.1 8B Turbo, Qwen 2.5 7B Turbo |
+| **OpenAI** | GPT-6 Astra, GPT-5.6 Sol / Terra / Luna, GPT-5.2 |
+| **Anthropic** | Claude Fable 5.1, Opus 5, Sonnet 5, Haiku 4.5, Opus 4.6, Sonnet 4.6 |
+| **Google AI** | Gemini 3.1 Pro, Gemini 2.5 Pro / Flash / Flash Lite |
+| **xAI** | Grok 4, Grok 4 Fast Reasoning, Grok 3, Grok 3 Mini, Grok Code Fast |
+
+**Two control modes.** The frontier models (Claude 5 series, GPT-5.6 / GPT-6)
+removed `temperature` and `top_p` and reject requests carrying them, so they
+take a discrete **Reasoning Effort** level instead — `low`, `medium`, `high`,
+`xhigh` or `max`. Every other model keeps **Temperature** (0.0–2.0) and
+**Top-p** (0.1–1.0). Settings shows whichever applies to the selected model.
+
+Responses stream. Transient stream drops are retried in the OpenAI and
+Anthropic providers, timeouts are raised for reasoning models, and
+provider-owned models are no longer misrouted to the Together.ai fallback.
+
+### Six 3D libraries
+
+Registered in
+[Library3D/Library3D.swift](XRAiAssistant/Library3D/Library3D.swift)
+(`Library3DFactory`), each with its own system prompt and starter template:
+
+| Library | How it runs |
+|---|---|
+| **Babylon.js** | CDN injection into the WebKit playground — the default |
+| **Three.js** | Direct injection |
+| **A-Frame** | CDN injection, WebXR VR/AR |
+| **React Three Fiber** | Sandpack / CodeSandbox build step |
+| **Reactylon** | Sandpack / CodeSandbox build step |
+| **Nova64** | Embedded studio runner — see below |
+
+**Nova64** is a retro 3D fantasy console (N64/PS1-era low-poly rendering on top
+of Three.js), not a library you call. It boots its own runtime and accepts
+*carts*, so the playground embeds Nova64's hosted runner and pushes the editor
+buffer into it over `postMessage`. Two constraints shape it:
+
+- **Carts must not use `export`.** The runner evaluates source with
+  `new Function()` and then looks up `init` / `update` / `draw` by name, so a
+  top-level `export` is a syntax error. The system prompt says so emphatically.
+- **The host page needs a real origin.** Loading the playground from `file://`
+  gives it an opaque origin and the runner throws before the cart runs, so the
+  WebView loads it from an `https` base URL instead.
+
+Cross-platform design notes live in the desktop repository at
+`WebMaigeXr/docs/NOVA64_INTEGRATION.md`.
+
+### Development environment
+
+- **Monaco editor** in a WebKit playground with a Swift ↔ JavaScript bridge
+- **Conversation history** with threaded messages and reply indicators
+- **Favorites** for scenes worth keeping
+- **Examples** browser with ready-made scenes per framework
+- **Markdown rendering** of AI responses
+- **Vaporwave splash screen** (`Resources/splash.html`), visually matched to the
+  Android and desktop clients
+- **BuildKit** and a bundled **NodeWorker** for the frameworks that need a
+  build step
+
+### Privacy-first RAG
+
+A local GRDB/SQLite database plus a vector search service and embedding service
+provide on-device retrieval over your own scene history
+([XRAiAssistant/RAG/](XRAiAssistant/RAG/),
+[XRAiAssistant/Database/](XRAiAssistant/Database/)). Nothing leaves the device
+except the request you send to your chosen AI provider.
+
+API keys default to `changeMe` and are configured in Settings — see setup below.
 
 ---
 
-## 🎯 **Current Features (Ready to Use)**
+## Getting started
 
-### 🤖 **Advanced AI Integration**
-```swift
-// Dual-parameter AI control for professional workflows
-@Published var temperature: Double = 0.7  // Creativity control (0.0-2.0)
-@Published var topP: Double = 0.9         // Vocabulary diversity (0.1-1.0)
-@Published var apiKey: String = "changeMe" // REQUIRES USER SETUP
-```
+### Prerequisites
 
-**Available AI Models:**
-- **DeepSeek R1 70B** (FREE) - Advanced reasoning & coding
-- **Llama 3.3 70B** (FREE) - Latest Meta large model
-- **Llama 3 8B Lite** ($0.10/1M) - Cost-effective option
-- **Qwen 2.5 7B Turbo** ($0.30/1M) - Fast coding specialist  
-- **Qwen 2.5 Coder 32B** ($0.80/1M) - Advanced coding & XR
+- **macOS with Xcode** (iOS 18 SDK)
+- **CocoaPods**, for the ad SDKs
 
-### 🎛️ **Professional Settings Panel**
-- **Secure API Key Management**: Together.ai integration with real-time validation and status indicators
-- **AI Model Selection**: Visual picker with pricing and capability information
-- **Dual Parameter Control**: Temperature + Top-p sliders with smart descriptions
-- **System Prompt Editor**: Full customization of AI behavior for XR development
-- **Parameter Intelligence**: Dynamic explanations of combined parameter effects
-- **Settings Persistence**: UserDefaults-based saving with Save/Cancel buttons and visual feedback
-- **Auto-restore Settings**: All configurations automatically restored on app launch
+### Build and run
 
-### 🌐 **Babylon.js XR Integration**
-- **Monaco Editor**: Professional code editing with IntelliSense
-- **Real-time 3D Rendering**: WebGL scenes with instant XR preview
-- **Smart Code Injection**: AI-generated code integrates seamlessly
-- **XR-Ready**: Built for WebXR, AR, and VR development workflows
-- **Swift-JavaScript Bridge**: Bidirectional communication for native performance
-
----
-
-## 🔮 **Roadmap: What's Coming Next**
-
-### 📚 **Local SQLite RAG (In Development)**
-```swift
-// Privacy-first knowledge enhancement - NO DATA LEAVES YOUR DEVICE
-class LocalRAGChatViewModel: ChatViewModel {
-    private let sqliteRAG: SQLiteVectorStore
-    private let embeddingGenerator: LocalEmbeddingService
-    
-    func enhancePromptWithLocalRAG(_ query: String) async -> String {
-        let embedding = await embeddingGenerator.embed(query)
-        let relevantDocs = await sqliteRAG.vectorSearch(embedding)
-        return systemPrompt + "\n\nRelevant Context:\n\(relevantDocs)"
-    }
-}
-```
-
-**Revolutionary Benefits:**
-- 🔒 **100% Private**: All AI processing happens on your device
-- ⚡ **Instant Search**: Sub-100ms semantic search on mobile
-- 📦 **Efficient Storage**: Complete XR knowledge base in <50MB
-- 🌍 **Works Offline**: Full functionality without internet
-
-### 🔄 **Universal Framework Toggle**
-- **React Three Fiber**: JSX-based 3D components for React developers
-- **A-Frame**: WebXR and VR-focused declarative framework
-- **Three.js**: Direct WebGL programming with full control
-- **XR8 (8th Wall)**: Professional augmented reality experiences
-
----
-
-## 🚀 **Quick Start**
-
-### 1. **Clone & Open**
 ```bash
-git clone https://github.com/m-ai-geXR/maigeXR.git
-cd maigeXR/iOSMaigeXr
-open m{ai}geXR.xcodeproj
+cd iOSMaigeXr
+pod install
+open XRAiAssistant.xcodeproj
 ```
 
-### 2. **Get Your Together AI API Key** ⚠️ **REQUIRED**
-1. Visit [together.ai](https://together.ai) and create a free account
-2. Navigate to API Keys section in your dashboard
-3. Generate a new API key
-4. Copy the key (starts with `tgp_v1_...`)
+Pick a simulator or device and press **▶ Run**.
 
-### 3. **Configure m{ai}geXR**
-1. Build and run the app in Xcode (iOS Simulator or device)
-2. Tap the **Settings** icon (gear) in the bottom tab bar
-3. In "API Configuration" section, replace "changeMe" with your actual API key
-4. Select your preferred AI model (free options available)
-5. Adjust Temperature/Top-p parameters for your workflow
-6. **Tap "Save"** to persist all settings - they'll be automatically restored when you restart the app
+Swift Package Manager resolves the rest automatically: AIProxySwift,
+LlamaStackClient, GRDB.swift, and the Google Mobile Ads SPM package. CocoaPods
+supplies Google Mobile Ads, Unity Ads and the Google User Messaging Platform
+(GDPR consent); the Podfile pins pods to a 16.0 deployment target while the app
+target is 18.0.
 
-### 4. **Start Creating XR Experiences**
-```javascript
-// Ask the AI: "Create a VR-ready scene with interactive objects"
-// XRAiAssistant generates professional code like this:
+> To run on a physical iPhone rather than a simulator, Xcode will ask you to
+> sign in with an Apple ID. A free account is fine.
 
-const createScene = () => {
-    const scene = new BABYLON.Scene(engine);
-    
-    // XR-optimized camera
-    const camera = new BABYLON.UniversalCamera("camera", new BABYLON.Vector3(0, 1.6, -5), scene);
-    camera.setTarget(BABYLON.Vector3.Zero());
-    camera.attachControls(canvas, true);
-    
-    // VR-friendly lighting
-    const light = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
-    light.intensity = 0.8;
-    
-    // Interactive XR elements with physics
-    const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
-    sphere.position.y = 1;
-    
-    // AI adds sophisticated XR interactions, optimizations, and creative elements
-    
-    return scene;
-};
+### Configure a provider
+
+m{ai}geXR ships with `apiKey = "changeMe"` and no key of its own. **AI features
+do nothing until you set one.**
+
+1. Launch the app
+2. Tap **Settings** (gear icon) in the bottom tab bar
+3. Replace `changeMe` with a key for the provider you want:
+   - **Google AI** — [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (free tier, no card)
+   - **Together.ai** — [api.together.ai](https://api.together.ai/settings/api-keys)
+   - **OpenAI** — [platform.openai.com](https://platform.openai.com/api-keys)
+   - **Anthropic** — [console.anthropic.com](https://console.anthropic.com)
+   - **xAI** — [console.x.ai](https://console.x.ai)
+4. Pick a model and a 3D library
+5. Tap **Save** — settings persist to `UserDefaults` and are restored on relaunch
+
+### First scene
+
+Ask for something in the chat:
+
+> Create a glowing green planet with rings and three orbiting moons
+
+Then keep going — *"make the planet blue"*, *"add stars"*, *"speed up the
+moons"* — each message edits the scene you already have rather than rebuilding
+it.
+
+---
+
+## Architecture
+
+```
+┌──────────────────────────────────────────┐
+│  SwiftUI                                  │
+│  ContentView · EnhancedChatView ·        │
+│  ExamplesView · FavoritesView ·          │
+│  ConversationHistoryView · Settings      │
+└───────────────┬──────────────────────────┘
+                │ @Published / Combine
+┌───────────────┴──────────────────────────┐
+│  ChatViewModel                            │
+│  + RAG and Database extensions            │
+└──┬─────────────────┬─────────────────┬───┘
+   │                 │                 │
+┌──┴───────────┐ ┌───┴──────────┐ ┌───┴──────────┐
+│ AIProvider   │ │ Library3D    │ │ GRDB/SQLite  │
+│ Manager      │ │ Manager      │ │ + VectorSearch│
+│ (5 providers)│ │ (6 libraries)│ │ + Embeddings  │
+└──────────────┘ └───┬──────────┘ └───────────────┘
+                     │
+      ┌──────────────┴───────────────┐
+      │ WKWebView playground          │
+      │ Monaco + the selected engine  │
+      │ Sandpack / CodeSandbox for    │
+      │ the React frameworks          │
+      │ Nova64 studio runner (iframe) │
+      └───────────────────────────────┘
+```
+
+**Key types**
+
+- **`ChatViewModel`** — AI integration hub; `@MainActor`, `@Published` state,
+  extended for RAG and database access
+- **`AIProviderManager`** — provider selection and routing across the five
+  provider clients
+- **`Library3DManager`** / **`Library3DFactory`** — 3D framework registry,
+  prompt and template selection, persisted choice
+- **`WebViewCoordinator`** — Swift ↔ JavaScript bridge into the playground
+- **`DatabaseManager`**, **`VectorSearchService`**, **`EmbeddingService`**,
+  **`RAGContextBuilder`** — local retrieval stack
+- **`CodeSandboxService`** / **`SecureCodeSandboxService`** / **`SandpackWebView`** —
+  build pipeline for React Three Fiber and Reactylon
+- **`AdManager`** / **`AdBannerView`** — monetization
+
+---
+
+## Technology stack
+
+**iOS** — Swift 5.9+, SwiftUI, Combine, WebKit, iOS 18.0 deployment target
+
+**AI** — AIProxySwift (Together.ai), LlamaStackClient (Meta models), plus
+first-party HTTP clients for OpenAI, Anthropic, Google AI and xAI
+
+**Storage** — GRDB.swift (SQLite) for conversations, favorites and RAG;
+`UserDefaults` for settings
+
+**Web layer** — Monaco Editor, Babylon.js, Three.js, A-Frame, React Three
+Fiber, Reactylon, Nova64; Sandpack for the frameworks that need bundling
+
+**Monetization** — Google Mobile Ads, Unity Ads, Google User Messaging Platform
+
+---
+
+## Project structure
+
+```
+iOSMaigeXr/
+├── XRAiAssistant/
+│   ├── XRAiAssistant.swift              # app entry
+│   ├── ContentView.swift                # root tab layout
+│   ├── ChatViewModel.swift              # AI integration hub
+│   ├── WebViewCoordinator.swift         # Swift ↔ JS bridge
+│   ├── SplashScreenView.swift
+│   ├── SplashWebView.swift
+│   ├── AIProviders/
+│   │   ├── AIProvider.swift             # protocol
+│   │   ├── AIProviderManager.swift      # selection + routing
+│   │   ├── TogetherAIProvider.swift
+│   │   ├── OpenAIProvider.swift
+│   │   ├── AnthropicProvider.swift
+│   │   ├── GoogleAIProvider.swift
+│   │   └── XAIProvider.swift
+│   ├── Library3D/
+│   │   ├── Library3D.swift              # protocol + Library3DFactory
+│   │   ├── Library3DManager.swift
+│   │   ├── BabylonJSLibrary.swift
+│   │   ├── ThreeJSLibrary.swift
+│   │   ├── AFrameLibrary.swift
+│   │   ├── ReactThreeFiberLibrary.swift
+│   │   ├── ReactylonLibrary.swift
+│   │   └── Nova64Library.swift
+│   ├── Database/                        # GRDB manager + migrations
+│   ├── RAG/                             # embeddings, vector search, context
+│   ├── Views/                           # chat, examples, favorites,
+│   │                                    # history, threaded messages
+│   ├── Models/                          # conversation + favorite models
+│   ├── Monetization/                    # AdManager, AdBannerView
+│   ├── Theme/                           # neon cyberpunk theme
+│   ├── Config/AppConfig.swift
+│   ├── Resources/                       # playgrounds, splash.html
+│   ├── BuildKit/                        # build tooling for React frameworks
+│   ├── NodeWorker/                      # bundled Node worker
+│   ├── Vendor/                          # vendored web assets
+│   ├── CodeSandbox*.swift               # CodeSandbox / Sandpack integration
+│   └── SandpackWebView.swift
+├── XRAiAssistantTests/
+├── Podfile                              # ad SDKs
+└── docs/                                # status notes, build fixes, styling
 ```
 
 ---
 
-## 🏗️ **Architecture Overview**
+## Status
 
-### 📱 **iOS Native Layer (Swift/SwiftUI)**
-```swift
-@MainActor
-class ChatViewModel: ObservableObject {
-    @Published var messages: [ChatMessage] = []
-    @Published var temperature: Double = 0.7
-    @Published var topP: Double = 0.9
-    @Published var apiKey: String = "changeMe"  // User must configure
-    
-    private var togetherAIService: TogetherAIService
-    private var inference: RemoteInference
-}
-```
+**Working**
 
-### 🌐 **Web XR Layer (Babylon.js/WebXR)**
-```typescript
-// Monaco Editor + Babylon.js + WebXR integration
-interface XRPlaygroundBridge {
-    insertCode(code: string): void;
-    runScene(): void;
-    enableVR(): void;
-    enableAR(): void;
-}
-```
+- Five AI providers with streaming, retry and effort-based controls
+- Six 3D libraries with per-library prompts, templates and playgrounds
+- Monaco editor and live scene rendering through the WebKit bridge
+- Conversation history, threaded replies, favorites, examples browser
+- GRDB/SQLite persistence with on-device vector search and embeddings
+- Settings persistence with validation indicators and save confirmation
+- Splash screen matched to Android and desktop
 
-### 🤖 **AI Integration Layer**
-- **Together.ai**: Primary provider with 6+ XR-optimized models
-- **LlamaStack**: Fallback for Meta models
-- **Streaming**: Real-time response generation
-- **Error Handling**: Intelligent retry logic with cost optimization
+**In progress**
+
+- Styling parity pass with the Android client — see
+  [docs/STYLING_PROGRESS.md](docs/STYLING_PROGRESS.md)
+- Multi-modal input (image understanding for scene analysis)
+
+**Known limitations**
+
+- **React Three Fiber and Reactylon need network access** for their CodeSandbox
+  build step; the injection-based libraries and Nova64 do not.
+- Several files under `docs/` are historical session notes and describe older
+  model catalogs — [CLAUDE.md](CLAUDE.md) and this README are the current
+  references.
 
 ---
 
-## 🛠️ **Development Stack**
+## Documentation
 
-### **iOS Technologies**
-- **Swift 5.9+**: Modern async/await and concurrency
-- **SwiftUI**: Reactive UI framework with real-time parameter updates
-- **WebKit**: High-performance WebXR integration
-- **Combine**: Reactive programming for AI parameter binding
-
-### **AI Integration**
-- **AIProxy Swift v0.126.1**: Together.ai client library
-- **LlamaStackClient**: Meta model support with streaming
-- **Custom Parameter System**: Professional creativity control
-
-### **Web XR Technologies**  
-- **Babylon.js v6+**: Advanced XR rendering engine with WebXR support
-- **Monaco Editor**: Professional code editing with XR snippets
-- **TypeScript**: Type-safe XR development
-- **WebXR APIs**: Native AR/VR support
+- [CLAUDE.md](CLAUDE.md) — architecture and development guide
+- [docs/STYLING_PROGRESS.md](docs/STYLING_PROGRESS.md) — theming progress
+- [docs/COMMIT_MESSAGES.md](docs/COMMIT_MESSAGES.md) — session change log
+- `WebMaigeXr/docs/NOVA64_INTEGRATION.md` — cross-platform Nova64 design notes
 
 ---
 
-## 🎨 **Real-World Usage Examples**
+## License
 
-### **VR Scene Generation**
-```
-Developer: "Create an immersive space station interior for VR"
-AI: *Generates complete VR-optimized scene with proper scale, interactive panels, 
-    floating objects, ambient lighting, and performance optimizations for mobile VR*
-```
+MIT. Note that no `LICENSE` file is currently committed in this repository —
+only `mcp-webgpu/` has one. Worth adding.
 
-### **AR Experience Development**  
-```
-Developer: "Build an AR furniture placement demo"
-AI: *Creates AR-ready scene with plane detection, realistic furniture models,
-    proper lighting estimation, and touch interactions for object placement*
-```
+## Acknowledgments
 
-### **WebXR Learning Mode**
-```
-Developer: "Explain how WebXR controllers work"
-AI: *Provides comprehensive explanation with working demo code showing controller 
-    tracking, haptic feedback, and interaction patterns for both VR and AR*
-```
-
----
-
-## ✅ **Project Successfully Rebranded to m{ai}geXR**
-
-**Complete Rebranding Completed**: All project files and directories have been successfully updated to m{ai}geXR branding:
-
-### **What Was Updated:**
-- ✅ Project branding: Now m{ai}geXR
-- ✅ Documentation: Updated to reflect new brand
-- ✅ All references: Consistent m{ai}geXR naming
-- ✅ Bundle ID: Updated to match organization
-- ✅ All project references and imports updated
-
-**Ready to Build**: Simply open `m{ai}geXR.xcodeproj` in Xcode and build!
-
----
-
-## 🤝 **Contributing**
-
-We welcome contributions across multiple areas:
-
-### **Technical Contributions**
-- **AI Providers**: OpenAI, Anthropic, local model integrations
-- **XR Frameworks**: Three.js, A-Frame, WebXR enhancements
-- **Performance**: Mobile XR optimizations, battery usage improvements
-- **RAG Enhancement**: SQLite vector search, embedding model integration
-
-### **Creative Contributions**  
-- **XR Scene Templates**: Pre-built VR/AR experiences and demos
-- **AI Prompt Engineering**: Specialized prompts for XR development domains
-- **Documentation**: XR development guides, WebXR tutorials
-
-### **Platform Extensions**
-- **Android**: Cross-platform XR development
-- **Web**: Browser-based XR playground deployment
-- **Desktop**: macOS/Windows XR development environments
-
----
-
-## 📊 **Project Status**
-
-### ✅ **Stable & Ready to Use**
-- Dual-parameter AI control (Temperature + Top-p) with smart descriptions
-- Professional settings management with secure API key handling  
-- Settings persistence with UserDefaults and visual feedback system
-- 6+ AI model selection with cost optimization
-- Babylon.js XR playground with Monaco editor
-- Swift-JavaScript bridge architecture
-- Intelligent error handling and streaming responses
-- Real-time validation indicators and save confirmation animations
-
-### 🚧 **In Active Development**
-- Local SQLite RAG implementation with privacy-first vector search
-- Universal framework toggle system (Three.js, A-Frame, etc.)
-- Multi-modal AI with image input for XR scene analysis
-- Enhanced embedding models (CoreML, Ollama integration)
-
-### 🔮 **Future Roadmap**
-- Cross-platform deployment (Android, Web)
-- Collaborative multiplayer XR editing
-- XR asset marketplace integration
-- Advanced physics and spatial audio tools
-
----
-
-## 🎯 **Why m{ai}geXR Matters**
-
-This project represents a **fundamental shift** in how developers approach XR and 3D development:
-
-- **Democratizes XR Development**: Complex 3D/XR programming becomes conversational
-- **Privacy-Respecting AI**: Local RAG keeps your creative work completely private
-- **Professional-Grade Tools**: Enterprise-level AI parameter control
-- **Educational Platform**: Learn XR development through AI mentorship
-- **Open Source Innovation**: Community-driven development of next-generation XR tools
-
----
-
-## 🚨 **Critical Setup Reminder**
-
-**Before building**: You MUST replace the default API key!
-
-1. **In Code**: `DEFAULT_API_KEY = "changeMe"` requires your Together AI key
-2. **In App**: Use Settings panel to configure your API key securely
-3. **Get Key**: Free signup at [together.ai](https://together.ai)
-
-**Without proper API key setup, AI features will not function.**
-
----
-
-## 📖 **Documentation**
-
-**Project Documentation:**
-- [README.md](README.md) - Project overview and setup guide
-- [CLAUDE.md](CLAUDE.md) - Comprehensive development guide for Claude Code AI
-- [docs/STYLING_PROGRESS.md](docs/STYLING_PROGRESS.md) - iOS branding implementation status
-
-**Android Parity:**
-The iOS app is being updated to match the Android app's neon cyberpunk branding. See STYLING_PROGRESS.md for current implementation status (85% complete).
-
----
-
-## 📚 **Learning Resources**
-
-### **Getting Started**
-- [Together AI API Documentation](https://docs.together.ai/)
-- [Babylon.js WebXR Guide](https://doc.babylonjs.com/divingDeeper/webXR)
-- [SwiftUI Documentation](https://developer.apple.com/xcode/swiftui/)
-
-### **Advanced Topics**
-- [WebXR Device API](https://www.w3.org/TR/webxr/)
-- [AI Parameter Tuning Best Practices](https://platform.openai.com/docs/guides/parameter-tuning)
-- [Mobile XR Performance Optimization](https://developer.oculus.com/documentation/web/webxr-performance/)
-
-### **Community**
-- **GitHub**: [github.com/m-ai-geXR/maigeXR](https://github.com/m-ai-geXR/maigeXR)
-- **Issues**: [Report bugs and request features](https://github.com/m-ai-geXR/maigeXR/issues)
-- **Discussions**: [Join technical discussions](https://github.com/m-ai-geXR/maigeXR/discussions)
-
----
-
-## 🏆 **Join the XR Revolution**
-
-Ready to transform Extended Reality development with AI?
-
-**Start building today** → Clone the repo, get your Together AI API key, and create your first AI-generated XR scene in minutes.
-
-**Contribute tomorrow** → Help us build the future of AI-assisted XR development.
-
-**Shape the community** → Join discussions, share your XR creations, and guide the project's evolution.
-
-*The future of XR development is conversational, collaborative, and creative. Welcome to the revolution.* 🚀
-
----
-
-## 📄 **License**
-
-This project is open source and available under the [MIT License](LICENSE).
-
-## 🙏 **Acknowledgments**
-
-- **[Together.ai](https://together.ai)** for providing accessible AI model APIs
-- **[Babylon.js Team](https://www.babylonjs.com/)** for the incredible XR-ready 3D engine
-- **[Meta](https://llama.meta.com/)** for LlamaStack client libraries  
-- **[SQLite](https://www.sqlite.org/)** community for vector extension innovations
-- **[WebXR Community](https://www.w3.org/community/webxr/)** for pushing XR standards forward
-- **Open Source Community** for inspiration and contributions
-
----
-
-**Ready to build the future of XR development?** [Get started now!](https://github.com/m-ai-geXR/maigeXR) 🚀
-
-**Don't forget**: Replace `"changeMe"` with your Together AI API key! Get yours at [together.ai](https://together.ai) 🔑
+- [Together.ai](https://together.ai) for accessible model APIs and a usable free tier
+- The [Babylon.js](https://www.babylonjs.com/), [Three.js](https://threejs.org/),
+  [A-Frame](https://aframe.io/) and [Nova64](https://nova64.io) projects
+- [GRDB.swift](https://github.com/groue/GRDB.swift) and
+  [AIProxySwift](https://github.com/lzell/AIProxySwift)
+- The [WebXR community](https://www.w3.org/community/webxr/) for pushing the
+  standards forward
