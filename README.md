@@ -299,6 +299,9 @@ iOSMaigeXr/
 - [docs/STYLING_PROGRESS.md](docs/STYLING_PROGRESS.md) — theming progress
 - [docs/COMMIT_MESSAGES.md](docs/COMMIT_MESSAGES.md) — session change log
 - `WebMaigeXr/docs/NOVA64_INTEGRATION.md` — cross-platform Nova64 design notes
+- `WebMaigeXr/docs/CHAT_MARKDOWN_RENDERING.md` — how a markdown line becomes a
+  chat bubble, why inline-formatted paragraphs used to wrap into a narrow
+  column, and how to run the renderer tests and snapshots
 
 ---
 
