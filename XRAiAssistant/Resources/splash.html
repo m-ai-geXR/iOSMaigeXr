@@ -59,14 +59,18 @@
             animation: neonPulse 2s ease-in-out infinite;
         }
 
+        /* Brand wordmark: white m...geXR with a cobalt {ai}.
+           Cobalt #2050e0 is the --color-accent from the brand site; the glow
+           uses #4a74ea / #8aa6ff from the same accent ramp so the blue stays
+           legible against the dark scene behind it. */
         .m-text, .ge-text {
-            color: #00FFF9;
-            text-shadow: 0 0 20px #00FFF9, 0 0 40px #00FFF9;
+            color: #F3F2F2;
+            text-shadow: 0 0 20px rgba(243, 242, 242, 0.85), 0 0 40px rgba(243, 242, 242, 0.45);
         }
 
         .ai-text {
-            color: #FF00C1;
-            text-shadow: 0 0 20px #FF00C1, 0 0 40px #FF00C1;
+            color: #2050e0;
+            text-shadow: 0 0 18px #4a74ea, 0 0 38px rgba(138, 166, 255, 0.75);
         }
 
         @keyframes neonPulse {

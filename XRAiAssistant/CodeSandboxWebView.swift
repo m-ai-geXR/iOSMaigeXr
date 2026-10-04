@@ -287,7 +287,7 @@ struct CodeSandboxWebView: UIViewRepresentable {
         <!DOCTYPE html>
         <html>
         <head>
-            <title>XRAiAssistant - CodeSandbox</title>
+            <title>m{ai}geXR - CodeSandbox</title>
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -355,7 +355,7 @@ struct CodeSandboxWebView: UIViewRepresentable {
         <body>
             <div class="container">
                 <div class="logo">🎨</div>
-                <div class="title">XRAiAssistant CodeSandbox</div>
+                <div class="title">m{ai}geXR CodeSandbox</div>
                 <div class="description">
                     Ready to create live \(framework == "reactThreeFiber" ? "React Three Fiber" : "Reactylon") sandboxes.<br>
                     Generate AI code to see it running in a real development environment!
