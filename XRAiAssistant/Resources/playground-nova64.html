@@ -181,6 +181,7 @@
         }
         
         .error-display {
+            white-space: pre-line;
             position: absolute;
             top: 10px;
             right: 10px;
@@ -635,6 +636,71 @@
             });
         })();
 
+
+        // Cart failures, classified.
+        //
+        // Two of these break every generated cart at once and their raw
+        // messages give no hint of the cause, so they name their own fix.
+        // Mirrors scene-errors.ts in the desktop client.
+        function classifyCartError(raw) {
+            var text = (raw === null || raw === undefined) ? '' : String(raw);
+            var t = text.toLowerCase();
+            var detail = text.trim();
+
+            // The runner evaluates cart source directly, so a top-level export
+            // is a syntax error, even though Nova64's README shows that form
+            // for carts loaded by its CLI.
+            if (t.indexOf("unexpected token 'export'") !== -1 ||
+                t.indexOf('unexpected token export') !== -1 ||
+                (t.indexOf('export') !== -1 && t.indexOf('unexpected') !== -1)) {
+                return {
+                    title: 'Carts cannot use export',
+                    body: 'Declare the functions plainly: function init(), function update(dt), function draw(). Ask the assistant to rewrite it without export.',
+                    detail: detail
+                };
+            }
+
+            // The flat globals were retired upstream.
+            var bare = text.match(/(\w+) is not defined/);
+            if (bare && bare[1] !== 'nova64') {
+                return {
+                    title: bare[1] + ' is not available',
+                    body: 'Nova64 groups its API under namespaces. Use nova64.scene.' + bare[1] + '(...) instead of the bare call.',
+                    detail: detail
+                };
+            }
+
+            if (t.indexOf('nova64 is not defined') !== -1) {
+                return {
+                    title: 'Console did not load',
+                    body: 'The cart ran before the runtime was ready. Press Run again.',
+                    detail: detail
+                };
+            }
+
+            if (t.indexOf('syntaxerror') !== -1 || t.indexOf('unexpected token') !== -1 ||
+                t.indexOf('unexpected end of input') !== -1) {
+                return {
+                    title: 'Cart has a syntax error',
+                    body: 'Check the line the error points at, or ask the assistant to fix it.',
+                    detail: detail
+                };
+            }
+
+            return {
+                title: 'Cart stopped running',
+                body: 'Describe what went wrong to the assistant and ask for a fix.',
+                detail: detail
+            };
+        }
+
+        function showCartError(raw) {
+            var info = classifyCartError(raw);
+            var text = info.title + '\n' + info.body;
+            if (info.detail) { text += '\n\n' + info.detail; }
+            showError(text, 0);
+        }
+
         function showError(message, duration) {
             var el = document.getElementById('errorDisplay');
             if (el) {
@@ -762,7 +828,7 @@
                 clearTimeout(settleTimer);
                 var msg = String(data.error || 'Unknown cart error');
                 console.error('❌ Cart error: ' + msg);
-                showError('Cart error: ' + msg, 0);
+                showCartError(msg);
                 showConsole();
                 logToNative('error', 'Nova64 cart error: ' + msg);
             }
