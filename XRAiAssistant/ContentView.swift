@@ -51,14 +51,20 @@ struct MaigeXRBrandText: View {
 
     var body: some View {
         HStack(spacing: 0) {
+            // Brand rule: only {ai} takes the accent, the rest takes the
+            // foreground. Both halves used accent colours before, which with a
+            // single-accent palette rendered the whole wordmark one flat blue.
             Text("m")
-                .foregroundColor(isActive ? .neonCyan : .cyberpunkGray)
+                .foregroundColor(isActive ? .brandText : .brandMuted)
             Text("{ai}")
-                .foregroundColor(isActive ? .neonPink : .cyberpunkGray.opacity(0.7))
+                .foregroundColor(isActive ? .brandAccent : .brandMuted.opacity(0.7))
             Text("geXR")
-                .foregroundColor(isActive ? .neonCyan : .cyberpunkGray)
+                .foregroundColor(isActive ? .brandText : .brandMuted)
         }
-        .font(.system(size: fontSize, weight: .medium, design: .rounded))
+        // Archivo is not a system face; default design at a heavy weight with
+        // tight tracking is the closest match to the brand's Modernist setting.
+        .font(.system(size: fontSize, weight: .heavy, design: .default))
+        .tracking(-0.02 * fontSize)
     }
 }
 

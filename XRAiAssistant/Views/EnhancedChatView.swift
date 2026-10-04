@@ -240,17 +240,18 @@ struct EnhancedChatView: View {
                 }
             }) {
                 HStack(spacing: 4) {
+                    // System .purple is not in the palette; the brand has one
+                    // accent.
                     Image(systemName: "book.circle")
-                        .foregroundColor(.purple)
+                        .foregroundColor(.brandAccent)
                         .font(.caption)
                     Text("Docs")
                         .font(.caption)
-                        .foregroundColor(.purple)
+                        .foregroundColor(.brandAccent)
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color.purple.opacity(0.1))
-                .cornerRadius(6)
+                .background(Color.brandAccent.opacity(0.12))
             }
         }
         .padding(.horizontal, 16)

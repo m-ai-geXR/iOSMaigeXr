@@ -27,8 +27,10 @@ struct XRAiAssistant: App {
         WindowGroup {
             ZStack {
                 // Main app (hidden behind splash initially)
+                // No preferredColorScheme: the brand palette is adaptive, so the
+                // app follows the system setting. The splash below stays dark,
+                // because that scene is lit for a dark ground.
                 ContentView()
-                    .preferredColorScheme(.dark)
                     .opacity(showSplash ? 0 : 1)
 
                 // Splash screen overlay
