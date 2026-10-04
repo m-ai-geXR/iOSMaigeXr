@@ -8,7 +8,8 @@ struct MarkdownMessageView: View {
     @State private var showCopiedFullMessage = false
 
     var body: some View {
-        VStack(alignment: isUser ? .trailing : .leading, spacing: 8) {
+        // Align message content independently of the outgoing bubble's placement.
+        VStack(alignment: .leading, spacing: 8) {
             ForEach(Array(parseContent().enumerated()), id: \.offset) { index, block in
                 renderBlock(block, index: index)
             }
@@ -30,6 +31,7 @@ struct MarkdownMessageView: View {
                 .transition(.opacity)
             }
         }
+        .multilineTextAlignment(.leading)
         .onLongPressGesture(minimumDuration: 0.5) {
             copyFullMessageToClipboard()
         }
@@ -42,23 +44,26 @@ struct MarkdownMessageView: View {
             Text(text)
                 .font(.body)
                 .foregroundColor(isUser ? .white : .primary)
-                .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
         case .codeBlock(let code, let language):
             codeBlockView(code: code, language: language, index: index)
 
         case .inlineFormattedLine(let blocks):
-            // Render a line with mixed inline formatting (text + inline code + bold + italic)
-            // NO background container - only inline code gets gray background
-            buildAttributedText(from: blocks)
-                .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+            // One Text, one AttributedString. Composing this out of several
+            // side-by-side Text views in an HStack gave each run its own column,
+            // so the long run after a short **bold** run wrapped inside a narrow
+            // column instead of flowing across the bubble.
+            Text(MarkdownInlineRenderer.attributedString(from: blocks, isUser: isUser))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
 
         case .heading(let text, let level):
             Text(text)
                 .font(headingFont(for: level))
                 .fontWeight(.bold)
                 .foregroundColor(isUser ? .white : .primary)
-                .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
         // Legacy cases - kept for backward compatibility but shouldn't be used directly anymore
         case .inlineCode(let code):
@@ -69,60 +74,22 @@ struct MarkdownMessageView: View {
                 .background(Color(.systemGray6))
                 .cornerRadius(4)
                 .foregroundColor(.primary)
-                .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
         case .bold(let text):
             Text(text)
                 .fontWeight(.bold)
                 .foregroundColor(isUser ? .white : .primary)
-                .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
         case .italic(let text):
             Text(text)
                 .italic()
                 .foregroundColor(isUser ? .white : .primary)
-                .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
     
-    // Build an inline formatted view using HStack for better control
-    // This ensures inline code gets gray background while text remains normal
-    private func buildAttributedText(from blocks: [InlineBlock]) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 0) {
-            ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
-                switch block {
-                case .plainText(let text):
-                    Text(text)
-                        .font(.body)
-                        .foregroundColor(isUser ? .white : .primary)
-                    
-                case .code(let code):
-                    Text(code)
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundColor(.primary)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color(.systemGray6))
-                        )
-                    
-                case .boldText(let text):
-                    Text(text)
-                        .font(.body)
-                        .fontWeight(.bold)
-                        .foregroundColor(isUser ? .white : .primary)
-                    
-                case .italicText(let text):
-                    Text(text)
-                        .font(.body)
-                        .italic()
-                        .foregroundColor(isUser ? .white : .primary)
-                }
-            }
-        }
-    }
-
     private func codeBlockView(code: String, language: String?, index: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header with language and copy button
@@ -358,7 +325,7 @@ struct MarkdownMessageView: View {
             // Lines with inline code, bold, or italic formatting
             // This handles mixed content like "Use `const` or `let` for variables"
             if line.contains("`") || line.contains("*") {
-                let inlineBlocks = parseInlineFormatting(line)
+                let inlineBlocks = MarkdownInlineRenderer.parse(line)
                 // Only create inline formatted line if we have content
                 if !inlineBlocks.isEmpty {
                     blocks.append(.inlineFormattedLine(inlineBlocks))
@@ -378,129 +345,6 @@ struct MarkdownMessageView: View {
         return blocks
     }
 
-    private func parseInlineFormatting(_ text: String) -> [InlineBlock] {
-        var blocks: [InlineBlock] = []
-        var currentText = ""
-        var i = text.startIndex
-
-        while i < text.endIndex {
-            let char = text[i]
-
-            // Inline code (`code`) - single backticks only
-            if char == "`" {
-                // Make sure it's not a triple backtick (which shouldn't happen here, but safety check)
-                let remainingText = String(text[i...])
-                if remainingText.hasPrefix("```") {
-                    // This is a code block marker, treat as regular text
-                    currentText.append(char)
-                    i = text.index(after: i)
-                    continue
-                }
-                
-                if !currentText.isEmpty {
-                    blocks.append(.plainText(currentText))
-                    currentText = ""
-                }
-
-                i = text.index(after: i)
-                var code = ""
-                
-                // Find the closing backtick
-                while i < text.endIndex && text[i] != "`" {
-                    code.append(text[i])
-                    i = text.index(after: i)
-                }
-                
-                // Only create inline code if we found a closing backtick
-                if i < text.endIndex && text[i] == "`" {
-                    blocks.append(.code(code))
-                    i = text.index(after: i)
-                } else {
-                    // No closing backtick found, treat as regular text
-                    currentText.append("`")
-                    currentText.append(code)
-                }
-                continue
-            }
-
-            // Bold (**text**) - must have two asterisks
-            if char == "*" && i < text.index(before: text.endIndex) && text[text.index(after: i)] == "*" {
-                // Check it's not more than two asterisks
-                let nextIndex = text.index(i, offsetBy: 2, limitedBy: text.endIndex)
-                let isTripleAsterisk = nextIndex != nil && nextIndex! < text.endIndex && text[nextIndex!] == "*"
-                
-                if isTripleAsterisk {
-                    // Three or more asterisks, treat as regular text
-                    currentText.append(char)
-                    i = text.index(after: i)
-                    continue
-                }
-                
-                if !currentText.isEmpty {
-                    blocks.append(.plainText(currentText))
-                    currentText = ""
-                }
-
-                i = text.index(i, offsetBy: 2)
-                var bold = ""
-                
-                // Find closing **
-                while i < text.index(before: text.endIndex) {
-                    if text[i] == "*" && text[text.index(after: i)] == "*" {
-                        break
-                    }
-                    bold.append(text[i])
-                    i = text.index(after: i)
-                }
-                
-                if i < text.endIndex && text[i] == "*" {
-                    blocks.append(.boldText(bold))
-                    i = text.index(i, offsetBy: 2, limitedBy: text.endIndex) ?? text.endIndex
-                } else {
-                    // No closing **, treat as regular text
-                    currentText.append("**")
-                    currentText.append(bold)
-                }
-                continue
-            }
-
-            // Italic (*text*) - single asterisk
-            if char == "*" {
-                if !currentText.isEmpty {
-                    blocks.append(.plainText(currentText))
-                    currentText = ""
-                }
-
-                i = text.index(after: i)
-                var italic = ""
-                
-                // Find closing *
-                while i < text.endIndex && text[i] != "*" {
-                    italic.append(text[i])
-                    i = text.index(after: i)
-                }
-                
-                if i < text.endIndex && text[i] == "*" {
-                    blocks.append(.italicText(italic))
-                    i = text.index(after: i)
-                } else {
-                    // No closing *, treat as regular text
-                    currentText.append("*")
-                    currentText.append(italic)
-                }
-                continue
-            }
-
-            currentText.append(char)
-            i = text.index(after: i)
-        }
-
-        if !currentText.isEmpty {
-            blocks.append(.plainText(currentText))
-        }
-
-        return blocks
-    }
 }
 
 // MARK: - Content Block Types

@@ -1,6 +1,8 @@
 import XCTest
 @testable import XRAiAssistant
 
+// ChatViewModel is @MainActor-isolated, so its tests must be too.
+@MainActor
 final class ChatViewModelTests: XCTestCase {
     
     var chatViewModel: ChatViewModel!

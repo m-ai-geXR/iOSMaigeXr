@@ -65,7 +65,7 @@ final class CodeSandboxIntegrationTests: XCTestCase {
         root.render(<App />)
         """
 
-        let service = SecureCodeSandboxService()
+        let service = SecureCodeSandboxService.shared
         let sandboxURL = service.createTemplateBasedSandbox(code: rainbowCode, framework: "reactThreeFiber")
 
         // Verify the URL was generated
@@ -109,7 +109,7 @@ final class CodeSandboxIntegrationTests: XCTestCase {
         root.render(<App />)
         """
 
-        let service = SecureCodeSandboxService()
+        let service = SecureCodeSandboxService.shared
         let sandboxURL = service.createTemplateBasedSandbox(code: completeApp, framework: "reactThreeFiber")
 
         let decodedURL = sandboxURL.removingPercentEncoding ?? sandboxURL
@@ -133,7 +133,7 @@ final class CodeSandboxIntegrationTests: XCTestCase {
         }
         """
 
-        let service = SecureCodeSandboxService()
+        let service = SecureCodeSandboxService.shared
         let sandboxURL = service.createTemplateBasedSandbox(code: sceneOnly, framework: "reactThreeFiber")
 
         let decodedURL = sandboxURL.removingPercentEncoding ?? sandboxURL
@@ -158,7 +158,7 @@ final class CodeSandboxIntegrationTests: XCTestCase {
         }
         """
 
-        let service = SecureCodeSandboxService()
+        let service = SecureCodeSandboxService.shared
         let sandboxURL = service.createTemplateBasedSandbox(code: maliciousCode, framework: "reactThreeFiber")
 
         let decodedURL = sandboxURL.removingPercentEncoding ?? sandboxURL

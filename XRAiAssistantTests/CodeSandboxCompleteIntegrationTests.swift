@@ -69,7 +69,7 @@ final class CodeSandboxCompleteIntegrationTests: XCTestCase {
         """
 
         // STEP 2: Use the SecureCodeSandboxService (the fixed version)
-        let service = SecureCodeSandboxService()
+        let service = SecureCodeSandboxService.shared
         let result = service.createTemplateBasedSandbox(code: aiGeneratedCode, framework: "reactThreeFiber")
 
         // STEP 3: Verify the result is HTML for CodeSandbox Define API (not a URL)
@@ -117,7 +117,7 @@ final class CodeSandboxCompleteIntegrationTests: XCTestCase {
         }
         """
 
-        let service = SecureCodeSandboxService()
+        let service = SecureCodeSandboxService.shared
         let html = service.createTemplateBasedSandbox(code: simpleCode, framework: "reactThreeFiber")
 
         // Verify HTML structure
@@ -157,7 +157,7 @@ final class CodeSandboxCompleteIntegrationTests: XCTestCase {
         root.render(<App />)
         """
 
-        let service = SecureCodeSandboxService()
+        let service = SecureCodeSandboxService.shared
         let html = service.createTemplateBasedSandbox(code: completeApp, framework: "reactThreeFiber")
 
         // Should detect complete app and use it directly
@@ -183,7 +183,7 @@ final class CodeSandboxCompleteIntegrationTests: XCTestCase {
         }
         """
 
-        let service = SecureCodeSandboxService()
+        let service = SecureCodeSandboxService.shared
         let html = service.createTemplateBasedSandbox(code: maliciousCode, framework: "reactThreeFiber")
 
         // Security sanitization should still work
@@ -212,7 +212,7 @@ final class CodeSandboxCompleteIntegrationTests: XCTestCase {
         }
         """
 
-        let service = SecureCodeSandboxService()
+        let service = SecureCodeSandboxService.shared
         let html = service.createTemplateBasedSandbox(code: largeCode, framework: "reactThreeFiber")
 
         // Should handle large code without issues
@@ -227,7 +227,7 @@ final class CodeSandboxCompleteIntegrationTests: XCTestCase {
         // Test that different frameworks are routed correctly
         let code = "function Scene() { return <mesh><boxGeometry /></mesh> }"
 
-        let service = SecureCodeSandboxService()
+        let service = SecureCodeSandboxService.shared
 
         let r3fHTML = service.createTemplateBasedSandbox(code: code, framework: "reactThreeFiber")
         let reactylonHTML = service.createTemplateBasedSandbox(code: code, framework: "reactylon")

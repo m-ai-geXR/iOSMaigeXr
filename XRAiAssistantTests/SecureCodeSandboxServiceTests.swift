@@ -6,7 +6,7 @@ final class SecureCodeSandboxServiceTests: XCTestCase {
     var service: SecureCodeSandboxService!
 
     override func setUpWithError() throws {
-        service = SecureCodeSandboxService()
+        service = SecureCodeSandboxService.shared
     }
 
     override func tearDownWithError() throws {
