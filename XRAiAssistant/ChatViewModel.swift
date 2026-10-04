@@ -29,6 +29,11 @@ class ChatViewModel: ObservableObject {
     // New AI Provider System
     private(set) var aiProviderManager = AIProviderManager()
 
+    /// Provider behind the selected model, so error messages can name it.
+    var currentProviderDisplayName: String {
+        aiProviderManager.getProvider(for: selectedModel)?.name ?? "The AI provider"
+    }
+
     // 3D Library Management System
     let library3DManager = Library3DManager()
 
@@ -508,19 +513,20 @@ class ChatViewModel: ObservableObject {
             self.messages.append(assistantMessage)
 
         } catch {
-            if let providerError = error as? AIProviderError {
-                switch providerError {
-                case .imageNotSupported(let provider):
-                    errorMessage = "⚠️ \(provider) does not support image inputs. Please select a vision-capable model."
-                case .imageTooLarge(let size, let max):
-                    errorMessage = "⚠️ Image too large (\(size / 1024 / 1024)MB). Maximum size: \(max / 1024 / 1024)MB. Please use smaller images."
-                case .configurationError(let message):
-                    errorMessage = "⚠️ Configuration Error: \(message)"
-                default:
-                    errorMessage = "Provider Error: \(providerError.localizedDescription)"
-                }
+            // The image cases carry their own specifics and stay as they are.
+            // Everything else goes through the shared classifier, so the user
+            // gets a cause and a next step rather than a localizedDescription.
+            if let providerError = error as? AIProviderError,
+               case let .imageNotSupported(provider) = providerError {
+                errorMessage = "\(provider) does not support image inputs.\n\nPick a vision-capable model in Settings."
+            } else if let providerError = error as? AIProviderError,
+                      case let .imageTooLarge(size, max) = providerError {
+                errorMessage = "That image is \(size / 1024 / 1024)MB, over the \(max / 1024 / 1024)MB limit.\n\nUse a smaller image."
+            } else if let providerError = error as? AIProviderError,
+                      case let .invalidImageFormat(format) = providerError {
+                errorMessage = "\(format) images are not supported.\n\nUse a PNG or JPEG."
             } else {
-                errorMessage = "Failed to process images: \(error.localizedDescription)"
+                errorMessage = AIErrorClassifier.classify(error, provider: currentProviderDisplayName).asMessage
             }
             print("❌ Multimodal error: \(error)")
         }
