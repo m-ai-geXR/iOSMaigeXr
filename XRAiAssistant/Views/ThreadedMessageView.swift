@@ -111,8 +111,8 @@ struct ThreadedMessageView: View {
                     MarkdownMessageView(content: message.content, isUser: message.isUser)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(message.isUser ? Color.blue : Color(.systemGray5))
-                        .foregroundColor(message.isUser ? .white : .primary)
+                        .background(message.isUser ? Color.brandAccent : Color.brandSurface)
+                        .foregroundColor(message.isUser ? .white : .brandText)
                         .clipShape(RoundedRectangle(cornerRadius: 18))
                         .frame(maxWidth: 600, alignment: message.isUser ? .trailing : .leading)
 
@@ -308,8 +308,8 @@ struct ThreadReplyView: View {
                 MarkdownMessageView(content: message.content, isUser: message.isUser)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(message.isUser ? Color.blue.opacity(0.8) : Color(.systemGray6))
-                    .foregroundColor(message.isUser ? .white : .primary)
+                    .background(message.isUser ? Color.brandAccent : Color.brandSurface)
+                    .foregroundColor(message.isUser ? .white : .brandText)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .frame(maxWidth: 500, alignment: .leading)
 
