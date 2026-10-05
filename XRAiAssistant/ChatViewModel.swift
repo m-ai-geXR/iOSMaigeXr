@@ -23,6 +23,15 @@ class ChatViewModel: ObservableObject {
     @Published var topP: Double = 0.9
     /// Reasoning depth for models that use effort instead of temperature/top-p.
     @Published var effort: AIEffort = .high
+
+    /// How the app picks light or dark. Mirrors the desktop client's setting.
+    ///
+    /// Backed by AppearanceStore, which the root scene observes, so moving the
+    /// picker changes the theme immediately rather than on Save.
+    var appearance: AppAppearance {
+        get { AppearanceStore.shared.appearance }
+        set { AppearanceStore.shared.appearance = newValue }
+    }
     @Published var apiKey: String = DEFAULT_API_KEY // Legacy - for backwards compatibility
     @Published var systemPrompt: String = ""
     
@@ -1487,6 +1496,7 @@ class ChatViewModel: ObservableObject {
     /// Load settings from UserDefaults
     internal func loadSettings() {
         print("📂 Loading settings from UserDefaults...")
+
         
         // Load API key (keep default if not found)
         let savedAPIKey = UserDefaults.standard.string(forKey: "XRAiAssistant_APIKey") ?? DEFAULT_API_KEY

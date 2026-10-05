@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct XRAiAssistant: App {
     @State private var showSplash = true
+    @StateObject private var appearanceStore = AppearanceStore.shared
 
     init() {
         // Run database migration on first launch
@@ -27,9 +28,6 @@ struct XRAiAssistant: App {
         WindowGroup {
             ZStack {
                 // Main app (hidden behind splash initially)
-                // No preferredColorScheme: the brand palette is adaptive, so the
-                // app follows the system setting. The splash below stays dark,
-                // because that scene is lit for a dark ground.
                 ContentView()
                     .opacity(showSplash ? 0 : 1)
 
@@ -44,6 +42,8 @@ struct XRAiAssistant: App {
                     .zIndex(1)
                 }
             }
+            // One place decides the window's scheme. nil follows the system.
+            .preferredColorScheme(appearanceStore.appearance.colorScheme)
         }
     }
 }

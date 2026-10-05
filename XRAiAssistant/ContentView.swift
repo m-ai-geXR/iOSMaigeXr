@@ -70,6 +70,7 @@ struct MaigeXRBrandText: View {
 
 struct ContentView: View {
     @StateObject private var chatViewModel = ChatViewModel()
+    @StateObject private var appearanceStore = AppearanceStore.shared
     @StateObject private var conversationStorage = ConversationStorageManager()
     @StateObject private var keyboardObserver = KeyboardObserver()
     @State private var webView: WKWebView?
@@ -107,6 +108,7 @@ struct ContentView: View {
         NavigationView {
             Form {
                 apiConfigurationSection
+                appearanceSection
                 modelSettingsSection
                 sandboxSettingsSection
                 systemPromptSection
@@ -291,6 +293,21 @@ struct ContentView: View {
         .cornerRadius(8)
     }
     
+    private var appearanceSection: some View {
+        Section("Appearance") {
+            Picker("Theme", selection: $appearanceStore.appearance) {
+                ForEach(AppAppearance.allCases) { option in
+                    Text(option.displayName).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text("System follows your device setting. The splash screen is always dark.")
+                .font(.caption)
+                .foregroundColor(.brandMuted)
+        }
+    }
+
     private var modelSettingsSection: some View {
         Section("Model & Library Settings") {
             VStack(alignment: .leading, spacing: 12) {

@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Home screen and app switcher name. Without this the display name falls
+	     back to the target name, which is still XRAiAssistant. -->
+	<key>CFBundleDisplayName</key>
+	<string>m{ai}geXR</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
 </dict>
