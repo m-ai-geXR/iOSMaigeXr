@@ -65,7 +65,7 @@ class XAIProvider: AIProvider {
 
     func configure(apiKey: String) {
         self.apiKey = apiKey
-        print("🔧 xAI provider configured with API key: \(String(apiKey.prefix(10)))...")
+        print("🔧 xAI provider configured")
     }
 
     func generateResponse(

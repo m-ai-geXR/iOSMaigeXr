@@ -28,8 +28,7 @@ class UserDefaultsMigrator {
             // 1. Migrate settings
             try await migrateSettings()
 
-            // 2. Migrate API keys (to SQLite for now, will move to Keychain in Phase 3)
-            try await migrateAPIKeys()
+            // 2. API keys are not copied: APIKeyStore moves them into the Keychain.
 
             // 3. Migrate conversations
             try await migrateConversations()
@@ -56,8 +55,7 @@ class UserDefaultsMigrator {
             ("XRAiAssistant_SystemPrompt", nil),
             ("XRAiAssistant_SelectedModel", nil),
             ("XRAiAssistant_Temperature", 0.7),
-            ("XRAiAssistant_TopP", 0.9),
-            ("XRAiAssistant_APIKey", "changeMe") // Legacy key
+            ("XRAiAssistant_TopP", 0.9)
         ]
 
         var migratedCount = 0
@@ -76,43 +74,6 @@ class UserDefaultsMigrator {
         }
 
         print("  📊 Migrated \(migratedCount) settings")
-    }
-
-    // MARK: - API Keys Migration
-
-    private func migrateAPIKeys() async throws {
-        print("🔑 Migrating API keys...")
-
-        let providers = [
-            "Together.ai",
-            "Google AI",
-            "Anthropic",
-            "OpenAI",
-            "CodeSandbox"
-        ]
-
-        var migratedCount = 0
-
-        // Check legacy API key first
-        if let legacyKey = UserDefaults.standard.string(forKey: "XRAiAssistant_APIKey"),
-           legacyKey != "changeMe" {
-            try await db.saveSetting(key: "XRAiAssistant_APIKey_Together.ai", value: legacyKey)
-            print("  ✅ Migrated legacy API key to Together.ai")
-            migratedCount += 1
-        }
-
-        // Migrate provider-specific keys
-        for provider in providers {
-            let key = "XRAiAssistant_APIKey_\(provider)"
-            if let apiKey = UserDefaults.standard.string(forKey: key) {
-                // For now, save to SQLite. In Phase 3, we'll move to iOS Keychain
-                try await db.saveSetting(key: key, value: apiKey)
-                print("  ✅ Migrated API key for: \(provider)")
-                migratedCount += 1
-            }
-        }
-
-        print("  📊 Migrated \(migratedCount) API keys")
     }
 
     // MARK: - Conversations Migration

@@ -801,6 +801,64 @@
         }
 
         // ------------------------------------------------------------------
+        // Scene thumbnails
+        // ------------------------------------------------------------------
+        // The console renders without preserveDrawingBuffer, so outside the frame
+        // that drew it its canvas reads back black, which is how history ended up
+        // with black thumbnails. Read it inside the console's own animation frame:
+        // the console queued its next frame before ours, so ours runs right after
+        // it has drawn. The app asks for captureCanvasScreenshot() a few seconds
+        // after a cart starts, and gets the last good frame.
+        var lastSceneShot = null;
+        var SHOT_WIDTH = 480;
+
+        function isDarkFrame(ctx, w, h) {
+            var brightest = 0;
+            for (var i = 1; i < 6; i++) {
+                for (var j = 1; j < 6; j++) {
+                    var p = ctx.getImageData(Math.floor(w * i / 6), Math.floor(h * j / 6), 1, 1).data;
+                    brightest = Math.max(brightest, (299 * p[0] + 587 * p[1] + 114 * p[2]) / 1000);
+                }
+            }
+            return brightest < 12;
+        }
+
+        function grabSceneFrame(attemptsLeft) {
+            var frame = document.getElementById('novaRunner');
+            try {
+                var win = frame && frame.contentWindow;
+                var canvas = win && win.document.querySelector('canvas');
+                if (!canvas || !canvas.width || !canvas.height) return;
+                win.requestAnimationFrame(function () {
+                    try {
+                        var w = Math.min(SHOT_WIDTH, canvas.width);
+                        var h = Math.round(canvas.height * w / canvas.width);
+                        var out = document.createElement('canvas');
+                        out.width = w;
+                        out.height = h;
+                        var ctx = out.getContext('2d');
+                        ctx.drawImage(canvas, 0, 0, w, h);
+                        if (isDarkFrame(ctx, w, h)) {
+                            if (attemptsLeft > 0) grabSceneFrame(attemptsLeft - 1);
+                            return;
+                        }
+                        lastSceneShot = out.toDataURL('image/jpeg', 0.75);
+                    } catch (e) {
+                        console.warn('Scene thumbnail failed: ' + e.message);
+                    }
+                });
+            } catch (e) {
+                console.warn('Scene thumbnail unavailable: ' + e.message);
+            }
+        }
+
+        /** Called by the iOS and Android apps for the history thumbnail. */
+        function captureCanvasScreenshot() {
+            grabSceneFrame(5);  // refresh for next time
+            return lastSceneShot;
+        }
+
+        // ------------------------------------------------------------------
         // Runner
         // ------------------------------------------------------------------
         function runnerUrl() {
@@ -874,6 +932,9 @@
             if (data.type === 'EXECUTE_SUCCESS') {
                 clearTimeout(settleTimer);
                 hideError();
+                // A new cart: drop the old thumbnail and take one once it has drawn.
+                lastSceneShot = null;
+                setTimeout(function () { grabSceneFrame(10); }, 2500);
                 focusScene();
                 console.log('✅ Cart running');
                 logToNative('info', 'Nova64 cart running');

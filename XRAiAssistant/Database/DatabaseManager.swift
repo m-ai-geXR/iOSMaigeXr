@@ -275,6 +275,15 @@ class DatabaseManager: ObservableObject {
         }
     }
 
+    /// Deletes every setting whose key starts with `prefix`. Used to remove API
+    /// key copies the old migrator wrote here; keys now live in the Keychain.
+    func deleteSettings(withPrefix prefix: String) async throws {
+        try await _dbQueue.write { db in
+            // Exact prefix match: LIKE would treat the underscores in key names as wildcards.
+            try db.execute(sql: "DELETE FROM settings WHERE substr(key, 1, length(?)) = ?", arguments: [prefix, prefix])
+        }
+    }
+
     func loadSetting(key: String) async throws -> Any? {
         try await _dbQueue.read { db in
             guard let row = try Row.fetchOne(db, sql: "SELECT value, type FROM settings WHERE key = ?", arguments: [key]) else {

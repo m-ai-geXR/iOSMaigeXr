@@ -86,7 +86,7 @@ class AnthropicProvider: AIProvider {
 
     func configure(apiKey: String) {
         self.apiKey = apiKey
-        print("🔧 Anthropic provider configured with API key: \(String(apiKey.prefix(10)))...")
+        print("🔧 Anthropic provider configured")
     }
 
     func generateResponse(
