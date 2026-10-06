@@ -8,6 +8,15 @@ pointer.
 
 ## State
 
+**Store readiness pass, 2026-10-05 evening.** Code-side blockers are closed:
+privacy policy page drafted in `maige_xr_site/privacy.html` and linked from
+Settings on both apps; Android shrinker rules fixed and a minified release build
+verified on the emulator; iOS `ITSAppUsesNonExemptEncryption` and Google's 50
+`SKAdNetworkItems` added; `Podfile` and `Info.plist.backup` removed (the backup
+was being copied into the app bundle). What remains is console work, real IDs,
+listing assets and device testing: see `SUBMISSION.md`, which also holds the
+review notes and the App Privacy and Data safety answers.
+
 **iOS monetization is code-complete, tested and committed.** Steps 1–5 of
 `MONETIZATION.md` are done and the interstitial trigger is wired. What is left on
 iOS is console work only. **Android is code-complete too; see below.**
@@ -117,12 +126,14 @@ Play Developer API is the fix if a purchase ever gates features.
 
 ### Housekeeping
 
-- **Delete `Podfile`.** CocoaPods was never installed and it has already misled
-  this audit once. See the corrections section of `READINESS-AUDIT.md`.
-- `XRAiAssistant/Info.plist.backup` is tracked and stale.
-- Android `app/proguard-rules.pro` keeps `com.xrai.assistant.**` packages that do
-  not exist; the code lives under `com.xraiassistant`. Pre-existing, unrelated to
-  the applicationId change. Check a minified release build before trusting it.
+- Done 2026-10-05: `Podfile` and `Info.plist.backup` deleted; Android keep rules
+  now target `com.xraiassistant`, with the Retrofit rules R8 full mode needs. A
+  minified release APK ran through chat, scene, favorites and settings with no
+  crash. Network AI was not exercised (no key on the test device).
+- **Security follow-up (iOS):** API keys are stored in UserDefaults and the app's
+  SQLite settings table, not the Keychain, so they sit unencrypted in backups.
+  Android already encrypts them. Move them to the Keychain before or soon after
+  v1; the privacy policy deliberately claims encryption for Android only.
 - `ContentView.swift` has three pre-existing deprecated `onChange(of:perform:)`
   calls (lines ~1104, 1193, 1533). Unrelated to this work.
 - The target is still named `XRAiAssistant` internally. Only `CFBundleDisplayName`

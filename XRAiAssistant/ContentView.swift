@@ -133,6 +133,7 @@ struct ContentView: View {
                 appearanceSection
                 playgroundSection
                 RemoveAdsSection()
+                aboutSection
                 modelSettingsSection
                 sandboxSettingsSection
                 systemPromptSection
@@ -329,6 +330,16 @@ struct ContentView: View {
             Text("System follows your device setting. The splash screen is always dark.")
                 .font(.caption)
                 .foregroundColor(.brandMuted)
+        }
+    }
+
+    /// Legal links App Review expects to be reachable from inside the app.
+    private var aboutSection: some View {
+        Section("About") {
+            Link(destination: AppConfig.privacyPolicyURL) {
+                Label("Privacy policy", systemImage: "hand.raised")
+            }
+            .accessibilityHint("Opens in your browser")
         }
     }
 
