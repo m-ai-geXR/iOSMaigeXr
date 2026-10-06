@@ -72,18 +72,9 @@ struct ExamplesView: View {
                                 }
                             }
                         } label: {
-                            HStack {
-                                Image(systemName: selectedCategory?.icon ?? "square.grid.2x2")
-                                Text(selectedCategory?.rawValue ?? "Category")
-                                    .lineLimit(1)
-                                Image(systemName: "chevron.down")
-                                    .font(.caption)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(selectedCategory != nil ? Color.blue : Color(.systemGray5))
-                            .foregroundColor(selectedCategory != nil ? .white : .primary)
-                            .cornerRadius(8)
+                            FilterPill(icon: selectedCategory?.icon ?? "square.grid.2x2",
+                                       text: selectedCategory?.rawValue ?? "Category",
+                                       isActive: selectedCategory != nil)
                         }
 
                         // Difficulty filter
@@ -98,18 +89,9 @@ struct ExamplesView: View {
                                 }
                             }
                         } label: {
-                            HStack {
-                                Image(systemName: "chart.bar")
-                                Text(selectedDifficulty?.rawValue ?? "Difficulty")
-                                    .lineLimit(1)
-                                Image(systemName: "chevron.down")
-                                    .font(.caption)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(selectedDifficulty != nil ? Color.orange : Color(.systemGray5))
-                            .foregroundColor(selectedDifficulty != nil ? .white : .primary)
-                            .cornerRadius(8)
+                            FilterPill(icon: "chart.bar",
+                                       text: selectedDifficulty?.rawValue ?? "Difficulty",
+                                       isActive: selectedDifficulty != nil)
                         }
 
                         // Clear filters
@@ -119,11 +101,10 @@ struct ExamplesView: View {
                                 selectedDifficulty = nil
                             }) {
                                 Text("Clear")
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(Color.red)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundColor(.brandAccentText)
+                                    .frame(height: Metrics.pillHeight)
+                                    .padding(.horizontal, 6)
                             }
                         }
                     }
@@ -147,7 +128,7 @@ struct ExamplesView: View {
 
                 // Examples list
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: 10) {
                         ForEach(filteredExamples) { example in
                             ExampleCard(example: example) {
                                 onExampleSelected(example)
@@ -177,11 +158,11 @@ struct ExampleCard: View {
 
     var body: some View {
         Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 // Header
                 HStack {
                     Text(example.title)
-                        .font(.headline)
+                        .font(.subheadline.weight(.semibold))
                         .foregroundColor(.primary)
                     Spacer()
                     difficultyBadge
@@ -199,12 +180,11 @@ struct ExampleCard: View {
                         HStack(spacing: 6) {
                             ForEach(example.keywords.prefix(5), id: \.self) { keyword in
                                 Text(keyword)
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.blue.opacity(0.1))
-                                    .foregroundColor(.blue)
-                                    .cornerRadius(4)
+                                    .font(.caption2.weight(.medium))
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
+                                    .background(Capsule().fill(Color.brandAccent.opacity(0.10)))
+                                    .foregroundColor(.brandAccentText)
                             }
                             if example.keywords.count > 5 {
                                 Text("+\(example.keywords.count - 5)")
@@ -226,7 +206,8 @@ struct ExampleCard: View {
                     if example.aiPromptHints != nil {
                         Image(systemName: "sparkles")
                             .font(.caption)
-                            .foregroundColor(.purple)
+                            .foregroundColor(.brandAccentText)
+                            .accessibilityLabel("Has AI prompt hints")
                     }
 
                     Image(systemName: "chevron.right")
@@ -234,30 +215,35 @@ struct ExampleCard: View {
                         .foregroundColor(.secondary)
                 }
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
+                    .stroke(Color.brandDivider, lineWidth: Metrics.hairline)
+            )
         }
         .buttonStyle(.plain)
     }
 
     var difficultyBadge: some View {
+        // Brand status colours: they hold contrast in both appearances.
         let color: Color = {
             switch example.difficulty {
-            case .beginner: return .green
-            case .intermediate: return .orange
-            case .advanced: return .red
+            case .beginner: return .brandSuccess
+            case .intermediate: return .brandWarning
+            case .advanced: return .brandError
             }
         }()
 
         return Text(example.difficulty.rawValue)
-            .font(.caption)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(color.opacity(0.2))
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(color.opacity(0.12)))
             .foregroundColor(color)
-            .cornerRadius(4)
     }
 }
 
@@ -268,5 +254,25 @@ struct ExamplesView_Previews: PreviewProvider {
             library3DManager: Library3DManager(),
             onExampleSelected: { _ in }
         )
+    }
+}
+
+/// Compact filter menu label; filled with the accent when a filter is set.
+private struct FilterPill: View {
+    let icon: String
+    let text: String
+    let isActive: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon).font(.caption.weight(.semibold))
+            Text(text).font(.footnote.weight(.medium)).lineLimit(1)
+            Image(systemName: "chevron.down").font(.caption2.weight(.semibold)).opacity(0.7)
+        }
+        .foregroundColor(isActive ? .white : .brandAccentText)
+        .padding(.horizontal, 10)
+        .frame(height: Metrics.pillHeight)
+        .background(Capsule().fill(isActive ? Color.brandAccent : Color.brandAccent.opacity(0.10)))
+        .contentShape(Capsule())
     }
 }

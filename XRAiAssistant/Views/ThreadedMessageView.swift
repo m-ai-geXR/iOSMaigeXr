@@ -129,7 +129,7 @@ struct ThreadedMessageView: View {
                             Button(action: { onReply(message.id) }) {
                                 Label("Reply", systemImage: "arrowshape.turn.up.left")
                                     .font(.caption)
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.brandAccentText)
                             }
                             .buttonStyle(PlainButtonStyle())
 
@@ -144,14 +144,7 @@ struct ThreadedMessageView: View {
                                     onRun?(message.content, message.libraryId)
                                 }
                             }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "play.fill")
-                                        .font(.caption)
-                                    Text("Run the Scene")
-                                        .font(.caption)
-                                        .underline() // Make it look like a hyperlink
-                                }
-                                .foregroundColor(extractedCode != nil ? .green : .orange)
+                                RunSceneLabel(hasCode: extractedCode != nil)
                             }
                             .buttonStyle(PlainButtonStyle())
 
@@ -162,7 +155,7 @@ struct ThreadedMessageView: View {
                                 }) {
                                     Image(systemName: isFavorited(message.id) ? "star.fill" : "star")
                                         .font(.caption)
-                                        .foregroundColor(isFavorited(message.id) ? .yellow : .gray)
+                                        .foregroundColor(isFavorited(message.id) ? .brandAccentText : .brandMuted)
                                 }
                                 .buttonStyle(PlainButtonStyle())
                             }

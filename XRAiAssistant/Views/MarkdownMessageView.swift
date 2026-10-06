@@ -5,6 +5,10 @@ struct MarkdownMessageView: View {
     let content: String
     let isUser: Bool
     @State private var copiedCodeBlocks: Set<Int> = []
+    @State private var expandedCodeBlocks: Set<Int> = []
+
+    /// Code longer than this collapses to a preview, so a demo does not fill the screen.
+    private let collapsedLineCount = 12
     @State private var showCopiedFullMessage = false
 
     var body: some View {
@@ -91,14 +95,21 @@ struct MarkdownMessageView: View {
     }
     
     private func codeBlockView(code: String, language: String?, index: Int) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header with language and copy button
+        let lines = code.components(separatedBy: "\n")
+        let isLong = lines.count > collapsedLineCount
+        let isExpanded = expandedCodeBlocks.contains(index)
+        let shown = isLong && !isExpanded ? lines.prefix(collapsedLineCount).joined(separator: "\n") : code
+        let copied = copiedCodeBlocks.contains(index)
+        let codeBackground = Color(red: 0.08, green: 0.10, blue: 0.13)
+
+        return VStack(alignment: .leading, spacing: 0) {
+            // Header: language on the left, a quiet copy button on the right.
             HStack {
                 if let lang = language, !lang.isEmpty {
                     Text(lang.uppercased())
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(Color(red: 0.4, green: 0.8, blue: 1.0)) // Bright blue
+                        .font(.caption2.weight(.semibold))
+                        .tracking(0.6)
+                        .foregroundColor(.white.opacity(0.55))
                 }
 
                 Spacer()
@@ -106,39 +117,55 @@ struct MarkdownMessageView: View {
                 Button(action: {
                     copyToClipboard(code, index: index)
                 }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: copiedCodeBlocks.contains(index) ? "checkmark" : "doc.on.doc")
-                            .font(.caption)
-                        Text(copiedCodeBlocks.contains(index) ? "Copied!" : "Copy")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(copiedCodeBlocks.contains(index) ? 
-                               Color.green.opacity(0.8) : 
-                               Color(red: 0.3, green: 0.6, blue: 0.9))
-                    .cornerRadius(6)
+                    Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(.white.opacity(copied ? 1 : 0.8))
+                        .padding(.horizontal, 10)
+                        .frame(height: 26)
+                        .background(Capsule().fill(Color.white.opacity(copied ? 0.18 : 0.10)))
                 }
                 .buttonStyle(PlainButtonStyle())
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(red: 0.12, green: 0.14, blue: 0.18)) // Dark blue-gray header
+            .padding(.vertical, 6)
+            .background(Color(red: 0.11, green: 0.13, blue: 0.17))
 
-            // Code content with enhanced syntax highlighting
+            // Code, with long blocks collapsed behind a fade until expanded.
             ScrollView(.horizontal, showsIndicators: true) {
-                syntaxHighlightedCode(code, language: language)
+                syntaxHighlightedCode(shown, language: language)
                     .padding(12)
             }
-            .background(Color(red: 0.08, green: 0.10, blue: 0.13)) // Darker code background
+            .background(codeBackground)
+            .overlay(alignment: .bottom) {
+                if isLong && !isExpanded {
+                    LinearGradient(colors: [codeBackground.opacity(0), codeBackground],
+                                   startPoint: .top, endPoint: .bottom)
+                        .frame(height: 48)
+                        .allowsHitTesting(false)
+                }
+            }
+
+            if isLong {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        if isExpanded { expandedCodeBlocks.remove(index) } else { expandedCodeBlocks.insert(index) }
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Text(isExpanded ? "Show less" : "Show all \(lines.count) lines")
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    }
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(.white.opacity(0.75))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 34)
+                    .background(codeBackground)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
         }
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(red: 0.2, green: 0.3, blue: 0.4).opacity(0.3), lineWidth: 1)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: Metrics.radius))
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 4)
     }

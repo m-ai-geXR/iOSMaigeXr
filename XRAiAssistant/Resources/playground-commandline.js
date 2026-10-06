@@ -293,7 +293,9 @@
             '#maige-cl-input{flex:1;min-width:0;background:transparent;border:0;outline:0;',
             'color:#f3f2f2;font:inherit;padding:6px 0;caret-color:#5b82f5}',
             '#maige-cl-input::placeholder{color:#9b9797}',
-            '#maige-cl:focus-within{border-top-color:#8aa6ff}'
+            '#maige-cl:focus-within{border-top-color:#8aa6ff}',
+            // Lift the playground's floating console button clear of the line.
+            'body.maige-cl-on .console-open-btn{bottom:var(--maige-cl-lift,64px)!important}'
         ].join('');
         document.head.appendChild(style);
     }
@@ -373,10 +375,23 @@
         }
     }
 
+    /** Keeps floating buttons anchored to the viewport bottom above the line. */
+    function updateLift() {
+        if (!root || root.hidden) return;
+        var top = root.getBoundingClientRect().top;
+        var lift = Math.max(0, window.innerHeight - top) + 12;
+        document.body.style.setProperty('--maige-cl-lift', lift + 'px');
+    }
+
     function setEnabled(on) {
         enabled = !!on;
-        if (enabled && !root) build();
+        if (enabled && !root) {
+            build();
+            window.addEventListener('resize', updateLift);
+        }
         if (root) root.hidden = !enabled;
+        document.body.classList.toggle('maige-cl-on', enabled);
+        updateLift();
         return enabled;
     }
 
