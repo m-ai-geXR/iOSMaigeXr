@@ -71,10 +71,8 @@ restraint rules in `AdManager` still decide whether one actually shows.
 
 ### iOS console work — no code involved
 
-- Create the AdMob app and the banner + interstitial units. Replace
-  `GADApplicationIdentifier` in `Info.plist` (still Google's public sample) and
-  fill `GADBannerUnitID` / `GADInterstitialUnitID`. Consider driving the app ID
-  from a per-configuration build setting so a debug build cannot carry it.
+- Done 2026-10-06: AdMob app and units created and set in `Info.plist` (IDs in
+  `SUBMISSION.md` section 1a). Still open: the consent messages in AdMob.
 - Register the non-consumable in App Store Connect and set a real price. The
   `2.99` in `maigeXR.storekit` is a local simulation value, not a decision.
 - Register the App ID for `studio.seacloud9.maigexr` and check signing.

@@ -81,13 +81,10 @@ enum AppConfig {
 
     // MARK: - API Keys (Environment Override)
 
-    /// AdMob App ID (can be overridden via environment)
-    static let admobAppID: String = {
-        if let envID = ProcessInfo.processInfo.environment["ADMOB_APP_ID"] {
-            return envID
-        }
-        return "ca-app-pub-3940256099942544~1458002511" // Test ID
-    }()
+    /// AdMob app ID, for logging. The SDK reads it from GADApplicationIdentifier
+    /// in Info.plist, so that is the only place it is set.
+    static let admobAppID: String =
+        Bundle.main.object(forInfoDictionaryKey: "GADApplicationIdentifier") as? String ?? "missing"
 
     // MARK: - Feature Flags
 

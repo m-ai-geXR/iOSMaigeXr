@@ -7,20 +7,20 @@
 	<key>CFBundleDisplayName</key>
 	<string>m{ai}geXR</string>
 
-	<!-- RELEASE BLOCKER: this is Google's public sample app ID, shared by every
-	     tutorial. It must be replaced with the real one from the m{ai}geXR AdMob
-	     account before any upload. Tracked in docs/release/READINESS-AUDIT.md. -->
+	<!-- The real app ID from the AdMob account on brendonsmith@seacloud9.org
+	     (AdMob app "maigeXR iOS"). Not a secret: it ships in every build. Debug
+	     builds still load Google's test ad units, which is safe with a real app ID. -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-4166973145998533~6620905705</string>
 
 	<!-- Release ad units, read by AdUnits in AdMobProvider.swift. Empty is
 	     handled: the provider declines to load rather than crashing, so the app
 	     serves no ads until these are filled in. Debug builds use Google's test
 	     units instead and ignore these entirely. -->
 	<key>GADBannerUnitID</key>
-	<string></string>
+	<string>ca-app-pub-4166973145998533/8678338813</string>
 	<key>GADInterstitialUnitID</key>
-	<string></string>
+	<string>ca-app-pub-4166973145998533/4887267611</string>
 
 	<!-- Required for the ATT prompt to appear at all. Without it
 	     requestTrackingAuthorization silently returns denied and the IDFA is

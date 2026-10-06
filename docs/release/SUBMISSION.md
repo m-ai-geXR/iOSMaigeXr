@@ -5,8 +5,9 @@ both platforms. `RESUME-HERE.md` is the running status; this is the checklist an
 the copy to paste into the consoles.
 
 **These repositories are public.** Nothing below may be replaced with a real
-secret in the repo. API keys, AdMob IDs, signing keys and the reviewer test key go
-only into the store consoles or the gitignored `AndroidMaigeXr/local.properties`.
+secret in the repo. API keys, signing keys and the reviewer test key go only into
+the store consoles or the gitignored `AndroidMaigeXr/local.properties`. AdMob IDs
+are not secret (they ship inside every build); see section 1a.
 
 ---
 
@@ -16,24 +17,42 @@ only into the store consoles or the gitignored `AndroidMaigeXr/local.properties`
 |---|---|---|
 | Privacy policy URL | Done: https://maigexr.seacloud9.studio/privacy, set in both apps | Use the same URL in App Store Connect and the Play Console. |
 | Publisher name, contact email | Done: SeaCloud9 (Brendon Smith), brendonsmith@seacloud9.org | Shown on the privacy policy. |
-| iOS AdMob app ID and units | `XRAiAssistant/Info.plist`: `GADApplicationIdentifier`, `GADBannerUnitID`, `GADInterstitialUnitID` | The app ID is still Google's public sample. AdMob IDs are not secret, but must be real before release. |
-| Android AdMob IDs | `local.properties`: `maigexr.admob.appId`, `.bannerId`, `.interstitialId` | Gitignored. A release build stops until set. |
+| iOS AdMob app ID and units | Done: `XRAiAssistant/Info.plist` (`GADApplicationIdentifier`, `GADBannerUnitID`, `GADInterstitialUnitID`) | IDs in section 1a. Debug builds use Google's test units. |
+| Android AdMob IDs | Done locally: `local.properties` (`maigexr.admob.appId`, `.bannerId`, `.interstitialId`) | Gitignored, so set them again on a new machine from section 1a. A release build stops until set. |
 | Android upload key | `local.properties`: `maigexr.signing.storeFile`, `.storePassword`, `.keyAlias`, `.keyPassword` | Never commit the keystore or passwords. |
 | Remove Ads price | App Store Connect, Play Console | `maigeXR.storekit` holds a local simulation value only. |
 | Reviewer test key | App Store Connect review notes, Play Console App access | See section 3. Never in the repo. |
+
+## 1a. AdMob
+
+Account: brendonsmith@seacloud9.org (publisher `pub-4166973145998533`). Names in
+the console use the internal name maigeXR; anything users see says m{ai}geXR.
+
+| AdMob name | Format | ID | Used by |
+|---|---|---|---|
+| maigeXR iOS | App | `ca-app-pub-4166973145998533~6620905705` | iOS `Info.plist` `GADApplicationIdentifier` |
+| maigeXR-ios-banner-chat | Banner | `ca-app-pub-4166973145998533/8678338813` | iOS `Info.plist` `GADBannerUnitID` |
+| maigeXR-ios-interstitial-scene-exit | Interstitial | `ca-app-pub-4166973145998533/4887267611` | iOS `Info.plist` `GADInterstitialUnitID` |
+| maigeXR Android | App | `ca-app-pub-4166973145998533~8044923156` | Android `local.properties` `maigexr.admob.appId` |
+| maigeXR-android-banner-chat | Banner | `ca-app-pub-4166973145998533/8826512623` | Android `local.properties` `maigexr.admob.bannerId` |
+| maigeXR-android-interstitial-scene-exit | Interstitial | `ca-app-pub-4166973145998533/8005394705` | Android `local.properties` `maigexr.admob.interstitialId` |
+
+Still to do in AdMob: the consent messages (Privacy & messaging: `maigeXR GDPR`
+and `maigeXR US states`, privacy URL above, both apps), and, after launch, linking
+each app to its store listing under App settings to lift limited ad serving.
 
 ## 2. Console setup
 
 **Apple**
 - Register the App ID `studio.seacloud9.maigexr` and create the app record.
 - Create the non-consumable `studio.seacloud9.maigexr.removeads` and set its price.
-- Create the AdMob iOS app and its banner and interstitial units; fill section 1.
+- Done: AdMob iOS app and units (section 1a).
 - Archive a Release build. Check Xcode's privacy report against section 4.
 - Run a purchase and a Restore in the simulator against `maigeXR.storekit`, then in TestFlight sandbox.
 
 **Google**
 - Create the upload keystore and enrol in Play App Signing.
-- Create the Android AdMob app and units; fill `local.properties`.
+- Done: AdMob Android app and units (section 1a).
 - Register `studio.seacloud9.maigexr.removeads` as an in-app product.
 - Upload an AAB to internal testing, add a licence tester, and run a purchase, a Restore and a refund.
 - Read the pre-launch report. Expect a note about the scene WebView allowing mixed content and file access; it is needed for the local playgrounds.

@@ -72,7 +72,10 @@ has misled this audit once already.
 
 ### Real AdMob account and ad units
 
-`XRAiAssistant/Info.plist` still carries Google's public sample app ID:
+**Resolved 2026-10-06.** The real app ID and both units are in `Info.plist`; the
+IDs are listed in `SUBMISSION.md` section 1a. Kept below as the original finding.
+
+`XRAiAssistant/Info.plist` carried Google's public sample app ID:
 
 ```xml
 <key>GADApplicationIdentifier</key>
