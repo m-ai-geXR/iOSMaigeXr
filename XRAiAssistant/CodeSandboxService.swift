@@ -142,7 +142,7 @@ class CodeSandboxService {
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
             <meta name="theme-color" content="#000000" />
-            <title>XRAiAssistant - React Three Fiber Scene</title>
+            <title>m{ai}geXR - React Three Fiber Scene</title>
             <style>
               body {
                 margin: 0;
@@ -269,7 +269,7 @@ class CodeSandboxService {
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
             <meta name="theme-color" content="#000000" />
-            <title>XRAiAssistant - Reactylon Scene</title>
+            <title>m{ai}geXR - Reactylon Scene</title>
             <style>
               body {
                 margin: 0;

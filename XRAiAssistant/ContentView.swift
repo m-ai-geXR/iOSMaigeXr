@@ -51,19 +51,26 @@ struct MaigeXRBrandText: View {
 
     var body: some View {
         HStack(spacing: 0) {
+            // Brand rule: only {ai} takes the accent, the rest takes the
+            // foreground. Both halves used accent colours before, which with a
+            // single-accent palette rendered the whole wordmark one flat blue.
             Text("m")
-                .foregroundColor(isActive ? .neonCyan : .cyberpunkGray)
+                .foregroundColor(isActive ? .brandText : .brandMuted)
             Text("{ai}")
-                .foregroundColor(isActive ? .neonPink : .cyberpunkGray.opacity(0.7))
+                .foregroundColor(isActive ? .brandAccent : .brandMuted.opacity(0.7))
             Text("geXR")
-                .foregroundColor(isActive ? .neonCyan : .cyberpunkGray)
+                .foregroundColor(isActive ? .brandText : .brandMuted)
         }
-        .font(.system(size: fontSize, weight: .medium, design: .rounded))
+        // Archivo is not a system face; default design at a heavy weight with
+        // tight tracking is the closest match to the brand's Modernist setting.
+        .font(.system(size: fontSize, weight: .heavy, design: .default))
+        .tracking(-0.02 * fontSize)
     }
 }
 
 struct ContentView: View {
     @StateObject private var chatViewModel = ChatViewModel()
+    @StateObject private var appearanceStore = AppearanceStore.shared
     @StateObject private var conversationStorage = ConversationStorageManager()
     @StateObject private var keyboardObserver = KeyboardObserver()
     @State private var webView: WKWebView?
@@ -97,10 +104,17 @@ struct ContentView: View {
     // Screenshot tracking - only capture once per conversation
     @State private var screenshotCapturedForConversation: UUID? = nil
 
+    /// True while either error surface is on screen.
+    private func updateAdErrorVisibility() {
+        AdManager.shared.setErrorVisible(showingError || chatViewModel.errorMessage != nil)
+    }
+
     private var settingsView: some View {
         NavigationView {
             Form {
                 apiConfigurationSection
+                appearanceSection
+                RemoveAdsSection()
                 modelSettingsSection
                 sandboxSettingsSection
                 systemPromptSection
@@ -285,6 +299,21 @@ struct ContentView: View {
         .cornerRadius(8)
     }
     
+    private var appearanceSection: some View {
+        Section("Appearance") {
+            Picker("Theme", selection: $appearanceStore.appearance) {
+                ForEach(AppAppearance.allCases) { option in
+                    Text(option.displayName).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text("System follows your device setting. The splash screen is always dark.")
+                .font(.caption)
+                .foregroundColor(.brandMuted)
+        }
+    }
+
     private var modelSettingsSection: some View {
         Section("Model & Library Settings") {
             VStack(alignment: .leading, spacing: 12) {
@@ -723,10 +752,34 @@ struct ContentView: View {
                 sceneView
             }
 
+            // Banner sits in the stack, above the tab bar, so it takes its own
+            // space rather than covering the editor or the canvas. It renders
+            // nothing at all for a paid user, so no gap is left behind.
+            AdBannerView()
+
             // Bottom tab bar - always visible at bottom
             bottomTabBar
         }
         .ignoresSafeArea(.keyboard, edges: .bottom) // Let keyboard overlay instead of pushing
+        // An ad must never land on a user waiting for a model, nor cover the
+        // explanation of a failure. Forwarded from one place rather than
+        // sprinkled through every request and error path.
+        .onChange(of: chatViewModel.isLoading) { _, isLoading in
+            if isLoading {
+                AdManager.shared.generationBegan()
+            } else {
+                AdManager.shared.generationEnded()
+            }
+        }
+        // Two independent error surfaces — the alert and the view model's
+        // message. Both feed one computed answer, so whichever clears first
+        // cannot declare the screen error-free while the other is still up.
+        .onChange(of: chatViewModel.errorMessage) { _, _ in
+            updateAdErrorVisibility()
+        }
+        .onChange(of: showingError) { _, _ in
+            updateAdErrorVisibility()
+        }
         .alert("Error", isPresented: $showingError) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -1364,8 +1417,18 @@ struct ContentView: View {
         HStack {
                 // Code Tab (Chat)
                 Button(action: {
+                    let leavingScene = currentView == .scene
                     withAnimation(.easeInOut(duration: 0.3)) {
                         currentView = .chat
+                    }
+                    // Interstitials only ever appear on the way out of a scene:
+                    // the user has already seen the result they asked for. Wait
+                    // out the transition so the ad does not present mid-animation.
+                    if leavingScene {
+                        Task {
+                            try? await Task.sleep(for: .milliseconds(350))
+                            await AdManager.shared.onSceneRun()
+                        }
                     }
                 }) {
                     VStack(spacing: 4) {

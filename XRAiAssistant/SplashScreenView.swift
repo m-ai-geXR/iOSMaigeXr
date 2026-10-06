@@ -23,7 +23,10 @@ struct SplashScreenView: View {
             SplashWebView(webView: $webView, onDismiss: onDismiss)
                 .ignoresSafeArea()
         }
-        .preferredColorScheme(.dark)
+        // environment, not preferredColorScheme: the latter propagates up to the
+        // window, so while the splash was on screen it forced the whole app dark
+        // and the user's Light choice did not apply.
+        .environment(\.colorScheme, .dark)
     }
 }
 

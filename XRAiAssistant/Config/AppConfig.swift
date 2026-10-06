@@ -83,14 +83,6 @@ enum AppConfig {
         return "ca-app-pub-3940256099942544~1458002511" // Test ID
     }()
 
-    /// Unity Ads Game ID (can be overridden via environment)
-    static let unityGameID: String = {
-        if let envID = ProcessInfo.processInfo.environment["UNITY_GAME_ID"] {
-            return envID
-        }
-        return "YOUR_UNITY_GAME_ID_HERE"
-    }()
-
     // MARK: - Feature Flags
 
     /// Enable premium subscription features
@@ -126,7 +118,6 @@ enum AppConfig {
         print("⏱️ Interstitial Interval: \(interstitialMinInterval)s")
         print("🎮 Scenes Before Ad: \(scenesBeforeInterstitial)")
         print("🔑 AdMob App ID: \(admobAppID)")
-        print("🎮 Unity Game ID: \(unityGameID)")
         print("💳 Subscriptions: \(premiumSubscriptionEnabled)")
         print("☁️ Cloud Sync: \(cloudSyncEnabled)")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

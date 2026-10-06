@@ -6,12 +6,12 @@ import Foundation
 /// than a script you drop on a page. The playground embeds Nova64's hosted
 /// "studio" runner and pushes cart source into it over postMessage, so carts must
 /// be written as plain `init` / `update` / `draw` declarations with no `export`
-/// keyword — the runner evaluates them with `new Function()`.
+/// keyword — studio evaluates carts as a script, not a module.
 struct Nova64Library: Library3D {
     let id = "nova64"
     let displayName = "Nova64"
     let description = "Retro 3D fantasy console — N64/PS1-era games in JavaScript"
-    let version = "v0.5.2"
+    let version = "v0.5.6"
     let playgroundTemplate = "playground-nova64.html"
     let codeLanguage = CodeLanguage.javascript
     let iconName = "gamecontroller.fill"
@@ -41,9 +41,10 @@ struct Nova64Library: Library3D {
             function init() { }        // once, for setup — may be async
             function update(dt) { }    // every frame, dt in seconds
             function draw() { }        // optional 2D HUD overlay
-        - NEVER use the `export` keyword. The studio runner evaluates your code with
-          `new Function()`, so `export function init()` is a syntax error. The Nova64
-          README shows that form for file-based carts — it does NOT work here.
+        - Do NOT use the `export` keyword. Studio evaluates carts as a script, so the
+          plain declaration form is the one to write. Since nova64 0.5.6 a top-level
+          export is stripped rather than rejected, so it no longer breaks the cart —
+          but `import` still cannot work in a script.
         - Declare mutable state with `let` at the top level, assign it inside init().
         - Create meshes in init(); only transform them in update().
 
@@ -100,7 +101,7 @@ struct Nova64Library: Library3D {
         return """
         // Nova64 cart — retro 3D fantasy console
         // Lifecycle: init() once, update(dt) every frame, draw() for the 2D HUD.
-        // No export keyword — the studio runner evaluates this with new Function().
+        // No export keyword — studio evaluates carts as a script, not a module.
 
         let cubeId;
         let orbId;

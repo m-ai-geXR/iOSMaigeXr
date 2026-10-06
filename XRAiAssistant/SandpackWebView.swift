@@ -175,7 +175,7 @@ struct SandpackWebView: UIViewRepresentable {
         <!DOCTYPE html>
         <html>
         <head>
-            <title>XRAiAssistant Sandpack</title>
+            <title>m{ai}geXR Sandpack</title>
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -251,7 +251,7 @@ struct SandpackWebView: UIViewRepresentable {
         </head>
         <body>
             <div class="header">
-                <div class="title">XRAiAssistant Sandpack</div>
+                <div class="title">m{ai}geXR Sandpack</div>
                 <span class="badge">React Three Fiber</span>
                 <div class="status-indicator" id="status">Initializing...</div>
             </div>

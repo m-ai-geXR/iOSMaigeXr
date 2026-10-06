@@ -124,7 +124,7 @@ class SecureCodeSandboxService {
         </head>
         <body>
             <div class="container">
-                <h1>🚀 XRAiAssistant CodeSandbox Creator</h1>
+                <h1>🚀 m{ai}geXR CodeSandbox Creator</h1>
 
                 <div id="status" class="status loading">
                     <strong>Status:</strong> Preparing sandbox creation...
@@ -582,7 +582,7 @@ class SecureCodeSandboxService {
         {
           "name": "xraiassistant-threejs-scene",
           "version": "1.0.0",
-          "description": "XRAiAssistant Three.js Scene",
+          "description": "m{ai}geXR Three.js Scene",
           "keywords": ["threejs", "3d", "webgl"],
           "main": "src/index.js",
           "dependencies": {
@@ -676,7 +676,7 @@ class SecureCodeSandboxService {
           border-radius: 4px;
           z-index: 1000;
         `;
-        info.textContent = '🎨 XRAiAssistant - Three.js Scene';
+        info.textContent = '🎨 m{ai}geXR - Three.js Scene';
         document.body.appendChild(info);
 
         console.log('✅ Three.js scene initialized successfully');
@@ -740,7 +740,7 @@ class SecureCodeSandboxService {
           <head>
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <title>XRAiAssistant Three.js Scene</title>
+            <title>m{ai}geXR Three.js Scene</title>
             <style>
               body {
                 margin: 0;
@@ -765,7 +765,7 @@ class SecureCodeSandboxService {
           <head>
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <title>XRAiAssistant React Three Fiber Scene</title>
+            <title>m{ai}geXR React Three Fiber Scene</title>
             <style>
               body {
                 margin: 0;
@@ -864,7 +864,7 @@ class SecureCodeSandboxService {
           <head>
             <meta charset="UTF-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-            <title>XRAiAssistant React Three Fiber Scene</title>
+            <title>m{ai}geXR React Three Fiber Scene</title>
             <style>
               body {
                 margin: 0;

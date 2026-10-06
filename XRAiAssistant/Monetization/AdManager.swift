@@ -2,359 +2,226 @@
 //  AdManager.swift
 //  m{ai}geXR
 //
-//  Created: 2026-02-08
-//  Purpose: Manages ad display (AdMob only) and premium subscription status
-//  Updated: 2026-02-08 - Removed Unity Ads, using AdMob for all ad types
+//  Decides whether an ad may appear, and how often. Not how to fetch one —
+//  that is the provider's job, behind AdProvider.
+//
+//  This file must not import an ad SDK. AdMobProvider.swift is the only place
+//  GoogleMobileAds appears; if that stops being true the abstraction has leaked.
+//  See docs/release/MONETIZATION.md.
 //
 
-import Foundation
 import SwiftUI
-import GoogleMobileAds
-// Unity Ads removed - AdMob supports all ad types (banner, interstitial, rewarded)
 
-class AdManager: NSObject, ObservableObject {
-    static let shared = AdManager()
+/// How often an interstitial may appear.
+///
+/// Data rather than scattered `AppConfig` reads, so the rules can be stated and
+/// tested directly instead of only being observable by waiting eight minutes.
+struct AdPacing {
+    /// Scene runs that must happen before an interstitial is considered.
+    var scenesBeforeInterstitial: Int
 
-    // MARK: - Published Properties
+    /// Minimum time between two interstitials.
+    var minimumInterval: TimeInterval
 
-    @Published var bannerAdView: BannerView?
-    @Published var isPremiumUser = false
+    static var fromAppConfig: AdPacing {
+        AdPacing(
+            scenesBeforeInterstitial: AppConfig.scenesBeforeInterstitial,
+            minimumInterval: AppConfig.interstitialMinInterval
+        )
+    }
+}
 
-    // MARK: - Private Properties
+/// Builds a provider given whether ads should be served at all.
+typealias AdProviderBuilder = @MainActor (Bool) -> AdProvider
 
-    private var interstitialAd: InterstitialAd?
-    private var rewardedAd: RewardedAd?
+/// Owns the ad provider and the product rules about when ads may show.
+///
+/// Three things live here rather than in a provider, because they must survive a
+/// network swap unchanged:
+///
+/// 1. **Which provider to build.** Paid, consent-denied and ads-disabled all
+///    collapse to `NoAdsProvider`, so there is exactly one decision about
+///    entitlement in the app instead of a `guard !isPremiumUser` in every method.
+/// 2. **Pacing.** Scene counts and cooldowns.
+/// 3. **Restraint.** Never over a generation in flight, never over an error.
+@MainActor
+final class AdManager: ObservableObject {
+    static let shared = AdManager(entitlement: StoreEntitlement.shared)
 
-    // Ad frequency tracking
-    private var lastInterstitialShown: Date?
-    private var scenesRunSinceLastAd = 0
-    private let minInterstitialInterval: TimeInterval = AppConfig.interstitialMinInterval
-    private let scenesBeforeInterstitial = AppConfig.scenesBeforeInterstitial
+    // MARK: - Published state
 
-    // Ad Unit IDs - Using AdMob test IDs (replace with your actual IDs)
-    private let bannerAdUnitID = "ca-app-pub-3940256099942544/2934735716" // Test ID
-    private let interstitialAdUnitID = "ca-app-pub-3940256099942544/4411468910" // Test ID
-    private let rewardedAdUnitID = "ca-app-pub-3940256099942544/1712485313" // Test ID - AdMob rewarded
+    /// True when the user has paid to remove ads. Drives the Settings UI.
+    @Published private(set) var isEntitled: Bool
 
-    // MARK: - Initialization
+    /// True when a provider is live and may serve. A banner placement uses this
+    /// to decide whether to reserve space at all, so the layout does not leave
+    /// a 50pt hole for a paid user.
+    @Published private(set) var adsAreServing = false
 
-    private override init() {
-        super.init()
-        checkPremiumStatus()
+    // MARK: - Collaborators
 
-        // Print configuration on initialization
+    private var provider: AdProvider = NoAdsProvider()
+    private var entitlement: EntitlementSource
+    private var consent: AdConsent = .unknown
+
+    private let adsEnabled: Bool
+    private let pacing: AdPacing
+    private let buildProvider: AdProviderBuilder
+
+    // MARK: - Pacing
+
+    private var lastInterstitialAt: Date?
+    private var scenesSinceInterstitial = 0
+
+    /// Counted rather than a flag: two overlapping generations must not let the
+    /// first one to finish re-open the door while the second is still running.
+    private var generationsInFlight = 0
+    private var isShowingError = false
+
+    // MARK: - Init
+
+    /// - Parameters:
+    ///   - entitlement: nil builds the default source. It cannot be a default
+    ///     argument: those are evaluated at the call site in a nonisolated
+    ///     context, which cannot reach a `@MainActor` initializer.
+    ///   - buildProvider: nil uses `AdProviderFactory`. Injectable so the pacing
+    ///     rules can be tested against a provider that does not talk to a network.
+    init(
+        entitlement: EntitlementSource? = nil,
+        providerKind: AdProviderKind = .default,
+        adsEnabled: Bool = AppConfig.adsEnabled,
+        pacing: AdPacing = .fromAppConfig,
+        buildProvider: AdProviderBuilder? = nil
+    ) {
+        let source = entitlement ?? UnpurchasedEntitlement()
+        self.entitlement = source
+        self.adsEnabled = adsEnabled
+        self.pacing = pacing
+        self.buildProvider = buildProvider
+            ?? { serveAds in AdProviderFactory.make(kind: providerKind, serveAds: serveAds) }
+        self.isEntitled = source.isEntitled
+
+        self.entitlement.onEntitlementChange = { [weak self] entitled in
+            self?.entitlementChanged(to: entitled)
+        }
+
         if AppConfig.showAdDebugLogs {
             AppConfig.printConfiguration()
         }
     }
 
-    // MARK: - Public Methods
+    // MARK: - Lifecycle
 
-    /// Initialize both AdMob and Unity Ads
-    func initialize() {
-        logDebug("🎯 AdManager: Initializing...")
-
-        // Check environment flag - ads globally disabled
-        guard AppConfig.adsEnabled else {
-            logDebug("🚫 Ads globally disabled via AppConfig.adsEnabled")
-            return
-        }
-
-        // Check force premium mode
-        if AppConfig.forcePremiumMode {
-            logDebug("💎 Force premium mode enabled - ads disabled")
-            isPremiumUser = true
-            return
-        }
-
-        // Check if premium user (skip ads if true)
-        if isPremiumUser {
-            logDebug("✅ Premium user detected - ads disabled")
-            return
-        }
-
-        // Initialize AdMob (handles all ad types: banner, interstitial, rewarded)
-        initializeAdMob()
-
-        // Load initial rewarded ad
-        loadRewardedAd()
+    /// Start ads once consent has been resolved. Safe to call more than once.
+    ///
+    /// Nothing loads before this, and passing `.unknown` keeps it that way: the
+    /// consent decision gates the first request, not the first impression.
+    func start(consent: AdConsent) async {
+        self.consent = consent
+        await rebuildProvider()
     }
 
-    /// Log debug messages only when debug logs are enabled
-    private func logDebug(_ message: String) {
-        if AppConfig.showAdDebugLogs {
-            print(message)
+    /// The user revisited the consent form, or ATT was answered.
+    func updateConsent(_ consent: AdConsent) async {
+        guard consent != self.consent else { return }
+        self.consent = consent
+        await rebuildProvider()
+    }
+
+    private func rebuildProvider() async {
+        // The single decision about entitlement in the whole app.
+        let serveAds = adsEnabled && !isEntitled && consent.allowsAds
+
+        provider = buildProvider(serveAds)
+        await provider.initialize(consent: consent)
+
+        adsAreServing = provider.isAvailable
+        log("provider=\(provider.name) serving=\(adsAreServing) consent=\(consent)")
+
+        if adsAreServing {
+            await provider.preload(.interstitial)
         }
     }
 
-    // MARK: - Banner Ads (AdMob)
+    private func entitlementChanged(to entitled: Bool) {
+        guard entitled != isEntitled else { return }
 
-    /// Load and return a banner ad view
-    func loadBannerAd(rootViewController: UIViewController) -> BannerView {
-        logDebug("📱 Loading AdMob banner ad...")
-
-        let bannerView = BannerView(adSize: adSizeFor(cgSize: CGSize(width: 320, height: 50)))
-        bannerView.adUnitID = bannerAdUnitID
-        bannerView.rootViewController = rootViewController
-        bannerView.delegate = self
-        bannerView.load(Request())
-
-        self.bannerAdView = bannerView
-        return bannerView
+        isEntitled = entitled
+        log(entitled ? "entitled — ads off" : "entitlement lost — ads on")
+        Task { await rebuildProvider() }
     }
 
-    // MARK: - Interstitial Ads (AdMob)
+    // MARK: - Banner
 
-    /// Preload an interstitial ad
-    func loadInterstitialAd() {
-        guard !isPremiumUser else { return }
-
-        logDebug("📺 Loading AdMob interstitial ad...")
-
-        let request = Request()
-        InterstitialAd.load(
-            with: interstitialAdUnitID,
-            request: request
-        ) { [weak self] ad, error in
-            if let error = error {
-                self?.logDebug("❌ Failed to load interstitial ad: \(error.localizedDescription)")
-                return
-            }
-
-            self?.interstitialAd = ad
-            self?.interstitialAd?.fullScreenContentDelegate = self
-            self?.logDebug("✅ Interstitial ad loaded successfully")
-        }
+    /// The banner to place, or nil when there is none.
+    func bannerView() -> AnyView? {
+        provider.bannerView()
     }
 
-    /// Show interstitial ad if conditions are met
-    func showInterstitialAd(from viewController: UIViewController, onAdClosed: @escaping () -> Void) {
-        guard !isPremiumUser else {
-            print("⏭️ Premium user - skipping interstitial ad")
-            onAdClosed()
-            return
+    // MARK: - Restraint
+
+    /// Call when a generation starts. An interstitial landing on someone waiting
+    /// on a slow reasoning model reads as a broken app, not as an ad.
+    func generationBegan() {
+        generationsInFlight += 1
+    }
+
+    /// Call when a generation finishes, fails, or is cancelled.
+    func generationEnded() {
+        generationsInFlight = max(0, generationsInFlight - 1)
+    }
+
+    /// Call when an error becomes visible or is dismissed. An ad must never
+    /// cover the explanation of what just went wrong.
+    func setErrorVisible(_ visible: Bool) {
+        isShowingError = visible
+    }
+
+    // MARK: - Interstitials
+
+    /// Count a completed scene run, and show an interstitial if every pacing
+    /// rule allows it.
+    ///
+    /// - Returns: true only when an ad was actually shown.
+    @discardableResult
+    func onSceneRun() async -> Bool {
+        guard adsAreServing else { return false }
+
+        scenesSinceInterstitial += 1
+        guard isInterstitialDue else {
+            log("scene \(scenesSinceInterstitial)/\(pacing.scenesBeforeInterstitial)")
+            return false
         }
 
-        // Check frequency cap
-        if let lastShown = lastInterstitialShown,
-           Date().timeIntervalSince(lastShown) < minInterstitialInterval {
-            let timeRemaining = minInterstitialInterval - Date().timeIntervalSince(lastShown)
-            print("⏱️ Too soon to show interstitial ad (wait \(Int(timeRemaining))s)")
-            onAdClosed()
-            return
-        }
-
-        // Show ad if loaded
-        if let ad = interstitialAd {
-            ad.present(from: viewController)
-            lastInterstitialShown = Date()
-            print("✅ Showing interstitial ad")
-
-            // Store completion handler
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                onAdClosed()
-            }
-
-            // Preload next ad
-            loadInterstitialAd()
+        let shown = await provider.showInterstitial(from: UIApplication.shared.topMostViewController)
+        if shown {
+            lastInterstitialAt = Date()
+            scenesSinceInterstitial = 0
+            log("interstitial shown")
         } else {
-            print("⚠️ Interstitial ad not ready")
-            onAdClosed()
-            loadInterstitialAd() // Try to load for next time
+            // Not ready, or nothing to serve. The counter deliberately stays up
+            // so the next run tries again instead of waiting another full cycle.
+            log("interstitial due but none available")
         }
+        return shown
     }
 
-    // MARK: - Rewarded Video Ads (AdMob)
+    /// Every rule that has to hold before an interstitial may appear.
+    private var isInterstitialDue: Bool {
+        guard generationsInFlight == 0 else { return false }
+        guard !isShowingError else { return false }
+        guard scenesSinceInterstitial >= pacing.scenesBeforeInterstitial else { return false }
 
-    /// Load a rewarded ad
-    func loadRewardedAd() {
-        guard !isPremiumUser else { return }
-
-        logDebug("🎬 Loading AdMob rewarded ad...")
-
-        let request = Request()
-        RewardedAd.load(
-            with: rewardedAdUnitID,
-            request: request
-        ) { [weak self] ad, error in
-            if let error = error {
-                self?.logDebug("❌ Failed to load rewarded ad: \(error.localizedDescription)")
-                return
-            }
-
-            self?.rewardedAd = ad
-            self?.rewardedAd?.fullScreenContentDelegate = self
-            self?.logDebug("✅ Rewarded ad loaded successfully")
+        if let last = lastInterstitialAt,
+           Date().timeIntervalSince(last) < pacing.minimumInterval {
+            return false
         }
+        return true
     }
 
-    /// Show rewarded video ad (AdMob)
-    func showRewardedAd(from viewController: UIViewController, rewardType: RewardType, onRewardEarned: @escaping (Bool) -> Void) {
-        guard !isPremiumUser else {
-            logDebug("⏭️ Premium user - granting reward directly")
-            onRewardEarned(true)
-            return
-        }
+    // MARK: - Internals
 
-        logDebug("🎬 Attempting to show AdMob rewarded ad...")
-
-        if let ad = rewardedAd {
-            ad.present(from: viewController, userDidEarnRewardHandler: {
-                let reward = ad.adReward
-                self.logDebug("✅ User earned reward: \(reward.amount) \(reward.type)")
-                onRewardEarned(true)
-
-                // Preload next rewarded ad
-                self.loadRewardedAd()
-            })
-        } else {
-            logDebug("⚠️ AdMob rewarded ad not ready")
-            onRewardEarned(false)
-            loadRewardedAd() // Try to load for next time
-        }
-    }
-
-    // MARK: - Ad Frequency Logic
-
-    /// Call this when a scene is run to track ad frequency
-    func onSceneRun() {
-        guard !isPremiumUser else { return }
-
-        scenesRunSinceLastAd += 1
-        print("📊 Scenes run since last ad: \(scenesRunSinceLastAd)/\(scenesBeforeInterstitial)")
-
-        // Note: The actual showing of the ad should be triggered from the view controller
-        // This just tracks the count
-    }
-
-    /// Check if it's time to show an interstitial ad
-    func shouldShowInterstitial() -> Bool {
-        guard !isPremiumUser else { return false }
-
-        let frequencyCheck = scenesRunSinceLastAd >= scenesBeforeInterstitial
-        let timeCheck = lastInterstitialShown == nil ||
-            Date().timeIntervalSince(lastInterstitialShown!) >= minInterstitialInterval
-
-        return frequencyCheck && timeCheck
-    }
-
-    /// Reset scene counter after showing ad
-    func resetSceneCounter() {
-        scenesRunSinceLastAd = 0
-    }
-
-    // MARK: - Premium Status
-
-    private func checkPremiumStatus() {
-        // Load premium status from UserDefaults
-        isPremiumUser = UserDefaults.standard.bool(forKey: "XRAiAssistant_IsPremium")
-        print("💎 Premium status: \(isPremiumUser ? "ACTIVE" : "FREE")")
-    }
-
-    func setPremiumStatus(_ isPremium: Bool) {
-        isPremiumUser = isPremium
-        UserDefaults.standard.set(isPremium, forKey: "XRAiAssistant_IsPremium")
-
-        if isPremium {
-            print("💎 Premium activated - removing ads")
-            // Remove banner ad
-            bannerAdView?.removeFromSuperview()
-            bannerAdView = nil
-            // Clear loaded ads
-            interstitialAd = nil
-            rewardedAd = nil
-        } else {
-            print("🆓 Switched to free tier - ads enabled")
-        }
-    }
-
-    // MARK: - Private Initialization Helpers
-
-    private func initializeAdMob() {
-        MobileAds.shared.start { status in
-            self.logDebug("✅ AdMob initialized")
-            self.logDebug("📊 AdMob adapter statuses:")
-            for (key, value) in status.adapterStatusesByClassName {
-                let state = value.state.rawValue
-                self.logDebug("   • \(key): \(state == 1 ? "Ready" : "Not Ready")")
-            }
-
-            // Preload first interstitial ad
-            self.loadInterstitialAd()
-            // Preload first rewarded ad
-            self.loadRewardedAd()
-        }
-    }
-}
-
-// MARK: - AdMob Banner Delegate
-
-extension AdManager: BannerViewDelegate {
-    func bannerViewDidReceiveAd(_ bannerView: BannerView) {
-        logDebug("✅ Banner ad received")
-    }
-
-    func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
-        logDebug("❌ Banner ad failed: \(error.localizedDescription)")
-    }
-
-    func bannerViewDidRecordClick(_ bannerView: BannerView) {
-        logDebug("👆 Banner ad clicked")
-    }
-}
-
-// MARK: - AdMob Interstitial Delegate
-
-extension AdManager: FullScreenContentDelegate {
-    func adDidRecordImpression(_ ad: FullScreenPresentingAd) {
-        logDebug("📊 Interstitial ad impression recorded")
-    }
-
-    func adDidRecordClick(_ ad: FullScreenPresentingAd) {
-        logDebug("👆 Interstitial ad clicked")
-    }
-
-    func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
-        logDebug("❌ Interstitial ad failed to present: \(error.localizedDescription)")
-    }
-
-    func adWillDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
-        logDebug("⏹️ Interstitial ad will dismiss")
-    }
-
-    func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
-        logDebug("✅ Interstitial ad dismissed")
-        // Ad is dismissed, completion handler already called
-    }
-}
-
-// MARK: - Reward Types
-
-enum RewardType {
-    case premiumModelAccess  // Unlock 1 premium AI model usage
-    case advancedExport      // Unlock advanced export format
-    case cloudSync           // Unlock cloud sync feature
-    case unlimitedFavorites  // Unlock unlimited favorites temporarily
-
-    var displayName: String {
-        switch self {
-        case .premiumModelAccess: return "Premium AI Model Access"
-        case .advancedExport: return "Advanced Export"
-        case .cloudSync: return "Cloud Sync"
-        case .unlimitedFavorites: return "Unlimited Favorites"
-        }
-    }
-
-    var description: String {
-        switch self {
-        case .premiumModelAccess:
-            return "Unlock GPT-5.2, Claude Opus 4, or Gemini 2.5 Pro for one use"
-        case .advancedExport:
-            return "Export your scene to GLB, FBX, or USD format"
-        case .cloudSync:
-            return "Sync your conversations across all devices"
-        case .unlimitedFavorites:
-            return "Save unlimited favorite scenes for 24 hours"
-        }
+    private func log(_ message: String) {
+        if AppConfig.showAdDebugLogs { print("🎯 Ads: \(message)") }
     }
 }

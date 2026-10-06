@@ -240,17 +240,18 @@ struct EnhancedChatView: View {
                 }
             }) {
                 HStack(spacing: 4) {
+                    // System .purple is not in the palette; the brand has one
+                    // accent.
                     Image(systemName: "book.circle")
-                        .foregroundColor(.purple)
+                        .foregroundColor(.brandAccent)
                         .font(.caption)
                     Text("Docs")
                         .font(.caption)
-                        .foregroundColor(.purple)
+                        .foregroundColor(.brandAccent)
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color.purple.opacity(0.1))
-                .cornerRadius(6)
+                .background(Color.brandAccent.opacity(0.12))
             }
         }
         .padding(.horizontal, 16)
@@ -453,10 +454,15 @@ struct EnhancedChatView: View {
             if message.isUser {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 4) {
+                    // Solid accent fill, not a glass panel. glassCard tints with
+                    // the surface tone, which is pale in light mode, and the
+                    // bubble's text is white — so the sent message was white on
+                    // near-white and effectively unreadable.
                     MarkdownMessageView(content: message.content, isUser: true)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: 600, alignment: .trailing)
-                        .glassCard(accentColor: .neonBlue, cornerRadius: 18)
+                        .padding(12)
+                        .frame(maxWidth: 600, alignment: .leading)
+                        .background(Color.brandAccent)
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
 
                     Text(formatTime(message.timestamp))
                         .font(.caption2)
@@ -465,9 +471,10 @@ struct EnhancedChatView: View {
             } else {
                 VStack(alignment: .leading, spacing: 6) {
                     MarkdownMessageView(content: message.content, isUser: false)
-                        .foregroundColor(.cyberpunkWhite)
+                        .padding(12)
                         .frame(maxWidth: 600, alignment: .leading)
-                        .glassCard(accentColor: .neonCyan, cornerRadius: 18)
+                        .background(Color.brandSurface)
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
 
                     // Timestamp and action buttons
                     HStack(spacing: 12) {
