@@ -7,7 +7,7 @@ class CodeSandboxAPIClient {
     
     private let apiBaseURL = "https://codesandbox.io/api/v1"
     private var apiKey: String? {
-        return UserDefaults.standard.string(forKey: "XRAiAssistant_CodeSandboxAPIKey")
+        return APIKeyStore.key(for: "CodeSandbox")
     }
     
     private init() {}

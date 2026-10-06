@@ -1471,9 +1471,6 @@ class ChatViewModel: ObservableObject {
     func saveSettings() {
         print("💾 Saving settings to UserDefaults...")
         
-        // Save legacy API key for backwards compatibility
-        UserDefaults.standard.set(apiKey, forKey: "XRAiAssistant_APIKey")
-        
         // Save general settings
         UserDefaults.standard.set(systemPrompt, forKey: "XRAiAssistant_SystemPrompt")
         UserDefaults.standard.set(selectedModel, forKey: "XRAiAssistant_SelectedModel")
@@ -1481,10 +1478,9 @@ class ChatViewModel: ObservableObject {
         UserDefaults.standard.set(topP, forKey: "XRAiAssistant_TopP")
         UserDefaults.standard.set(effort.rawValue, forKey: "XRAiAssistant_Effort")
 
-        // Save CodeSandbox API key
-        let codeSandboxKey = aiProviderManager.getAPIKey(for: "CodeSandbox")
-        UserDefaults.standard.set(codeSandboxKey, forKey: "XRAiAssistant_CodeSandboxAPIKey")
-        
+        // API keys, CodeSandbox's included, are kept in the Keychain by
+        // AIProviderManager; nothing key-related goes into UserDefaults.
+
         // Update AI services with new API key if it changed
         updateAPIKey(apiKey)
         
@@ -1499,25 +1495,10 @@ class ChatViewModel: ObservableObject {
 
         
         // Load API key (keep default if not found)
-        let savedAPIKey = UserDefaults.standard.string(forKey: "XRAiAssistant_APIKey") ?? DEFAULT_API_KEY
-        if savedAPIKey != DEFAULT_API_KEY {
-            apiKey = savedAPIKey
-            // Migrate legacy API key to new provider system
-            aiProviderManager.setAPIKey(for: "Together.ai", key: savedAPIKey)
-            print("🔑 Loaded and migrated saved API key: \(String(savedAPIKey.prefix(10)))...")
-        } else {
-            // Check if the new provider system has a key
-            let newProviderKey = aiProviderManager.getAPIKey(for: "Together.ai")
-            if newProviderKey != "changeMe" {
-                // Use key from new provider system
-                apiKey = newProviderKey
-                print("🔑 Using API key from new provider system: \(String(newProviderKey.prefix(10)))...")
-            } else {
-                // Make sure the new provider system knows about the default key
-                aiProviderManager.setAPIKey(for: "Together.ai", key: DEFAULT_API_KEY)
-                print("🔑 Using default API key")
-            }
-        }
+        // The legacy single key was moved into the Keychain by APIKeyStore when
+        // AIProviderManager loaded; mirror Together.ai's key into `apiKey`.
+        let togetherKey = aiProviderManager.getAPIKey(for: "Together.ai")
+        apiKey = togetherKey != "changeMe" ? togetherKey : DEFAULT_API_KEY
         
         // Load system prompt (keep default if not found)
         if let savedSystemPrompt = UserDefaults.standard.string(forKey: "XRAiAssistant_SystemPrompt"), !savedSystemPrompt.isEmpty {
@@ -1574,13 +1555,6 @@ class ChatViewModel: ObservableObject {
            let parsed = AIEffort(rawValue: savedEffort) {
             effort = parsed
             print("🧠 Loaded saved effort: \(parsed.displayName)")
-        }
-        
-        // Load CodeSandbox API key
-        let savedCodeSandboxKey = UserDefaults.standard.string(forKey: "XRAiAssistant_CodeSandboxAPIKey") ?? ""
-        aiProviderManager.setAPIKey(for: "CodeSandbox", key: savedCodeSandboxKey)
-        if !savedCodeSandboxKey.isEmpty {
-            print("🏗️ Loaded CodeSandbox API key: \(String(savedCodeSandboxKey.prefix(10)))...")
         }
         
         // Update AI services with loaded API key

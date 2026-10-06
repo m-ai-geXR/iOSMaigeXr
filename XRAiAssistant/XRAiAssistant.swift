@@ -21,6 +21,10 @@ struct XRAiAssistant: App {
             } else {
                 print("✅ Database already migrated to SQLite")
             }
+
+            // API keys belong in the Keychain. Remove any copies the migrator
+            // wrote to SQLite before that change; harmless when there are none.
+            try? await DatabaseManager.shared.deleteSettings(withPrefix: APIKeyStore.legacySQLiteKeyPrefix)
         }
     }
 

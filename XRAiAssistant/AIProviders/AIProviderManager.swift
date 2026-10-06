@@ -121,24 +121,23 @@ class AIProviderManager: ObservableObject {
     
     // MARK: - Persistence
     
+    // Keys live in the Keychain (APIKeyStore), never in UserDefaults or SQLite.
     private func saveAPIKeys() {
         for (provider, key) in apiKeys {
-            UserDefaults.standard.set(key, forKey: "XRAiAssistant_APIKey_\(provider)")
+            APIKeyStore.setKey(key, for: provider)
         }
-        print("💾 Saved API keys for \(apiKeys.count) providers")
     }
-    
+
     private func loadAPIKeys() {
+        APIKeyStore.migrateLegacyStorage()
         for provider in providers {
-            let key = UserDefaults.standard.string(forKey: "XRAiAssistant_APIKey_\(provider.name)") ?? "changeMe"
+            let key = APIKeyStore.key(for: provider.name) ?? "changeMe"
             apiKeys[provider.name] = key
-            
             if key != "changeMe" {
                 provider.configure(apiKey: key)
-                print("🔑 Loaded API key for \(provider.name): \(String(key.prefix(10)))...")
             }
         }
-        print("📂 Loaded API keys for \(providers.count) providers")
+        apiKeys["CodeSandbox"] = APIKeyStore.key(for: "CodeSandbox") ?? ""
     }
     
     func isProviderConfigured(_ provider: String) -> Bool {

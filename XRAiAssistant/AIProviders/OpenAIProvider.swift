@@ -77,7 +77,7 @@ class OpenAIProvider: AIProvider {
     
     func configure(apiKey: String) {
         self.apiKey = apiKey
-        print("🔧 OpenAI provider configured with API key: \(String(apiKey.prefix(10)))...")
+        print("🔧 OpenAI provider configured")
     }
     
     func generateResponse(

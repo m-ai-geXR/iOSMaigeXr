@@ -18,7 +18,7 @@ extension ChatViewModel {
             let db = DatabaseManager.shared
 
             // Save general settings
-            try await db.saveSetting(key: "XRAiAssistant_APIKey", value: apiKey)
+            // API keys are not settings: they live in the Keychain (APIKeyStore).
             try await db.saveSetting(key: "XRAiAssistant_SystemPrompt", value: systemPrompt)
             try await db.saveSetting(key: "XRAiAssistant_SelectedModel", value: selectedModel)
             try await db.saveSetting(key: "XRAiAssistant_Temperature", value: temperature)
@@ -40,26 +40,10 @@ extension ChatViewModel {
         do {
             let db = DatabaseManager.shared
 
-            // Load API key
-            if let savedAPIKey = try await db.loadSetting(key: "XRAiAssistant_APIKey") as? String,
-               savedAPIKey != DEFAULT_API_KEY {
-                await MainActor.run {
-                    apiKey = savedAPIKey
-                    aiProviderManager.setAPIKey(for: "Together.ai", key: savedAPIKey)
-                }
-                print("🔑 Loaded saved API key: \(String(savedAPIKey.prefix(10)))...")
-            } else {
-                // Check provider system
-                await MainActor.run {
-                    let newProviderKey = aiProviderManager.getAPIKey(for: "Together.ai")
-                    if newProviderKey != "changeMe" {
-                        apiKey = newProviderKey
-                        print("🔑 Using API key from provider system: \(String(newProviderKey.prefix(10)))...")
-                    } else {
-                        aiProviderManager.setAPIKey(for: "Together.ai", key: DEFAULT_API_KEY)
-                        print("🔑 Using default API key")
-                    }
-                }
+            // API keys come from the Keychain via AIProviderManager, not SQLite.
+            await MainActor.run {
+                let togetherKey = aiProviderManager.getAPIKey(for: "Together.ai")
+                apiKey = togetherKey != "changeMe" ? togetherKey : DEFAULT_API_KEY
             }
 
             // Load system prompt

@@ -57,7 +57,7 @@ class GoogleAIProvider: AIProvider {
 
     func configure(apiKey: String) {
         self.apiKey = apiKey
-        print("🔧 Google AI provider configured with API key: \(String(apiKey.prefix(10)))...")
+        print("🔧 Google AI provider configured")
     }
 
     func generateResponse(

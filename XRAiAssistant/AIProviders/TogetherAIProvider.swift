@@ -61,7 +61,7 @@ class TogetherAIProvider: AIProvider {
         self.togetherAIService = AIProxy.togetherAIDirectService(
             unprotectedAPIKey: apiKey
         )
-        print("🔧 Together.ai provider configured with API key: \(String(apiKey.prefix(10)))...")
+        print("🔧 Together.ai provider configured")
     }
     
     func generateResponse(
