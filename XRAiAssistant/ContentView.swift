@@ -177,147 +177,82 @@ struct ContentView: View {
     }
     
     private var apiConfigurationSection: some View {
-        Section("AI Provider API Keys") {
-            VStack(spacing: 16) {
-                // Together.ai API Key
-                providerAPIKeyView(
-                    provider: "Together.ai",
-                    description: "Get your API key from together.ai",
-                    color: .neonBlue
-                )
-
-                // OpenAI API Key
-                providerAPIKeyView(
-                    provider: "OpenAI",
-                    description: "Get your API key from platform.openai.com",
-                    color: .neonGreen
-                )
-
-                // Anthropic API Key
-                providerAPIKeyView(
-                    provider: "Anthropic",
-                    description: "Get your API key from console.anthropic.com",
-                    color: .neonPurple
-                )
-
-                // Google AI API Key
-                providerAPIKeyView(
-                    provider: "Google AI",
-                    description: "Get your API key from aistudio.google.com/apikey",
-                    color: .warningNeon
-                )
-
-                // xAI API Key
-                providerAPIKeyView(
-                    provider: "xAI",
-                    description: "Get your API key from console.x.ai",
-                    color: .neonPink
-                )
-
-                // CodeSandbox API Key (Optional)
-                codeSandboxAPIKeyView()
-            }
-            .padding(.vertical, 4)
+        Section {
+            providerAPIKeyView(provider: "Together.ai", description: "Get a key at together.ai")
+            providerAPIKeyView(provider: "OpenAI", description: "Get a key at platform.openai.com")
+            providerAPIKeyView(provider: "Anthropic", description: "Get a key at console.anthropic.com")
+            providerAPIKeyView(provider: "Google AI", description: "Get a key at aistudio.google.com/apikey")
+            providerAPIKeyView(provider: "xAI", description: "Get a key at console.x.ai")
+            codeSandboxAPIKeyView()
+        } header: {
+            Text("AI Provider API Keys")
+        } footer: {
+            Text("Keys stay on this device and are sent only to the provider they belong to.")
         }
     }
-    
-    private func providerAPIKeyView(provider: String, description: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("\(provider) API Key")
-                .font(.headline)
-                .foregroundColor(color)
 
-            SecureField("Enter your \(provider) API key", text: Binding(
-                get: { chatViewModel.getAPIKey(for: provider) },
+    /// One provider per row: name and status, the key field, where to get a key.
+    /// The unset placeholder value shows as an empty field, not as masked dots.
+    private func providerAPIKeyView(provider: String, description: String) -> some View {
+        let configured = chatViewModel.isProviderConfigured(provider)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(provider)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.brandText)
+                Spacer()
+                KeyStatusLabel(isSet: configured)
+            }
+
+            SecureField("Paste your \(provider) key", text: Binding(
+                get: {
+                    let key = chatViewModel.getAPIKey(for: provider)
+                    return key == DEFAULT_API_KEY ? "" : key
+                },
                 set: { chatViewModel.setAPIKey(for: provider, key: $0) }
             ))
-            .padding(12)
-            .background(Color.cyberpunkDarkGray)
-            .cornerRadius(8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(color, lineWidth: 1.5)
-            )
-            .neonInputGlow(color: color)
+            .textContentType(.password)
+            .padding(.horizontal, 12)
+            .frame(height: 40)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.brandSurface))
 
-            HStack {
-                Text(description)
-                    .font(.caption)
-                    .foregroundColor(.cyberpunkGray)
-
-                Spacer()
-
-                if chatViewModel.isProviderConfigured(provider) {
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(color)
-                        Text("Configured")
-                            .font(.caption)
-                            .foregroundColor(color)
-                    }
-                } else {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.warningNeon)
-                        Text("API key required")
-                            .font(.caption)
-                            .foregroundColor(.warningNeon)
-                    }
-                }
-            }
+            Text(description)
+                .font(.caption)
+                .foregroundColor(.brandMuted)
         }
-        .padding(16)
-        .background(Color.cyberpunkDarkGray)
-        .neonBorder(color: color, width: 1.5, glowRadius: 8)
-        .background(color.opacity(0.05))
-        .cornerRadius(8)
+        .padding(.vertical, 6)
     }
-    
+
     private func codeSandboxAPIKeyView() -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("CodeSandbox API Key (Optional)")
-                .font(.headline)
-                .foregroundColor(.primary)
-            
-            SecureField("Enter your CodeSandbox API key", text: Binding(
-                get: { chatViewModel.getAPIKey(for: "CodeSandbox") },
+        let key = chatViewModel.getAPIKey(for: "CodeSandbox")
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("CodeSandbox")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.brandText)
+                Text("Optional")
+                    .font(.caption2.weight(.medium))
+                    .foregroundColor(.brandMuted)
+                Spacer()
+                KeyStatusLabel(isSet: !key.isEmpty && key != DEFAULT_API_KEY)
+            }
+
+            SecureField("Paste your CodeSandbox key", text: Binding(
+                get: { key == DEFAULT_API_KEY ? "" : key },
                 set: { chatViewModel.setAPIKey(for: "CodeSandbox", key: $0) }
             ))
-            .textFieldStyle(RoundedBorderTextFieldStyle())
-            
-            HStack {
-                Text("Enables advanced CodeSandbox features and deployment")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                
-                Spacer()
-                
-                let codeSandboxKey = chatViewModel.getAPIKey(for: "CodeSandbox")
-                if !codeSandboxKey.isEmpty {
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.orange)
-                        Text("Configured")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                    }
-                } else {
-                    HStack {
-                        Image(systemName: "info.circle")
-                            .foregroundColor(.blue)
-                        Text("Optional - basic features work without API key")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                    }
-                }
-            }
+            .textContentType(.password)
+            .padding(.horizontal, 12)
+            .frame(height: 40)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.brandSurface))
+
+            Text("Adds deployment features. React scenes build without it.")
+                .font(.caption)
+                .foregroundColor(.brandMuted)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 8)
-        .background(Color.orange.opacity(0.05))
-        .cornerRadius(8)
+        .padding(.vertical, 6)
     }
-    
+
     private var appearanceSection: some View {
         Section("Appearance") {
             Picker("Theme", selection: $appearanceStore.appearance) {
@@ -1476,17 +1411,17 @@ struct ContentView: View {
                         }
                     }
                 }) {
-                    VStack(spacing: 4) {
+                    VStack(spacing: 3) {
                         Image(systemName: currentView == .chat ? "bubble.left.fill" : "bubble.left")
+                            .font(.system(size: 19, weight: .medium))
+                            .foregroundColor(currentView == .chat ? .brandAccentText : .brandMuted)
                         MaigeXRBrandText(isActive: currentView == .chat)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
                 }
-                
-                Divider()
-                    .frame(height: 30)
-                
+                                
                 // Run Scene Tab
                 Button(action: {
                     print("🎯 Run Scene button clicked (currentView: \(currentView == .scene ? "scene" : "chat"))")
@@ -1549,71 +1484,64 @@ struct ContentView: View {
                         }
                     }
                 }) {
-                    VStack(spacing: 4) {
-                        ZStack {
+                    VStack(spacing: 3) {
+                        ZStack(alignment: .topTrailing) {
                             Image(systemName: currentView == .scene ? "play.circle.fill" : "play.circle")
+                                .font(.system(size: 19, weight: .medium))
 
-                            // Show notification dot if code is ready
+                            // New code waiting to run.
                             if !lastGeneratedCode.isEmpty && currentView != .scene {
                                 Circle()
-                                    .fill(Color.neonPink)
-                                    .frame(width: 8, height: 8)
-                                    .shadow(color: .neonPinkGlow, radius: 4)
-                                    .offset(x: 8, y: -8)
+                                    .fill(Color.brandAccent)
+                                    .frame(width: 7, height: 7)
+                                    .offset(x: 3, y: -1)
                             }
                         }
                         Text("Run Scene")
-                            .font(.caption)
+                            .font(.caption2.weight(.medium))
                     }
-                    .foregroundColor(currentView == .scene ? .neonPink : (!lastGeneratedCode.isEmpty ? .neonCyan : .cyberpunkGray))
+                    .foregroundColor(currentView == .scene ? .brandAccentText : .brandMuted)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
                 }
                 
-                Divider()
-                    .frame(height: 30)
-
                 // Examples Button
                 Button(action: {
                     showingExamples = true
                 }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "book.fill")
+                    VStack(spacing: 3) {
+                        Image(systemName: "book")
+                            .font(.system(size: 19, weight: .medium))
                         Text("Examples")
-                            .font(.caption)
+                            .font(.caption2.weight(.medium))
                     }
-                    .foregroundColor(.gray)
+                    .foregroundColor(.brandMuted)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
                 }
-
-                Divider()
-                    .frame(height: 30)
 
                 // Settings Button
                 Button(action: {
                     showingSettings = true
                 }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "gearshape.fill")
+                    VStack(spacing: 3) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 19, weight: .medium))
                         Text("Settings")
-                            .font(.caption)
+                            .font(.caption2.weight(.medium))
                     }
-                    .foregroundColor(.gray)
+                    .foregroundColor(.brandMuted)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(Color.cyberpunkBlack)
-            .overlay(
-                Rectangle()
-                    .fill(Color.neonCyan)
-                    .frame(height: 2)
-                    .shadow(color: .neonCyanGlow, radius: 4, x: 0, y: 0),
-                alignment: .top
-            )
+            .padding(.top, 4)
+            .background(Color.brandBackground)
+            .overlay(Hairline(), alignment: .top)
             .onChange(of: showingSettings) { isShowing in
             if !isShowing {
                 settingsSaved = false
@@ -1622,6 +1550,12 @@ struct ContentView: View {
         .onAppear {
             setupChatCallbacks()
             loadContentViewSettings()
+            switch DebugLaunch.screen {
+            case "scene": currentView = .scene
+            case "examples": showingExamples = true
+            case "settings": showingSettings = true
+            default: break
+            }
         }
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
@@ -2594,4 +2528,14 @@ struct ShareSheet: UIViewControllerRepresentable {
 
 #Preview {
     ContentView()
+}
+/// "Configured" in the success colour, or a quiet "Not set".
+private struct KeyStatusLabel: View {
+    let isSet: Bool
+
+    var body: some View {
+        Label(isSet ? "Configured" : "Not set", systemImage: isSet ? "checkmark.circle.fill" : "circle.dashed")
+            .font(.caption.weight(.medium))
+            .foregroundColor(isSet ? .brandSuccess : .brandMuted)
+    }
 }

@@ -161,7 +161,7 @@ struct EnhancedChatView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showFavorites = true }) {
                         Image(systemName: "star")
-                            .foregroundColor(.warningNeon)
+                            .foregroundColor(.brandAccentText)
                     }
                 }
 
@@ -189,6 +189,13 @@ struct EnhancedChatView: View {
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
+                }
+            }
+            .onAppear {
+                switch DebugLaunch.screen {
+                case "history": showHistory = true
+                case "favorites": showFavorites = true
+                default: break
                 }
             }
             .sheet(isPresented: $showHistory) {
@@ -230,56 +237,35 @@ struct EnhancedChatView: View {
     // MARK: - Model and Library Header (broken into sub-views for compiler)
 
     private var modelAndLibraryHeader: some View {
-        HStack(spacing: 12) {
-            modelSelectorView
-            librarySelectorView
-            Spacer()
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                modelSelectorView
+                librarySelectorView
+                Spacer()
 
-            // Documentation button
-            Button(action: {
-                let currentLibrary = viewModel.libraryManager.selectedLibrary
-                if let url = URL(string: currentLibrary.documentationURL) {
-                    UIApplication.shared.open(url)
+                // Documentation for the current library.
+                Button(action: {
+                    let currentLibrary = viewModel.libraryManager.selectedLibrary
+                    if let url = URL(string: currentLibrary.documentationURL) {
+                        UIApplication.shared.open(url)
+                    }
+                }) {
+                    Image(systemName: "book")
                 }
-            }) {
-                HStack(spacing: 4) {
-                    // System .purple is not in the palette; the brand has one
-                    // accent.
-                    Image(systemName: "book.circle")
-                        .foregroundColor(.brandAccentText)
-                        .font(.caption)
-                    Text("Docs")
-                        .font(.caption)
-                        .foregroundColor(.brandAccentText)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.brandAccent.opacity(0.12))
+                .buttonStyle(CompactIconButtonStyle(tint: .brandAccentText))
+                .accessibilityLabel("\(viewModel.libraryManager.selectedLibrary.displayName) documentation")
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+
+            Hairline()
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color(.systemBackground))
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color(.separator)),
-            alignment: .bottom
-        )
+        .background(Color.brandBackground)
     }
 
     private var modelSelectorView: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "cpu")
-                .foregroundColor(.gray)
-                .font(.caption)
-
-            Text("Model:")
-                .font(.caption)
-                .foregroundColor(.gray)
-
-            modelMenuView
-        }
+        modelMenuView
+            .accessibilityLabel("Model: \(viewModel.getModelDisplayName(viewModel.selectedModel))")
     }
 
     private var modelMenuView: some View {
@@ -341,36 +327,12 @@ struct EnhancedChatView: View {
     }
 
     private var modelMenuLabel: some View {
-        HStack(spacing: 4) {
-            Text(viewModel.getModelDisplayName(viewModel.selectedModel))
-                .font(.caption)
-                .foregroundColor(.blue)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: 90)
-            Image(systemName: "chevron.down")
-                .font(.caption2)
-                .foregroundColor(.blue)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(Color.blue.opacity(0.1))
-        .cornerRadius(6)
-        .fixedSize(horizontal: false, vertical: true)
+        PillLabel(icon: "cpu", text: viewModel.getModelDisplayName(viewModel.selectedModel))
     }
 
     private var librarySelectorView: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "cube.box")
-                .foregroundColor(.gray)
-                .font(.caption)
-
-            Text("Library:")
-                .font(.caption)
-                .foregroundColor(.gray)
-
-            libraryMenuView
-        }
+        libraryMenuView
+            .accessibilityLabel("Library: \(viewModel.libraryManager.selectedLibrary.displayName)")
     }
 
     private var libraryMenuView: some View {
@@ -396,22 +358,7 @@ struct EnhancedChatView: View {
     }
 
     private var libraryMenuLabel: some View {
-        HStack(spacing: 4) {
-            Text(viewModel.libraryManager.selectedLibrary.displayName)
-                .font(.caption)
-                .foregroundColor(.blue)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: 80)
-            Image(systemName: "chevron.down")
-                .font(.caption2)
-                .foregroundColor(.blue)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(Color.blue.opacity(0.1))
-        .cornerRadius(6)
-        .fixedSize(horizontal: false, vertical: true)
+        PillLabel(icon: "cube", text: viewModel.libraryManager.selectedLibrary.displayName)
     }
 
     private func conversationHeaderView(_ conversation: Conversation) -> some View {
@@ -538,7 +485,7 @@ struct EnhancedChatView: View {
                             }) {
                                 Image(systemName: isFavorited(message.id) ? "star.fill" : "star")
                                     .font(.caption)
-                                    .foregroundColor(isFavorited(message.id) ? .warningNeon : .cyberpunkGray)
+                                    .foregroundColor(isFavorited(message.id) ? .brandAccentText : .brandMuted)
                             }
                         }
                     }
@@ -686,53 +633,52 @@ struct EnhancedChatView: View {
                 .background(Color(.systemGray5))
             }
 
-            // Input row
-            HStack(spacing: 8) {
-                // Image picker button
+            Hairline()
+
+            // Input row: attach on the left, then one rounded field with the send
+            // button inside it, the way Messages lays it out.
+            HStack(alignment: .bottom, spacing: 8) {
                 PhotosPicker(selection: $selectedPhotos, maxSelectionCount: 5, matching: .images) {
                     Image(systemName: selectedImages.isEmpty ? "photo.on.rectangle" : "photo.on.rectangle.fill")
-                        .foregroundColor(selectedImages.isEmpty ? .gray : .blue)
-                        .font(.system(size: 20))
-                        .padding(8)
                 }
+                .buttonStyle(CompactIconButtonStyle(tint: selectedImages.isEmpty ? .brandMuted : .brandAccentText))
+                .accessibilityLabel("Attach images")
+                .padding(.bottom, 4)
                 .onChange(of: selectedPhotos) { newItems in
                     Task {
                         await loadSelectedImages(from: newItems)
                     }
                 }
 
-                TextField("Type a message...", text: $inputText, axis: .vertical)
-                    .glassInput(accentColor: .neonCyan)
-                    .submitLabel(.send)
-                    .onSubmit {
-                        sendMessage()
-                    }
-                    .lineLimit(1...5)
+                HStack(alignment: .bottom, spacing: 6) {
+                    TextField("Describe a scene…", text: $inputText, axis: .vertical)
+                        .font(.body)
+                        .submitLabel(.send)
+                        .onSubmit {
+                            sendMessage()
+                        }
+                        .lineLimit(1...5)
+                        .padding(.vertical, 9)
 
-                Button(action: sendMessage) {
-                    Image(systemName: "paperplane.fill")
-                        .font(.title3)
-                        .foregroundColor(.white)
-                        .frame(width: 44, height: 44)
-                        .background(
-                            Circle()
-                                .fill(inputText.isEmpty ? Color.cyberpunkDimGray : Color.neonPink)
-                        )
-                        .neonButtonGlow(color: inputText.isEmpty ? .clear : .neonPink)
+                    let canSend = !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !viewModel.isLoading
+                    Button(action: sendMessage) {
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: Metrics.control, height: Metrics.control)
+                            .background(Circle().fill(canSend ? Color.brandAccent : Color.brandMuted.opacity(0.35)))
+                    }
+                    .disabled(!canSend)
+                    .accessibilityLabel("Send")
+                    .padding(.bottom, 4)
                 }
-                .disabled(inputText.isEmpty || viewModel.isLoading)
+                .padding(.leading, 14)
+                .padding(.trailing, 4)
+                .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.brandSurface))
             }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
-            .padding(.bottom, 0)
-            .background(Color.cyberpunkBlack)
-            .overlay(
-                Rectangle()
-                    .fill(Color.neonCyan)
-                    .frame(height: 2)
-                    .shadow(color: .neonCyanGlow, radius: 4, x: 0, y: 0),
-                alignment: .top
-            )
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color.brandBackground)
         }
     }
 
@@ -1038,7 +984,7 @@ struct EnhancedChatView: View {
                         return
                     }
 
-                    let title = generateFavoriteTitle(from: code)
+                    let title = SceneText.title(fromReply: message.content) ?? generateFavoriteTitle(from: code)
                     let conversationId = currentConversation?.id ?? UUID()
 
                     try await storageManager.saveFavorite(
@@ -1146,14 +1092,7 @@ struct RunSceneButton: View {
                 onRunCode?(message.content, message.libraryId)
             }
         }) {
-            HStack(spacing: 4) {
-                Image(systemName: "play.fill")
-                    .font(.caption)
-                Text("Run the Scene")
-                    .font(.caption)
-                    .underline()
-            }
-            .foregroundColor(extractedCode != nil ? .neonGreen : .warningNeon)
+            RunSceneLabel(hasCode: extractedCode != nil)
         }
         .buttonStyle(PlainButtonStyle())
         .onAppear {

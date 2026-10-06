@@ -113,50 +113,56 @@ struct ConversationHistoryView: View {
 struct ConversationRowView: View {
     let conversation: Conversation
 
+    /// The first assistant reply after the user's first message; the welcome
+    /// message comes before it and says nothing about the scene.
+    private var firstReply: String? {
+        guard let firstUser = conversation.messages.firstIndex(where: { $0.isUser }) else { return nil }
+        return conversation.messages[(firstUser + 1)...].first(where: { !$0.isUser })?.content
+    }
+
+    private var userMessageCount: Int {
+        conversation.messages.filter { $0.isUser }.count
+    }
+
     var body: some View {
+        let reply = firstReply
+        let sceneTitle = SceneText.title(fromReply: reply)
         HStack(alignment: .center, spacing: 12) {
-            // Screenshot thumbnail (left side - matching Android implementation)
             ConversationThumbnailView(screenshotBase64: conversation.screenshotBase64)
 
-            // Content
-            VStack(alignment: .leading, spacing: 8) {
-                // Title
-                Text(conversation.title)
-                    .font(.headline)
-                    .lineLimit(2)
+            VStack(alignment: .leading, spacing: 3) {
+                // Name the row after the scene when the reply named it; prompts
+                // make poor titles.
+                Text(sceneTitle ?? conversation.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.brandText)
+                    .lineLimit(1)
 
-                // Preview of first AI response
-                if let firstAIMessage = conversation.messages.first(where: { !$0.isUser }) {
-                    Text(firstAIMessage.content)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                if let preview = SceneText.preview(of: reply, droppingTitle: sceneTitle) {
+                    Text(preview)
+                        .font(.footnote)
+                        .foregroundColor(.brandMuted)
                         .lineLimit(2)
                 }
 
-                // Metadata
-                HStack(spacing: 12) {
-                    Label(relativeDateString(from: conversation.updatedAt), systemImage: "clock")
+                HStack(spacing: 8) {
+                    Text("\(relativeDateString(from: conversation.updatedAt)) · \(userMessageCount) prompt\(userMessageCount == 1 ? "" : "s")")
                         .font(.caption)
-                        .foregroundColor(.secondary)
-
-                    Label("\(conversation.messages.count)", systemImage: "bubble.left.and.bubble.right")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.brandMuted)
 
                     if let library = conversation.library3DID {
                         Text(library)
-                            .font(.caption)
+                            .font(.caption2.weight(.medium))
+                            .foregroundColor(.brandAccentText)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.2))
-                            .cornerRadius(4)
+                            .background(Capsule().fill(Color.brandAccent.opacity(0.10)))
                     }
-
-                    Spacer()
                 }
+                .padding(.top, 1)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 
     private func relativeDateString(from date: Date) -> String {
@@ -173,34 +179,21 @@ struct ConversationThumbnailView: View {
     var body: some View {
         Group {
             if let base64String = screenshotBase64, let uiImage = decodeBase64ToUIImage(base64String) {
-                // Display screenshot thumbnail
                 Image(uiImage: uiImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: 80, height: 80)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.neonCyan, lineWidth: 1.5)
-                    )
-                    .neonGlow(color: .neonCyan, radius: 4)
             } else {
-                // Placeholder icon when no screenshot
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.cyberpunkDarkGray.opacity(0.3))
-                        .frame(width: 80, height: 80)
-
-                    Image(systemName: "photo")
-                        .font(.system(size: 32))
-                        .foregroundColor(.neonCyan.opacity(0.5))
-                }
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.neonCyan.opacity(0.5), lineWidth: 1.5)
-                )
+                // Quiet placeholder when there is no screenshot yet.
+                Image(systemName: "cube.transparent")
+                    .font(.system(size: 20, weight: .regular))
+                    .foregroundColor(.brandMuted)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.brandSurface)
             }
         }
+        .frame(width: 56, height: 56)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .accessibilityHidden(true)
     }
 
     /// Decode base64 string to UIImage (matching Android's Base64.decode)
