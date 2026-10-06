@@ -115,11 +115,10 @@ open XRAiAssistant.xcodeproj
 
 Pick a simulator or device and press **▶ Run**.
 
-Swift Package Manager resolves the rest automatically: AIProxySwift,
-LlamaStackClient, GRDB.swift, and the Google Mobile Ads SPM package. CocoaPods
-supplies Google Mobile Ads, Unity Ads and the Google User Messaging Platform
-(GDPR consent); the Podfile pins pods to a 16.0 deployment target while the app
-target is 18.0.
+Swift Package Manager resolves everything automatically: AIProxySwift,
+LlamaStackClient, GRDB.swift, Google Mobile Ads and the Google User Messaging
+Platform (consent). There is no CocoaPods step; the old Podfile was never
+installed and has been removed.
 
 > To run on a physical iPhone rather than a simulator, Xcode will ask you to
 > sign in with an Apple ID. A free account is fine.
@@ -259,7 +258,6 @@ iOSMaigeXr/
 │   ├── CodeSandbox*.swift               # CodeSandbox / Sandpack integration
 │   └── SandpackWebView.swift
 ├── XRAiAssistantTests/
-├── Podfile                              # ad SDKs
 └── docs/                                # status notes, build fixes, styling
 ```
 
