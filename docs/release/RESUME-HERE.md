@@ -10,7 +10,7 @@ pointer.
 
 **iOS monetization is code-complete, tested and committed.** Steps 1–5 of
 `MONETIZATION.md` are done and the interstitial trigger is wired. What is left on
-iOS is console work only. **Android is in progress.**
+iOS is console work only. **Android is code-complete too; see below.**
 
 Committed on `feat/nova64-3d-library`:
 
@@ -74,34 +74,55 @@ restraint rules in `AdManager` still decide whether one actually shows.
 - Verify `PrivacyInfo.xcprivacy` against Xcode's privacy report of a real
   archive. It was derived from reading the repo, not from an instrumented build.
 
-### Android — not started, different blockers
+### Android — code-complete, console work left
 
-Separate repo, clean tree at `e9713f8`.
+Ported from the iOS template in `AndroidMaigeXr` on `feat/nova64-3d-library`:
+the same `AdProvider` seam (`AdMobProvider` is the only `gms.ads` importer),
+`BillingEntitlement` (Play Billing 9.1.0, one non-consumable, acknowledged,
+Restore), `AdConsentStore` (UMP 3.2.0), and `AdManager` pacing. Rewarded ads
+and the old `is_premium` SharedPreferences flag are gone. The ads SDK starts
+only after the splash, entitlement and consent, never in `Application`.
+Interstitials fire on leaving a scene, as on iOS. Verified:
+`sh gradlew testDebugUnitTest assembleDebug` passes, 56 tests including 17 in
+`AdPacingTest`.
 
-- `applicationId` is `com.xrai.assistant` → `studio.seacloud9.maigexr`. Leave
-  `namespace = "com.xraiassistant"`; it is not store identity and renaming it is
-  a wide, pointless refactor.
-- **Release AdMob IDs are literal placeholders** —
-  `ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY` in the `release` buildType.
-- **No consent flow at all.** `user-messaging-platform:3.0.0` is declared and has
-  **zero usages** in `app/src`.
-- **`MobileAds.initialize()` runs unconditionally** in
-  `XRAiAssistantApplication.onCreate()` — before consent, and ignoring
-  `AppConfig.adsEnabled`, so it starts even in debug where `ADS_ENABLED=false`.
-- **No `signingConfig`** for release, so no signed AAB is possible.
-- `compileSdk`/`targetSdk` are **34**, likely below what Play accepts for a new
-  app. **Verify against the live policy page — not from memory, not from the plan
-  document.**
-- Play Billing is not a dependency yet; decision 3 needs it.
-- Remove the rewarded paths and `AdManager.RewardType` here too.
-- The iOS work is the template: the same seam, the same entitlement shape, the
-  same consent ordering. Porting it is the cheap path.
+- `applicationId` is `studio.seacloud9.maigexr`; `namespace` left alone.
+- `compileSdk`/`targetSdk` are **36**. Checked against the live policy page on
+  2026-10-05: since 2026-08-31 new apps must target API 36 (extension to
+  2026-11-01 on request), and must use Billing Library 8 or later.
+- **targetSdk 36 enforces edge-to-edge with no opt-out.** Not yet run on a
+  device. Check the bottom bar, banner and Settings sheet against the system
+  bars before submitting.
+- Release secrets live in `AndroidMaigeXr/local.properties` (gitignored). A
+  release build stops with a clear error until these are set:
+  `maigexr.admob.appId`, `maigexr.admob.bannerId`, `maigexr.admob.interstitialId`,
+  and for a signed AAB `maigexr.signing.storeFile`, `.storePassword`,
+  `.keyAlias`, `.keyPassword`. Debug only: `maigexr.ump.debugGeography`
+  (`eea`, `us`, `other`) and `maigexr.ump.testDeviceId`.
+
+Console work:
+- Create the upload keystore and enrol in Play App Signing.
+- Create the Android AdMob app and banner + interstitial units.
+- Register `studio.seacloud9.maigexr.removeads` as an in-app product in Play
+  Console. Billing cannot be exercised until an AAB is on a test track and the
+  tester account is a licence tester.
+- Run a purchase, a restore and a refund through a licence tester.
+
+Not run: physical device, release build, real purchase, UMP form in the EEA.
+
+Known limit, accepted for v1: purchases are verified on the device only (no
+backend). A rooted device can spoof Remove Ads. It unlocks nothing else, so the
+exposure is lost ad revenue from that user. Server-side verification through the
+Play Developer API is the fix if a purchase ever gates features.
 
 ### Housekeeping
 
 - **Delete `Podfile`.** CocoaPods was never installed and it has already misled
   this audit once. See the corrections section of `READINESS-AUDIT.md`.
 - `XRAiAssistant/Info.plist.backup` is tracked and stale.
+- Android `app/proguard-rules.pro` keeps `com.xrai.assistant.**` packages that do
+  not exist; the code lives under `com.xraiassistant`. Pre-existing, unrelated to
+  the applicationId change. Check a minified release build before trusting it.
 - `ContentView.swift` has three pre-existing deprecated `onChange(of:perform:)`
   calls (lines ~1104, 1193, 1533). Unrelated to this work.
 - The target is still named `XRAiAssistant` internally. Only `CFBundleDisplayName`
