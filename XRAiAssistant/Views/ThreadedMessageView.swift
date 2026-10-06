@@ -104,6 +104,9 @@ struct ThreadedMessageView: View {
             HStack(alignment: .top, spacing: 8) {
                 if message.isUser {
                     Spacer()
+                } else {
+                    MaigeXRAvatar(size: 24)
+                        .padding(.top, 4)
                 }
 
                 VStack(alignment: message.isUser ? .trailing : .leading, spacing: 6) {

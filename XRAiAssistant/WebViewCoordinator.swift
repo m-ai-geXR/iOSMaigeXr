@@ -4,10 +4,34 @@ import SwiftUI
 
 class WebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, WKUIDelegate {
     var parent: PlaygroundWebView
+    private weak var loadedWebView: WKWebView?
+    private var commandLineEnabled = PlaygroundCommandLine.isEnabled
 
     init(parent: PlaygroundWebView) {
         self.parent = parent
         super.init()
+        // Follow the Settings toggle live, without reloading the scene.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(defaultsChanged),
+            name: UserDefaults.didChangeNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func defaultsChanged() {
+        let enabled = PlaygroundCommandLine.isEnabled
+        guard enabled != commandLineEnabled else { return }
+        commandLineEnabled = enabled
+        DispatchQueue.main.async { [weak self] in
+            if let webView = self?.loadedWebView {
+                PlaygroundCommandLine.applySetting(to: webView)
+            }
+        }
     }
 
     // MARK: - Console Logging Support
@@ -39,6 +63,8 @@ class WebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler
     }
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        loadedWebView = webView
+        PlaygroundCommandLine.inject(into: webView)
         parent.onWebViewLoaded?()
     }
     

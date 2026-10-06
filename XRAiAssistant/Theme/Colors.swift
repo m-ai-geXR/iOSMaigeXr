@@ -41,6 +41,9 @@ extension Color {
     /// Cobalt. Held a step lighter on dark so it keeps contrast on near-black.
     static let brandAccent = adaptive(light: 0x2050E0, dark: 0x3F6BF0)
     static let brandAccent2 = adaptive(light: 0x4A74EA, dark: 0x5B7EE6)
+    /// Cobalt for text. brandAccent stays the fill (white labels hold 4.5:1 on it);
+    /// as text on the dark ground it falls to ~4.2:1, so text uses this lifted tone.
+    static let brandAccentText = adaptive(light: 0x2050E0, dark: 0x5B82F5)
     static let brandAccentSoft = adaptive(light: 0x8AA6FF, dark: 0x102F96)
 
     // MARK: - Ground
@@ -53,8 +56,9 @@ extension Color {
 
     // MARK: - Status
 
-    static let brandError = adaptive(light: 0xD92D20, dark: 0xF04438)
-    static let brandWarning = adaptive(light: 0xB54708, dark: 0xF79009)
+    // Light tones deepened from 0xD92D20 / 0xB54708, which fell under 4.5:1 on brandSurface.
+    static let brandError = adaptive(light: 0xB42318, dark: 0xF04438)
+    static let brandWarning = adaptive(light: 0x93370D, dark: 0xF79009)
     static let brandSuccess = adaptive(light: 0x067647, dark: 0x17B26A)
 
     // MARK: - Legacy names

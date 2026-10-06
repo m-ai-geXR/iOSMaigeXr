@@ -404,7 +404,7 @@
         <button class="menu-btn" onclick="resetConsole()">⟲ Reset Console</button>
         <button class="menu-btn" onclick="openDocumentation()">📖 Docs</button>
         <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
-        <select class="menu-btn" onchange="loadExample(this.value); this.value='';">
+        <select class="menu-btn" onchange="loadExample(this.value); this.value='';" aria-label="Load a demo scene">
             <option value="">Demo</option>
             <option value="starter">🎮 Starter Cart</option>
             <option value="corridor">🚀 Retro Corridor Runner</option>
@@ -743,6 +743,60 @@
                 toggleBtn.textContent = 'CODE';
                 // The console sizes itself from the iframe, so re-fit after the swap
                 setTimeout(syncRunnerSize, 350);
+                focusScene();
+            }
+        }
+
+        // Keyboard input belongs to the cart while the scene is showing. Without
+        // this, focus stays on the hidden editor or on whichever toolbar button was
+        // tapped, so keys like M, N and P never reach the console in the iframe.
+        function isSceneShowing() {
+            var editorContainer = document.getElementById('editorContainer');
+            return !(editorContainer && editorContainer.classList.contains('open'));
+        }
+
+        // Keys the cart reads but the browser also acts on: Tab moves focus out of
+        // the console (to the toolbar above), Space and the arrows scroll or press
+        // whatever is focused. Cancel only the browser's default action; the event
+        // still reaches the cart's own listeners.
+        var GAME_KEYS = {
+            Tab: true, Space: true, ArrowUp: true, ArrowDown: true, ArrowLeft: true,
+            ArrowRight: true, PageUp: true, PageDown: true, Home: true, End: true
+        };
+
+        function guardGameKeys(win) {
+            if (!win || win.__maigeKeyGuard) return;
+            win.__maigeKeyGuard = true;
+            win.addEventListener('keydown', function (e) {
+                var tag = (e.target && e.target.tagName) || '';
+                if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+                if (GAME_KEYS[e.code] || GAME_KEYS[e.key]) e.preventDefault();
+            }, true);
+        }
+
+        function focusScene() {
+            var frame = document.getElementById('novaRunner');
+            if (!frame || !isSceneShowing()) return;
+            var active = document.activeElement;
+            if (active && active !== frame && active !== document.body && active.blur) {
+                active.blur();
+            }
+            try {
+                frame.focus();
+                var win = frame.contentWindow;
+                if (!win) return;
+                win.focus();
+                guardGameKeys(win);
+                // Focus the console's own canvas, not just its frame, so key events
+                // target the game surface rather than the frame's document body.
+                var canvas = win.document.querySelector('canvas');
+                if (canvas) {
+                    if (!canvas.hasAttribute('tabindex')) canvas.setAttribute('tabindex', '-1');
+                    canvas.style.outline = 'none';
+                    canvas.focus({ preventScroll: true });
+                }
+            } catch (e) {
+                console.warn('Could not focus the Nova64 console: ' + e.message);
             }
         }
 
@@ -808,6 +862,7 @@
                     pendingCode = null;
                     postCart(code);
                 }
+                focusScene();
                 return;
             }
 
@@ -819,6 +874,7 @@
             if (data.type === 'EXECUTE_SUCCESS') {
                 clearTimeout(settleTimer);
                 hideError();
+                focusScene();
                 console.log('✅ Cart running');
                 logToNative('info', 'Nova64 cart running');
                 return;
@@ -863,6 +919,7 @@
             }
 
             postCart(code);
+            focusScene();
 
             // The console confirms with EXECUTE_SUCCESS; if that never arrives we
             // simply stop waiting rather than blocking the UI.
@@ -1073,6 +1130,9 @@
                     var p = e.touches ? e.touches[0] : e;
                     sx = p.clientX; sy = p.clientY;
                     ox = w.offsetLeft; oy = w.offsetTop;
+                    // Listen for touchmove only while dragging: a page-wide non-passive
+                    // listener makes every touch on the console wait for this script.
+                    document.addEventListener('touchmove', move, { passive: false });
                     e.preventDefault();
                 };
                 var move = function (e) {
@@ -1084,11 +1144,13 @@
                     w.style.bottom = 'auto';
                     e.preventDefault();
                 };
-                var end = function () { dragging = false; };
+                var end = function () {
+                    dragging = false;
+                    document.removeEventListener('touchmove', move, { passive: false });
+                };
                 bar.addEventListener('mousedown', start);
                 bar.addEventListener('touchstart', start, { passive: false });
                 document.addEventListener('mousemove', move);
-                document.addEventListener('touchmove', move, { passive: false });
                 document.addEventListener('mouseup', end);
                 document.addEventListener('touchend', end);
             }
@@ -1101,6 +1163,7 @@
                     var p = e.touches ? e.touches[0] : e;
                     rx = p.clientX; ry = p.clientY;
                     rw = w.offsetWidth; rh = w.offsetHeight;
+                    document.addEventListener('touchmove', rmove, { passive: false });
                     e.preventDefault();
                     e.stopPropagation();
                 };
@@ -1111,11 +1174,13 @@
                     w.style.height = Math.max(120, rh + p.clientY - ry) + 'px';
                     e.preventDefault();
                 };
-                var rend = function () { sizing = false; };
+                var rend = function () {
+                    sizing = false;
+                    document.removeEventListener('touchmove', rmove, { passive: false });
+                };
                 handle.addEventListener('mousedown', rstart);
                 handle.addEventListener('touchstart', rstart, { passive: false });
                 document.addEventListener('mousemove', rmove);
-                document.addEventListener('touchmove', rmove, { passive: false });
                 document.addEventListener('mouseup', rend);
                 document.addEventListener('touchend', rend);
             }
@@ -1158,7 +1223,8 @@
             getDefaultCode: getDefaultCode,
             isRunnerReady: function () { return runnerReady; },
             toggleConsole: toggleConsole,
-            toggleEditor: toggleEditor
+            toggleEditor: toggleEditor,
+            focusScene: focusScene
         };
     </script>
 </body>

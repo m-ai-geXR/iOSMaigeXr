@@ -450,7 +450,7 @@
         <button class="menu-btn" onclick="newScene()">📄 New</button>
         <button class="menu-btn" onclick="openDocumentation()">📖 Documentation</button>
         <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
-        <select class="menu-btn" onchange="loadExample(this.value)">
+        <select class="menu-btn" onchange="loadExample(this.value); this.value='';" aria-label="Load a demo scene">
             <option value="">Select Example...</option>
             <option value="basic-scene">Basic Scene</option>
             <option value="rotating-cube">Rotating Cube</option>
@@ -2639,6 +2639,9 @@ LEARN MORE:
             titleBar.addEventListener('touchstart', startDrag, { passive: false });
 
             function startDrag(e) {
+                // Listen for touchmove only while dragging: a page-wide non-passive
+                // listener makes every touch on the scene wait for this script.
+                document.addEventListener('touchmove', doDrag, { passive: false });
                 if (e.target.closest('.console-btn')) return;
                 isDragging = true;
 
@@ -2675,6 +2678,7 @@ LEARN MORE:
             }
 
             function stopDrag() {
+                document.removeEventListener('touchmove', doDrag, { passive: false });
                 if (isDragging) {
                     isDragging = false;
                     saveConsoleState();
@@ -2682,7 +2686,6 @@ LEARN MORE:
             }
 
             document.addEventListener('mousemove', doDrag);
-            document.addEventListener('touchmove', doDrag, { passive: false });
             document.addEventListener('mouseup', stopDrag);
             document.addEventListener('touchend', stopDrag);
 
@@ -2694,6 +2697,9 @@ LEARN MORE:
             resizeHandle.addEventListener('touchstart', startResize, { passive: false });
 
             function startResize(e) {
+                // Listen for touchmove only while dragging: a page-wide non-passive
+                // listener makes every touch on the scene wait for this script.
+                document.addEventListener('touchmove', doResize, { passive: false });
                 isResizingConsole = true;
 
                 const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
@@ -2727,6 +2733,7 @@ LEARN MORE:
             }
 
             function stopResize() {
+                document.removeEventListener('touchmove', doResize, { passive: false });
                 if (isResizingConsole) {
                     isResizingConsole = false;
                     saveConsoleState();
@@ -2734,7 +2741,6 @@ LEARN MORE:
             }
 
             document.addEventListener('mousemove', doResize);
-            document.addEventListener('touchmove', doResize, { passive: false });
             document.addEventListener('mouseup', stopResize);
             document.addEventListener('touchend', stopResize);
 

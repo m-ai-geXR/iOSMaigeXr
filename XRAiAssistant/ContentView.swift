@@ -57,7 +57,7 @@ struct MaigeXRBrandText: View {
             Text("m")
                 .foregroundColor(isActive ? .brandText : .brandMuted)
             Text("{ai}")
-                .foregroundColor(isActive ? .brandAccent : .brandMuted.opacity(0.7))
+                .foregroundColor(isActive ? .brandAccentText : .brandMuted.opacity(0.7))
             Text("geXR")
                 .foregroundColor(isActive ? .brandText : .brandMuted)
         }
@@ -65,6 +65,22 @@ struct MaigeXRBrandText: View {
         // tight tracking is the closest match to the brand's Modernist setting.
         .font(.system(size: fontSize, weight: .heavy, design: .default))
         .tracking(-0.02 * fontSize)
+    }
+}
+
+// MARK: - m{ai}geXR Avatar
+/// The m{ai}geXR avatar (the GitHub org profile image), shown wherever the app
+/// presents its own identity. Decorative: it always sits next to the name.
+struct MaigeXRAvatar: View {
+    var size: CGFloat = 24
+
+    var body: some View {
+        Image("MaigeXRAvatar")
+            .resizable()
+            .scaledToFill()
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+            .accessibilityHidden(true)
     }
 }
 
@@ -88,6 +104,7 @@ struct ContentView: View {
     @State private var settingsSaved = false
     @State private var showingExamples = false
     @State private var useSandpackForR3F = true // Toggle for Sandpack vs local playground
+    @AppStorage(PlaygroundCommandLine.enabledKey) private var commandLineEnabled = true
     @State private var pendingCodeSandboxCode: String?
     @State private var pendingCodeSandboxFramework: String?
     @State private var codeSandboxCreateFunction: ((String) -> Void)?
@@ -114,6 +131,7 @@ struct ContentView: View {
             Form {
                 apiConfigurationSection
                 appearanceSection
+                playgroundSection
                 RemoveAdsSection()
                 modelSettingsSection
                 sandboxSettingsSection
@@ -311,6 +329,23 @@ struct ContentView: View {
             Text("System follows your device setting. The splash screen is always dark.")
                 .font(.caption)
                 .foregroundColor(.brandMuted)
+        }
+    }
+
+    /// Playground options. The coordinator watches the same UserDefaults key, so the
+    /// command line appears or disappears in the scene without a reload.
+    private var playgroundSection: some View {
+        Section("Playground") {
+            Toggle(isOn: $commandLineEnabled) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Scene command line")
+                        .foregroundColor(.brandText)
+                    Text("A one-line JavaScript console at the bottom of the scene. Run code against the live scene, type globals() to see what it exposes, Tab to complete, Esc to return to the scene.")
+                        .font(.caption)
+                        .foregroundColor(.brandMuted)
+                }
+            }
+            .tint(.brandAccent)
         }
     }
 
@@ -943,8 +978,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             // Top row with title and loading
             HStack {
-                Image(systemName: "brain")
-                    .foregroundColor(.blue)
+                MaigeXRAvatar(size: 24)
                 Text("AI Assistant")
                     .font(.headline)
                     .foregroundColor(.primary)

@@ -447,7 +447,7 @@
         <button class="menu-btn" onclick="newScene()">📄 New</button>
         <button class="menu-btn" onclick="openDocumentation()">📖 Docs</button>
         <button class="menu-btn" onclick="toggleConsole()">🖥 Console</button>
-        <select class="menu-btn" onchange="loadExample(this.value)">
+        <select class="menu-btn" onchange="loadExample(this.value); this.value='';" aria-label="Load a demo scene">
             <option value="">Demo</option>
             <option value="neon-cubes">💫 Neon Cubes</option>
             <option value="basic-scene">Basic Scene</option>
@@ -2074,6 +2074,9 @@ https://maigexr.com
             titleBar.addEventListener('touchstart', startDrag, { passive: false });
 
             function startDrag(e) {
+                // Listen for touchmove only while dragging: a page-wide non-passive
+                // listener makes every touch on the scene wait for this script.
+                document.addEventListener('touchmove', doDrag, { passive: false });
                 if (e.target.closest('.console-btn')) return;
                 isDragging = true;
 
@@ -2110,6 +2113,7 @@ https://maigexr.com
             }
 
             function stopDrag() {
+                document.removeEventListener('touchmove', doDrag, { passive: false });
                 if (isDragging) {
                     isDragging = false;
                     saveConsoleState();
@@ -2117,7 +2121,6 @@ https://maigexr.com
             }
 
             document.addEventListener('mousemove', doDrag);
-            document.addEventListener('touchmove', doDrag, { passive: false });
             document.addEventListener('mouseup', stopDrag);
             document.addEventListener('touchend', stopDrag);
 
@@ -2129,6 +2132,9 @@ https://maigexr.com
             resizeHandle.addEventListener('touchstart', startResize, { passive: false });
 
             function startResize(e) {
+                // Listen for touchmove only while dragging: a page-wide non-passive
+                // listener makes every touch on the scene wait for this script.
+                document.addEventListener('touchmove', doResize, { passive: false });
                 isResizingConsole = true;
 
                 const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
@@ -2162,6 +2168,7 @@ https://maigexr.com
             }
 
             function stopResize() {
+                document.removeEventListener('touchmove', doResize, { passive: false });
                 if (isResizingConsole) {
                     isResizingConsole = false;
                     saveConsoleState();
@@ -2169,7 +2176,6 @@ https://maigexr.com
             }
 
             document.addEventListener('mousemove', doResize);
-            document.addEventListener('touchmove', doResize, { passive: false });
             document.addEventListener('mouseup', stopResize);
             document.addEventListener('touchend', stopResize);
 

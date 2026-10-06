@@ -144,7 +144,10 @@ struct EnhancedChatView: View {
                         Text(navigationTitle)
                             .font(.headline)
                     } else {
-                        MaigeXRBrandText(isActive: true, fontSize: 17)
+                        HStack(spacing: 8) {
+                            MaigeXRAvatar(size: 26)
+                            MaigeXRBrandText(isActive: true, fontSize: 17)
+                        }
                     }
                 }
             }
@@ -243,11 +246,11 @@ struct EnhancedChatView: View {
                     // System .purple is not in the palette; the brand has one
                     // accent.
                     Image(systemName: "book.circle")
-                        .foregroundColor(.brandAccent)
+                        .foregroundColor(.brandAccentText)
                         .font(.caption)
                     Text("Docs")
                         .font(.caption)
-                        .foregroundColor(.brandAccent)
+                        .foregroundColor(.brandAccentText)
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
