@@ -14,8 +14,8 @@ only into the store consoles or the gitignored `AndroidMaigeXr/local.properties`
 
 | Value | Where | Notes |
 |---|---|---|
-| Privacy policy URL | `AndroidMaigeXr/app/build.gradle.kts` (`privacyPolicyUrl`), `iOSMaigeXr/XRAiAssistant/Config/AppConfig.swift` (`privacyPolicyURL`) | The page is `maige_xr_site/privacy.html`, served at `/privacy`. Android refuses a release build on the placeholder; iOS shows a compiler warning until it is set. Public, not a secret. |
-| Publisher name, contact email | `maige_xr_site/privacy.html` (`[PUBLISHER]`, `[CONTACT EMAIL]`) | Public. Use an address you are happy to publish. |
+| Privacy policy URL | Done: https://maigexr.seacloud9.studio/privacy, set in both apps | Use the same URL in App Store Connect and the Play Console. |
+| Publisher name, contact email | Done: SeaCloud9 (Brendon Smith), brendonsmith@seacloud9.org | Shown on the privacy policy. |
 | iOS AdMob app ID and units | `XRAiAssistant/Info.plist`: `GADApplicationIdentifier`, `GADBannerUnitID`, `GADInterstitialUnitID` | The app ID is still Google's public sample. AdMob IDs are not secret, but must be real before release. |
 | Android AdMob IDs | `local.properties`: `maigexr.admob.appId`, `.bannerId`, `.interstitialId` | Gitignored. A release build stops until set. |
 | Android upload key | `local.properties`: `maigexr.signing.storeFile`, `.storePassword`, `.keyAlias`, `.keyPassword` | Never commit the keystore or passwords. |

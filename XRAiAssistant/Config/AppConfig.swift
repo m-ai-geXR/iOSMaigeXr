@@ -14,9 +14,8 @@ enum AppConfig {
     // MARK: - Links
 
     /// Public privacy policy (maige_xr_site/privacy.html), linked from Settings and
-    /// required by App Review. Set the live domain before submitting.
-    #warning("Set AppConfig.privacyPolicyURL to the live privacy policy before submitting")
-    static let privacyPolicyURL = URL(string: "https://example.invalid/privacy")!
+    /// required by App Review.
+    static let privacyPolicyURL = URL(string: "https://maigexr.seacloud9.studio/privacy")!
 
     // MARK: - Monetization Settings
 
