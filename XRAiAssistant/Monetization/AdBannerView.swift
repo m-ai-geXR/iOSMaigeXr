@@ -2,44 +2,33 @@
 //  AdBannerView.swift
 //  m{ai}geXR
 //
-//  Created: 2026-02-08
-//  Purpose: SwiftUI wrapper for AdMob banner ads
+//  Places whatever banner the current provider offers.
+//
+//  This used to be a UIViewRepresentable returning an AdMob BannerView, which
+//  put the network in the view layer. It now places an opaque view and does not
+//  know which network produced it.
 //
 
 import SwiftUI
-import GoogleMobileAds
 
-/// SwiftUI view that displays an AdMob banner ad
-struct AdBannerView: UIViewRepresentable {
-    @ObservedObject var adManager = AdManager.shared
+/// A banner, or nothing at all.
+///
+/// Renders empty — taking no space — for a paid user, when consent forbids ads,
+/// or when the provider has nothing to serve. Callers can place it
+/// unconditionally.
+struct AdBannerView: View {
+    @ObservedObject private var ads = AdManager.shared
 
-    func makeUIView(context: Context) -> BannerView {
-        // Get root view controller
-        let rootVC = UIApplication.shared.windows.first?.rootViewController ?? UIViewController()
+    /// AdMob's standard banner is 320x50. Height is fixed here so the layout
+    /// cannot be shifted by whatever the network returns.
+    private let bannerHeight: CGFloat = 50
 
-        // Load banner ad from AdManager
-        let banner = adManager.loadBannerAd(rootViewController: rootVC)
-
-        return banner
-    }
-
-    func updateUIView(_ uiView: BannerView, context: Context) {
-        // No updates needed - banner handles its own refresh
-    }
-}
-
-/// Preview wrapper for AdBannerView
-#Preview {
-    VStack {
-        Spacer()
-
-        Text("Banner Ad Preview")
-            .font(.headline)
-
-        AdBannerView()
-            .frame(height: 50)
-            .background(Color.gray.opacity(0.2))
-
-        Spacer()
+    var body: some View {
+        if ads.adsAreServing, let banner = ads.bannerView() {
+            banner
+                .frame(height: bannerHeight)
+                .frame(maxWidth: .infinity)
+                .accessibilityLabel("Advertisement")
+        }
     }
 }

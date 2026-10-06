@@ -104,11 +104,17 @@ struct ContentView: View {
     // Screenshot tracking - only capture once per conversation
     @State private var screenshotCapturedForConversation: UUID? = nil
 
+    /// True while either error surface is on screen.
+    private func updateAdErrorVisibility() {
+        AdManager.shared.setErrorVisible(showingError || chatViewModel.errorMessage != nil)
+    }
+
     private var settingsView: some View {
         NavigationView {
             Form {
                 apiConfigurationSection
                 appearanceSection
+                RemoveAdsSection()
                 modelSettingsSection
                 sandboxSettingsSection
                 systemPromptSection
@@ -746,10 +752,34 @@ struct ContentView: View {
                 sceneView
             }
 
+            // Banner sits in the stack, above the tab bar, so it takes its own
+            // space rather than covering the editor or the canvas. It renders
+            // nothing at all for a paid user, so no gap is left behind.
+            AdBannerView()
+
             // Bottom tab bar - always visible at bottom
             bottomTabBar
         }
         .ignoresSafeArea(.keyboard, edges: .bottom) // Let keyboard overlay instead of pushing
+        // An ad must never land on a user waiting for a model, nor cover the
+        // explanation of a failure. Forwarded from one place rather than
+        // sprinkled through every request and error path.
+        .onChange(of: chatViewModel.isLoading) { _, isLoading in
+            if isLoading {
+                AdManager.shared.generationBegan()
+            } else {
+                AdManager.shared.generationEnded()
+            }
+        }
+        // Two independent error surfaces — the alert and the view model's
+        // message. Both feed one computed answer, so whichever clears first
+        // cannot declare the screen error-free while the other is still up.
+        .onChange(of: chatViewModel.errorMessage) { _, _ in
+            updateAdErrorVisibility()
+        }
+        .onChange(of: showingError) { _, _ in
+            updateAdErrorVisibility()
+        }
         .alert("Error", isPresented: $showingError) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -1387,8 +1417,18 @@ struct ContentView: View {
         HStack {
                 // Code Tab (Chat)
                 Button(action: {
+                    let leavingScene = currentView == .scene
                     withAnimation(.easeInOut(duration: 0.3)) {
                         currentView = .chat
+                    }
+                    // Interstitials only ever appear on the way out of a scene:
+                    // the user has already seen the result they asked for. Wait
+                    // out the transition so the ad does not present mid-animation.
+                    if leavingScene {
+                        Task {
+                            try? await Task.sleep(for: .milliseconds(350))
+                            await AdManager.shared.onSceneRun()
+                        }
                     }
                 }) {
                     VStack(spacing: 4) {

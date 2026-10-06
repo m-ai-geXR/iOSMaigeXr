@@ -6,7 +6,26 @@
 	     back to the target name, which is still XRAiAssistant. -->
 	<key>CFBundleDisplayName</key>
 	<string>m{ai}geXR</string>
+
+	<!-- RELEASE BLOCKER: this is Google's public sample app ID, shared by every
+	     tutorial. It must be replaced with the real one from the m{ai}geXR AdMob
+	     account before any upload. Tracked in docs/release/READINESS-AUDIT.md. -->
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
+
+	<!-- Release ad units, read by AdUnits in AdMobProvider.swift. Empty is
+	     handled: the provider declines to load rather than crashing, so the app
+	     serves no ads until these are filled in. Debug builds use Google's test
+	     units instead and ignore these entirely. -->
+	<key>GADBannerUnitID</key>
+	<string></string>
+	<key>GADInterstitialUnitID</key>
+	<string></string>
+
+	<!-- Required for the ATT prompt to appear at all. Without it
+	     requestTrackingAuthorization silently returns denied and the IDFA is
+	     never available, so ads stay non-personalised forever. -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Allows m{ai}geXR to show you more relevant ads. Declining keeps ads in the app; they just won't be personalised.</string>
 </dict>
 </plist>

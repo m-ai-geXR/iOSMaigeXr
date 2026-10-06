@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+	Privacy manifest for the m{ai}geXR app target.
+
+	This covers FIRST-PARTY collection and required-reason API use only. The ad
+	SDK ships its own manifest inside its bundle, and Apple aggregates them; it
+	is not restated here. What this does NOT replace is the App Store Connect
+	privacy questionnaire, which must be answered for the app AND every SDK it
+	embeds — see docs/release/MONETIZATION.md.
+
+	UNVERIFIED: the declarations below are derived from reading this repository,
+	not from an instrumented build. Confirm against Xcode's privacy report of a
+	real archive before submitting, and re-check the current requirement at
+	submission time rather than trusting this file's age.
+-->
+<plist version="1.0">
+<dict>
+	<!-- No tracking by first-party code. The ad SDK is what may track, gated
+	     behind ATT and the consent platform; see AdConsentStore.swift. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+
+	<!-- Domains that would be blocked in a tracking context. Left empty: the
+	     app's own endpoints are AI providers reached at the user's request, and
+	     listing a domain here that is not a tracking domain is wrong. -->
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<!-- Prompts and generated code sent to the AI provider the user chose.
+		     Not linked to an identity by us, and not used for tracking. What
+		     the provider then does with it is governed by that provider's own
+		     terms, which is a disclosure obligation in the listing. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<!-- UserDefaults. CA92.1 is the "accessed only for this app" reason,
+		     which is the case: every key is namespaced to this app and nothing
+		     is read from an app group or shared container. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+
+		<!-- File timestamps and disk space, reached via the file APIs the local
+		     SQLite database and project export use. C617.1 / E174.1 are the
+		     "inside the app container, to the user's own files" reasons.
+		     VERIFY: if the export path stops writing to the container these
+		     reasons no longer hold. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>E174.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
