@@ -7,6 +7,15 @@
     
     <!-- A-Frame Core -->
     <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+    <script>
+        // A-Frame asks for motion-sensor access with a dialog that tells users to
+        // "access this site over HTTPS". In the app's web view that is never
+        // actionable, and it covered every scene, so it is off by default.
+        // A cart can still turn it on with device-orientation-permission-ui.
+        try {
+            AFRAME.components['device-orientation-permission-ui'].schema.enabled.default = false;
+        } catch (e) { console.warn('Could not disable the A-Frame permission dialog: ' + e.message); }
+    </script>
     
     <!-- A-Frame Extras for additional components -->
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.6.0/dist/aframe-extras.min.js"></script>
@@ -433,6 +442,11 @@
         
         /* Remove media query - same behavior across all devices per requirements */
         /* The editor starts hidden (width: 0%) on all screen sizes */
+        /* A-Frame's own dialogs (motion permission, enter VR) set no text colour,
+           so they inherited the page's white text and showed as a blank white box. */
+        .a-modal .a-dialog, .a-dialog-text, .a-dialog-text-container {
+            color: #1d1d1f;
+        }
     </style>
 </head>
 <body>

@@ -547,23 +547,50 @@
             return div.innerHTML;
         }
 
-        function updateConsoleDisplay() {
-            var consoleContent = document.getElementById('consoleContent');
-            if (consoleContent && consoleMessages.length > 0) {
-                consoleContent.innerHTML = consoleMessages.map(function (msg) {
-                    return '<div class="console-message console-' + msg.type + '">' +
-                           escapeHtml(msg.message) + '</div>';
-                }).join('');
-                consoleContent.scrollTop = consoleContent.scrollHeight;
-            }
+        // The console takes several lines a second while a cart runs, so it must
+        // not rebuild itself on every line: that wiped any text being selected
+        // and yanked the view to the bottom. New lines are appended instead, and
+        // while text in the console is selected, or the reader has scrolled up,
+        // old lines are kept and the view stays where it is.
+        var CONSOLE_LIMIT = 100;
+
+        function consoleIsSelecting(el) {
+            var sel = window.getSelection && window.getSelection();
+            return !!(sel && !sel.isCollapsed && sel.rangeCount && el.contains(sel.getRangeAt(0).commonAncestorContainer));
         }
 
+        function updateConsoleDisplay() {
+            var consoleContent = document.getElementById('consoleContent');
+            if (!consoleContent) return;
+            consoleContent.innerHTML = consoleMessages.map(function (msg) {
+                return '<div class="console-message console-' + msg.type + '">' +
+                       escapeHtml(msg.message) + '</div>';
+            }).join('');
+            consoleContent.scrollTop = consoleContent.scrollHeight;
+        }
+
+        // Nova64 logs these every frame or so; they bury everything else.
+        var CONSOLE_NOISE = /^\[(main\.js\] loop\(\) called|api-fx\] renderEffects)/;
+
         function addConsoleMessage(type, message) {
-            consoleMessages.push({ type: type, message: String(message) });
-            if (consoleMessages.length > 100) {
-                consoleMessages = consoleMessages.slice(-100);
+            message = String(message);
+            if (CONSOLE_NOISE.test(message)) return;
+            consoleMessages.push({ type: type, message: message });
+            if (consoleMessages.length > CONSOLE_LIMIT) {
+                consoleMessages = consoleMessages.slice(-CONSOLE_LIMIT);
             }
-            updateConsoleDisplay();
+            var el = document.getElementById('consoleContent');
+            if (!el) return;
+            var selecting = consoleIsSelecting(el);
+            var atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+            var line = document.createElement('div');
+            line.className = 'console-message console-' + type;
+            line.textContent = message;
+            el.appendChild(line);
+            if (!selecting) {
+                while (el.childNodes.length > CONSOLE_LIMIT) el.removeChild(el.firstChild);
+                if (atBottom) el.scrollTop = el.scrollHeight;
+            }
         }
 
         function clearConsole() {
