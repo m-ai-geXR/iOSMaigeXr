@@ -92,6 +92,8 @@ struct ContentView: View {
     @State private var webView: WKWebView?
     @State private var currentCode = ""
     @State private var lastGeneratedCode = ""
+    /// Library the scene code was written for; code from another library is not replayed.
+    @State private var lastCodeLibraryId = ""
     @State private var chatInput = ""
     @State private var showingError = false
     @State private var errorMessage = ""
@@ -786,6 +788,7 @@ struct ContentView: View {
                 currentView = .scene
                 currentCode = example.code
                 lastGeneratedCode = example.code
+                lastCodeLibraryId = chatViewModel.getCurrentLibrary().id
 
                 // Inject after a short delay to ensure view is loaded
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -897,6 +900,7 @@ struct ContentView: View {
                 // Store code for use
                 currentCode = code
                 lastGeneratedCode = code
+                lastCodeLibraryId = chatViewModel.getCurrentLibrary().id
 
                 // ALWAYS use CodeSandbox for React Three Fiber
                 let shouldUseCodeSandbox = chatViewModel.getCurrentLibrary().id == "reactThreeFiber"
@@ -1462,7 +1466,7 @@ struct ContentView: View {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             currentView = .scene
                         }
-                    } else if !lastGeneratedCode.isEmpty {
+                    } else if !lastGeneratedCode.isEmpty && lastCodeLibraryId == chatViewModel.getCurrentLibrary().id {
                         print("🚀 User clicked Run Scene for local playground")
 
                         // If already on scene view, just re-inject
@@ -1484,6 +1488,19 @@ struct ContentView: View {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                                 self.injectCodeWithRetry(lastGeneratedCode, maxRetries: 6)
                             }
+                        }
+                    } else if let demo = chatViewModel.library3DManager.welcomeExample {
+                        // Nothing run yet: play the example the welcome message offers.
+                        print("▶️ Nothing run yet - playing the welcome example: \(demo.title)")
+                        currentCode = demo.code
+                        lastGeneratedCode = demo.code
+                        lastCodeLibraryId = chatViewModel.getCurrentLibrary().id
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            currentView = .scene
+                        }
+                        isInjectingCode = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            self.injectCodeWithRetry(demo.code, maxRetries: 6)
                         }
                     } else {
                         print("⚠️ No AI-generated code available, running default scene")
