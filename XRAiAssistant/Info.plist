@@ -31,6 +31,18 @@
 	<!-- Only standard HTTPS and the OS crypto are used, which is exempt from US
 	     export rules. Declaring it here skips the export-compliance question on
 	     every App Store Connect upload. -->
+	<!-- The optional Local model server (Settings) is usually plain HTTP on the
+	     user's own network, such as Ollama at http://192.168.1.20:11434.
+	     NSAllowsLocalNetworking permits that for local addresses only; every
+	     other connection still requires HTTPS. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Connects to an AI model server you run on your own network, if you set one up in Settings.</string>
+
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 

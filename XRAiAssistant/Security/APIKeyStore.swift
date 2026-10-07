@@ -9,8 +9,9 @@ import Security
 /// off other devices. `migrateLegacyStorage()` moves any old keys across once and
 /// deletes the plain copies.
 enum APIKeyStore {
-    /// Every key the app stores. CodeSandbox is optional and not a chat provider.
-    static let providers = ["Together.ai", "OpenAI", "Anthropic", "Google AI", "xAI", "CodeSandbox"]
+    /// Every key the app stores. CodeSandbox is optional and not a chat provider;
+    /// Local is the optional key for the user's own model server.
+    static let providers = ["Together.ai", "OpenAI", "Anthropic", "Google AI", "xAI", "Local", "CodeSandbox"]
 
     /// Placeholder the app uses to mean "no key". Never written to the Keychain.
     static let unsetValue = "changeMe"
