@@ -11,6 +11,7 @@ class AIProviderManager: ObservableObject {
     private let anthropicProvider = AnthropicProvider()
     private let googleProvider = GoogleAIProvider()
     private let xaiProvider = XAIProvider()
+    private let localProvider = LocalLLMProvider()
 
     init() {
         setupProviders()
@@ -18,7 +19,7 @@ class AIProviderManager: ObservableObject {
     }
 
     private func setupProviders() {
-        providers = [togetherProvider, openaiProvider, anthropicProvider, googleProvider, xaiProvider]
+        providers = [togetherProvider, openaiProvider, anthropicProvider, googleProvider, xaiProvider, localProvider]
         currentProvider = togetherProvider // Default to Together.ai
 
         // Initialize CodeSandbox API key (not a chat provider, but deployment service)
@@ -62,7 +63,7 @@ class AIProviderManager: ObservableObject {
     
     func getModelsByProvider() -> [String: [AIModel]] {
         var modelsByProvider: [String: [AIModel]] = [:]
-        for provider in providers {
+        for provider in providers where !provider.models.isEmpty {
             modelsByProvider[provider.name] = provider.models
         }
         return modelsByProvider
@@ -96,9 +97,10 @@ class AIProviderManager: ObservableObject {
             throw AIProviderError.modelNotSupported
         }
 
-        // Ensure provider is configured with API key
+        // Ensure provider is configured with API key. A local server may not
+        // need one, so only providers that require a key insist on it.
         let apiKey = getAPIKey(for: provider.name)
-        if apiKey == "changeMe" {
+        if apiKey == "changeMe" && provider.requiresAPIKey {
             throw AIProviderError.configurationError("API key not configured for \(provider.name)")
         }
 

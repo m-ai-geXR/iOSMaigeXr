@@ -133,6 +133,7 @@ struct ContentView: View {
             ScrollViewReader { proxy in
             Form {
                 apiConfigurationSection
+                localServerSection
                 appearanceSection
                 playgroundSection
                 RemoveAdsSection()
@@ -202,6 +203,57 @@ struct ContentView: View {
         } footer: {
             Text("Keys stay on this device and are sent only to the provider they belong to.")
         }
+    }
+
+    /// The user's own model server (Ollama, LM Studio, any OpenAI-compatible
+    /// server). Once an address and model are set, the model appears under
+    /// "Local" in the model picker.
+    private var localServerSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Local server")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.brandText)
+                    Spacer()
+                    KeyStatusLabel(isSet: LocalServerConfig.isConfigured)
+                }
+                localServerField("Server address, e.g. http://192.168.1.20:11434", text: Binding(
+                    get: { LocalServerConfig.baseURL },
+                    set: { LocalServerConfig.baseURL = $0; chatViewModel.objectWillChange.send() }
+                ))
+                .keyboardType(.URL)
+                localServerField("Model name, e.g. qwen2.5-coder:7b", text: Binding(
+                    get: { LocalServerConfig.modelName },
+                    set: { LocalServerConfig.modelName = $0; chatViewModel.objectWillChange.send() }
+                ))
+                SecureField("API key (optional)", text: Binding(
+                    get: {
+                        let key = chatViewModel.getAPIKey(for: LocalServerConfig.providerName)
+                        return key == DEFAULT_API_KEY ? "" : key
+                    },
+                    set: { chatViewModel.setAPIKey(for: LocalServerConfig.providerName, key: $0) }
+                ))
+                .textContentType(.password)
+                .padding(.horizontal, 12)
+                .frame(height: 40)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.brandSurface))
+            }
+            .padding(.vertical, 6)
+        } header: {
+            Text("Local Model")
+        } footer: {
+            Text("Use a model running on your own computer or network, such as Ollama or LM Studio. Any server with an OpenAI-compatible API works. Pick it under Local in the model menu.")
+        }
+    }
+
+    private func localServerField(_ placeholder: String, text: Binding<String>) -> some View {
+        TextField(placeholder, text: text)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .padding(.horizontal, 12)
+            .frame(height: 40)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.brandSurface))
     }
 
     /// One provider per row: name and status, the key field, where to get a key.
