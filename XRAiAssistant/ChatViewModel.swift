@@ -140,6 +140,7 @@ class ChatViewModel: ObservableObject {
     /// A request cut off by the app going to the background, sent again on return.
     let interruptedRequests = InterruptedRequestQueue()
     private var becameActiveObserver: NSObjectProtocol?
+    private var lifecycleObservers: [NSObjectProtocol] = []
 
     init() {
         print("🚀 ChatViewModel initialization starting...")
@@ -182,8 +183,24 @@ class ChatViewModel: ObservableObject {
         becameActiveObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.interruptedRequests.resume() }
+            Task { @MainActor in
+                self?.interruptedRequests.resume()
+                self?.checkReplyOnReturn()
+            }
         }
+        // Leaving the app mid-reply: let the background session finish it.
+        lifecycleObservers.append(NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.handOffActiveReplyToBackground() }
+        })
+        lifecycleObservers.append(NotificationCenter.default.addObserver(
+            forName: BackgroundReplyService.finishedNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            guard let jobID = note.userInfo?["jobID"] as? String else { return }
+            Task { @MainActor in self?.collectBackgroundReply(jobID: jobID) }
+        })
+        collectOrphanedReplies()
     }
     
     private func setupInitialMessage() {
@@ -339,9 +356,156 @@ class ChatViewModel: ObservableObject {
             libraryId: library3DManager.selectedLibrary.id
         )
         messages.append(userMessage)
+        startReply(text: text, currentCode: currentCode)
+    }
 
-        Task {
-            await processUserMessage(text, currentCode: currentCode)
+    // MARK: - Replies that survive leaving the app
+
+    /// The reply in flight. Its id makes sure it is shown exactly once, whether
+    /// it arrives by the live stream or from the background session.
+    private struct ActiveReply {
+        let id: UUID
+        let text: String
+        let currentCode: String?
+        let model: String
+        var systemPrompt: String?
+        var task: Task<Void, Never>?
+        /// Set once the request has been handed to the background session.
+        var jobID: String?
+        var leftApp = false
+        var restarted = false
+    }
+
+    private var activeReply: ActiveReply?
+
+    private func startReply(text: String, currentCode: String?, restarted: Bool = false) {
+        let id = UUID()
+        activeReply = ActiveReply(id: id, text: text, currentCode: currentCode, model: selectedModel, restarted: restarted)
+        activeReply?.task = Task { [weak self] in
+            await self?.processUserMessage(text, currentCode: currentCode, isRetry: restarted, replyID: id)
+        }
+    }
+
+    private func isCurrentReply(_ id: UUID?) -> Bool {
+        guard let id else { return true } // image path and legacy callers
+        return activeReply?.id == id
+    }
+
+    /// Ends the reply: drops its background copy and forgets it.
+    private func finishReply(_ id: UUID?) {
+        guard let id, activeReply?.id == id else { return }
+        if let jobID = activeReply?.jobID {
+            BackgroundReplyService.shared.cancel(jobID: jobID)
+        }
+        activeReply = nil
+    }
+
+    /// The app is going to the background with a reply still coming: hand the
+    /// same request to the background session so it finishes while suspended.
+    func handOffActiveReplyToBackground() {
+        guard var reply = activeReply else { return }
+        reply.leftApp = true
+        defer { activeReply = reply }
+        guard reply.jobID == nil, let systemPrompt = reply.systemPrompt,
+              let provider = aiProviderManager.getProvider(for: reply.model) else { return }
+        let definition = aiProviderManager.getModel(id: reply.model)
+        let inputs = BackgroundReplyRequests.Inputs(
+            provider: provider.name,
+            model: reply.model,
+            systemPrompt: systemPrompt,
+            userMessage: reply.text,
+            apiKey: aiProviderManager.getAPIKey(for: provider.name),
+            temperature: temperature,
+            topP: topP,
+            effort: effort,
+            control: definition?.control ?? .sampling,
+            maxOutputTokens: definition?.maxOutputTokens ?? 16_000
+        )
+        guard let request = BackgroundReplyRequests.request(for: inputs) else { return }
+        let jobID = reply.id.uuidString
+        if BackgroundReplyService.shared.submit(request, jobID: jobID, provider: provider.name) {
+            reply.jobID = jobID
+            print("📨 Reply handed to the background session (\(provider.name))")
+        }
+    }
+
+    /// The background copy finished. Show it if the live stream has not already.
+    func collectBackgroundReply(jobID: String) {
+        guard let outcome = BackgroundReplyService.shared.outcome(jobID: jobID) else { return }
+        guard let reply = activeReply, reply.jobID == jobID else {
+            // No reply waiting for it: the app was closed meanwhile. Keep a
+            // finished reply rather than lose it.
+            BackgroundReplyService.shared.removeOutcome(jobID: jobID)
+            if let text = outcome.text { presentReply(text) }
+            return
+        }
+        BackgroundReplyService.shared.removeOutcome(jobID: jobID)
+        if let text = outcome.text {
+            print("📬 Reply delivered by the background session")
+            reply.task?.cancel()
+            activeReply = nil
+            presentReply(text)
+            isLoading = false
+            errorMessage = nil
+        } else {
+            print("⚠️ Background copy failed: \(outcome.error ?? "unknown")")
+            activeReply?.jobID = nil
+            restartIfStalled(reply.id, after: 0)
+        }
+    }
+
+    /// Back in the app: collect a finished background reply, and make sure a
+    /// stalled one cannot spin forever.
+    func checkReplyOnReturn() {
+        guard let reply = activeReply, reply.leftApp else { return }
+        if let jobID = reply.jobID, BackgroundReplyService.shared.outcome(jobID: jobID) != nil {
+            collectBackgroundReply(jobID: jobID)
+            return
+        }
+        // With a background copy running, give it time; without one, restart
+        // soon if the live stream has gone quiet.
+        restartIfStalled(reply.id, after: reply.jobID == nil ? Self.stallTimeout : Self.backgroundTimeout)
+    }
+
+    static var stallTimeout: TimeInterval = 20
+    static var backgroundTimeout: TimeInterval = 180
+
+    /// Sends the request again if reply `id` has still not arrived after `delay`.
+    private func restartIfStalled(_ id: UUID, after delay: TimeInterval) {
+        Task { @MainActor [weak self] in
+            if delay > 0 { try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
+            guard let self, let reply = self.activeReply, reply.id == id else { return }
+            if UIApplication.shared.applicationState != .active { return } // retried on return
+            guard !reply.restarted else {
+                self.activeReply = nil
+                self.isLoading = false
+                self.errorMessage = "The reply did not arrive. Check your connection and try again."
+                return
+            }
+            print("🔁 Reply stalled; sending it again")
+            reply.task?.cancel()
+            if let jobID = reply.jobID { BackgroundReplyService.shared.cancel(jobID: jobID) }
+            self.startReply(text: reply.text, currentCode: reply.currentCode, restarted: true)
+        }
+    }
+
+    /// Shows a finished reply in the chat.
+    private func presentReply(_ response: String) {
+        let processedResponse = processResponseForActions(response)
+        messages.append(ChatMessage(
+            id: UUID().uuidString,
+            content: processedResponse,
+            isUser: false,
+            timestamp: Date(),
+            libraryId: library3DManager.selectedLibrary.id
+        ))
+    }
+
+    /// Replies that finished after the app was closed, shown at the next launch.
+    private func collectOrphanedReplies() {
+        for outcome in BackgroundReplyService.shared.uncollectedOutcomes() {
+            BackgroundReplyService.shared.removeOutcome(jobID: outcome.jobID)
+            if let text = outcome.text { presentReply(text) }
         }
     }
 
@@ -564,7 +728,7 @@ class ChatViewModel: ObservableObject {
         isLoading = false
     }
 
-    private func processUserMessage(_ text: String, currentCode: String?, isRetry: Bool = false) async {
+    private func processUserMessage(_ text: String, currentCode: String?, isRetry: Bool = false, replyID: UUID? = nil) async {
         // SAFETY CHECK: Force migration away from non-serverless models
         if selectedModel == "Qwen/Qwen2.5-Coder-32B-Instruct" {
             print("🚨 SAFETY CHECK: Detected non-serverless model '\(selectedModel)' - forcing migration!")
@@ -579,12 +743,19 @@ class ChatViewModel: ObservableObject {
         do {
             // Create system prompt with context
             let fullSystemPrompt = createSystemPrompt(currentCode: currentCode)
-            
+            if let replyID, activeReply?.id == replyID {
+                activeReply?.systemPrompt = fullSystemPrompt
+            }
+
             // Use simple inference for chat
             let response = try await BackgroundRequest.run("AI reply") {
                 try await callLlamaInference(userMessage: text, systemPrompt: fullSystemPrompt)
             }
-            
+
+            // Already shown by the background session, or superseded by a restart.
+            guard isCurrentReply(replyID) else { return }
+            finishReply(replyID)
+
             // Process response for potential actions
             let processedResponse = processResponseForActions(response)
 
@@ -627,13 +798,27 @@ class ChatViewModel: ObservableObject {
             )
             messages.append(assistantMessage)
             
+        } catch where !isCurrentReply(replyID) || error is CancellationError || (error as? URLError)?.code == .cancelled {
+            // Superseded: the background session delivered it, or it was restarted.
+            return
+        } catch where activeReply?.jobID != nil && BackgroundRequest.isInterruption(error) {
+            // The live stream dropped, but the background copy is still running.
+            print("📶 Stream interrupted; waiting for the background copy")
+            return
         } catch where !isRetry && BackgroundRequest.isInterruption(error) {
             print("📶 Request interrupted (\(error.localizedDescription)); will send again")
-            holdInterruptedRequest { [weak self] in
-                await self?.processUserMessage(text, currentCode: currentCode, isRetry: true)
+            if let replyID, let reply = activeReply, reply.id == replyID {
+                holdInterruptedRequest { [weak self] in
+                    self?.startReply(text: reply.text, currentCode: reply.currentCode, restarted: true)
+                }
+            } else {
+                holdInterruptedRequest { [weak self] in
+                    await self?.processUserMessage(text, currentCode: currentCode, isRetry: true)
+                }
             }
             return
         } catch {
+            finishReply(replyID)
             // Provide user-friendly error messages for common issues
             if let providerError = error as? AIProviderError {
                 switch providerError {

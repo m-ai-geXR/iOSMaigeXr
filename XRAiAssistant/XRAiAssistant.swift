@@ -2,6 +2,8 @@ import SwiftUI
 
 @main
 struct XRAiAssistant: App {
+    /// Finishes AI replies in the background when the user leaves the app.
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var showSplash = true
     @StateObject private var appearanceStore = AppearanceStore.shared
 
