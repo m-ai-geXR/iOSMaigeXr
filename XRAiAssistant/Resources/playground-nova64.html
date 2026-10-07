@@ -1214,6 +1214,9 @@
             if (w && bar) {
                 var dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
                 var start = function (e) {
+                    // Taps on the title bar's buttons (close, minimise, copy...) must
+                    // reach them: cancelling the touch here stopped the click.
+                    if (e.target && e.target.closest && e.target.closest('button')) return;
                     dragging = true;
                     var p = e.touches ? e.touches[0] : e;
                     sx = p.clientX; sy = p.clientY;
