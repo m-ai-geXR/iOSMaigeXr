@@ -1636,6 +1636,18 @@ struct ContentView: View {
             case "settings", "removeads": showingSettings = true
             default: break
             }
+            #if DEBUG
+            // Debug-only test hook: -maigeModel <id> -maigeAutoSend <text> sends a
+            // message at launch, so leaving the app mid-reply can be tested.
+            if let model = UserDefaults.standard.string(forKey: "maigeModel") {
+                chatViewModel.selectedModel = model
+            }
+            if let text = UserDefaults.standard.string(forKey: "maigeAutoSend") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    chatViewModel.sendMessage(text, currentCode: nil)
+                }
+            }
+            #endif
         }
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
