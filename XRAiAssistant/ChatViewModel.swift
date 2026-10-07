@@ -136,9 +136,14 @@ class ChatViewModel: ObservableObject {
     
     // Enhanced callbacks for build system
     var onInsertCodeWithBuild: ((String, FrameworkKind) -> Void)?
-    
+
+    /// A request cut off by the app going to the background, sent again on return.
+    let interruptedRequests = InterruptedRequestQueue()
+    private var becameActiveObserver: NSObjectProtocol?
+
     init() {
         print("🚀 ChatViewModel initialization starting...")
+
 
         // Initialize LlamaStackClient for meta-llama models
         self.inference = RemoteInference(
@@ -172,6 +177,13 @@ class ChatViewModel: ObservableObject {
 
         print("✅ ChatViewModel initialization complete")
         print("🔑 Current Together.ai API key status: \(aiProviderManager.getAPIKey(for: "Together.ai") == "changeMe" ? "NOT_CONFIGURED" : "CONFIGURED")")
+
+        // Send a request cut off in the background again when the app is back.
+        becameActiveObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.interruptedRequests.resume() }
+        }
     }
     
     private func setupInitialMessage() {
@@ -429,7 +441,7 @@ class ChatViewModel: ObservableObject {
         return UIGraphicsGetImageFromCurrentImageContext()
     }
 
-    private func processUserMessageWithImages(_ text: String, images: [UIImage], currentCode: String?) async {
+    private func processUserMessageWithImages(_ text: String, images: [UIImage], currentCode: String?, isRetry: Bool = false) async {
         // SAFETY CHECK: Force migration away from non-serverless models
         if selectedModel == "Qwen/Qwen2.5-Coder-32B-Instruct" {
             print("🚨 SAFETY CHECK: Detected non-serverless model '\(selectedModel)' - forcing migration!")
@@ -493,18 +505,21 @@ class ChatViewModel: ObservableObject {
 
             print("🚀 Calling AI provider with multimodal message")
 
-            // Stream response from AI provider
-            let stream = try await aiProviderManager.generateResponse(
-                messages: messages,
-                modelId: selectedModel,
-                temperature: temperature,
-                topP: topP,
-                effort: effort
-            )
-
-            var fullResponse = ""
-            for try await chunk in stream {
-                fullResponse += chunk
+            // Stream response from AI provider, inside a background task so
+            // leaving the app does not cut the reply off.
+            let fullResponse = try await BackgroundRequest.run("AI reply") {
+                let stream = try await aiProviderManager.generateResponse(
+                    messages: messages,
+                    modelId: selectedModel,
+                    temperature: temperature,
+                    topP: topP,
+                    effort: effort
+                )
+                var collected = ""
+                for try await chunk in stream {
+                    collected += chunk
+                }
+                return collected
             }
 
             print("✅ Received complete response: \(fullResponse.count) characters")
@@ -521,6 +536,12 @@ class ChatViewModel: ObservableObject {
             )
             self.messages.append(assistantMessage)
 
+        } catch where !isRetry && BackgroundRequest.isInterruption(error) {
+            print("📶 Image request interrupted (\(error.localizedDescription)); will send again")
+            holdInterruptedRequest { [weak self] in
+                await self?.processUserMessageWithImages(text, images: images, currentCode: currentCode, isRetry: true)
+            }
+            return
         } catch {
             // The image cases carry their own specifics and stay as they are.
             // Everything else goes through the shared classifier, so the user
@@ -543,7 +564,7 @@ class ChatViewModel: ObservableObject {
         isLoading = false
     }
 
-    private func processUserMessage(_ text: String, currentCode: String?) async {
+    private func processUserMessage(_ text: String, currentCode: String?, isRetry: Bool = false) async {
         // SAFETY CHECK: Force migration away from non-serverless models
         if selectedModel == "Qwen/Qwen2.5-Coder-32B-Instruct" {
             print("🚨 SAFETY CHECK: Detected non-serverless model '\(selectedModel)' - forcing migration!")
@@ -560,7 +581,9 @@ class ChatViewModel: ObservableObject {
             let fullSystemPrompt = createSystemPrompt(currentCode: currentCode)
             
             // Use simple inference for chat
-            let response = try await callLlamaInference(userMessage: text, systemPrompt: fullSystemPrompt)
+            let response = try await BackgroundRequest.run("AI reply") {
+                try await callLlamaInference(userMessage: text, systemPrompt: fullSystemPrompt)
+            }
             
             // Process response for potential actions
             let processedResponse = processResponseForActions(response)
@@ -604,6 +627,12 @@ class ChatViewModel: ObservableObject {
             )
             messages.append(assistantMessage)
             
+        } catch where !isRetry && BackgroundRequest.isInterruption(error) {
+            print("📶 Request interrupted (\(error.localizedDescription)); will send again")
+            holdInterruptedRequest { [weak self] in
+                await self?.processUserMessage(text, currentCode: currentCode, isRetry: true)
+            }
+            return
         } catch {
             // Provide user-friendly error messages for common issues
             if let providerError = error as? AIProviderError {
@@ -630,6 +659,15 @@ class ChatViewModel: ObservableObject {
         isLoading = false
     }
     
+    /// Keeps the spinner up and sends the request again: straight away if the app
+    /// is in front, otherwise as soon as the user comes back to it.
+    private func holdInterruptedRequest(_ retry: @escaping () async -> Void) {
+        interruptedRequests.hold { Task { await retry() } }
+        if UIApplication.shared.applicationState == .active {
+            interruptedRequests.resume()
+        }
+    }
+
     private func createSystemPrompt(currentCode: String?) -> String {
         // Use library-specific prompt with context
         let prompt = library3DManager.getLibrarySpecificPrompt(
