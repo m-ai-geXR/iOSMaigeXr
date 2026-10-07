@@ -133,13 +133,19 @@ class Library3DManager: ObservableObject {
     
     // MARK: - Helper Methods
     
+    /// The example the latest welcome message shows. Run Scene plays it when
+    /// nothing has been run yet, so the tab never opens on an empty scene.
+    private(set) var welcomeExample: CodeExample?
+
     func getWelcomeMessage() -> String {
         // Get a random example from the selected library
         guard !selectedLibrary.examples.isEmpty else {
+            welcomeExample = nil
             return "Hello! I'm your \(selectedLibrary.displayName) assistant. I can help you create 3D scenes, explain concepts, and write code. Try asking me to create a scene or help with specific \(selectedLibrary.displayName) features!"
         }
 
         let randomExample = selectedLibrary.examples.randomElement()!
+        welcomeExample = randomExample
 
         // Create welcome message with random example
         let baseMessage = "Hello! I'm your \(selectedLibrary.displayName) assistant. I can help you create 3D scenes, explain concepts, and write code."
