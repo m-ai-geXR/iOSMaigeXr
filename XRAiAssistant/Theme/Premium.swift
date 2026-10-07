@@ -94,7 +94,8 @@ struct RunSceneLabel: View {
 /// `-maigeScreen <name>` opens a screen at launch, so screenshots of every screen
 /// can be taken without tapping through the app:
 /// `xcrun simctl launch <device> studio.seacloud9.maigexr -maigeScreen examples`.
-/// Names: scene, examples, settings, history, favorites. Compiled out of release.
+/// Names: scene, examples, settings, removeads (Settings scrolled to the purchase),
+/// history, favorites. Compiled out of release.
 enum DebugLaunch {
     static var screen: String? {
         #if DEBUG
