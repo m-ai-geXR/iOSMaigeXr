@@ -74,7 +74,7 @@ restraint rules in `AdManager` still decide whether one actually shows.
 - Done 2026-10-06: AdMob app and units created and set in `Info.plist` (IDs in
   `SUBMISSION.md` section 1a). Still open: the consent messages in AdMob.
 - Register the non-consumable in App Store Connect and set a real price. The
-  `2.99` in `maigeXR.storekit` is a local simulation value, not a decision.
+  `maigeXR.storekit` simulates the decided price, $2.00.
 - Register the App ID for `studio.seacloud9.maigexr` and check signing.
 - Drive a purchase and a restore through the simulator against
   `maigeXR.storekit` — the flow has not been exercised even locally.

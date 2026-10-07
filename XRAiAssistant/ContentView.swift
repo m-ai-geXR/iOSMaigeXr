@@ -128,16 +128,27 @@ struct ContentView: View {
 
     private var settingsView: some View {
         NavigationView {
+            ScrollViewReader { proxy in
             Form {
                 apiConfigurationSection
                 appearanceSection
                 playgroundSection
                 RemoveAdsSection()
+                    .id("removeAds")
                 aboutSection
                 modelSettingsSection
                 sandboxSettingsSection
                 systemPromptSection
                 saveSettingsSection
+            }
+            .onAppear {
+                // Debug screenshots of the purchase for App Review.
+                if DebugLaunch.screen == "removeads" {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        proxy.scrollTo("removeAds", anchor: .top)
+                    }
+                }
+            }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -1553,7 +1564,7 @@ struct ContentView: View {
             switch DebugLaunch.screen {
             case "scene": currentView = .scene
             case "examples": showingExamples = true
-            case "settings": showingSettings = true
+            case "settings", "removeads": showingSettings = true
             default: break
             }
         }

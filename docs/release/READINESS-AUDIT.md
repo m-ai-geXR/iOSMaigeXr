@@ -105,7 +105,7 @@ setting per configuration, the way Android already does with
 `StoreEntitlement.removeAdsProductID` is `studio.seacloud9.maigexr.removeads`.
 A matching **non-consumable** must be created in App Store Connect, with a price.
 `maigeXR.storekit` simulates it locally so the flow can be tested first; the
-2.99 in that file is a local simulation value, **not** a price decision.
+The file now simulates the decided price, $2.00.
 
 ### Not verified at all
 
