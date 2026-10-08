@@ -170,6 +170,7 @@ class ChatViewModel: ObservableObject {
         setupInitialMessage()
         setupDefaultSystemPrompt()
         loadSettings()
+        refreshTogetherModels()
 
         print("✅ ChatViewModel initialization complete")
         print("🔑 Current Together.ai API key status: \(aiProviderManager.getAPIKey(for: "Together.ai") == "changeMe" ? "NOT_CONFIGURED" : "CONFIGURED")")
@@ -246,6 +247,31 @@ class ChatViewModel: ObservableObject {
         // Keep legacy apiKey in sync for Together.ai
         if provider == "Together.ai" {
             apiKey = key
+            refreshTogetherModels(force: true)
+        }
+    }
+
+    private var togetherModelsRefresh: Task<Void, Never>?
+
+    /// Fetches the chat models this Together key can use, so the picker only
+    /// offers models that will answer. Runs when the key is saved and once a
+    /// day at launch; the built-in list is used until it succeeds.
+    func refreshTogetherModels(force: Bool = false) {
+        let key = aiProviderManager.getAPIKey(for: "Together.ai")
+        guard !key.isEmpty, key != "changeMe", force || TogetherModelCatalog.shared.isStale else { return }
+        // The Settings field saves on every keystroke: wait until typing stops.
+        togetherModelsRefresh?.cancel()
+        togetherModelsRefresh = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: force ? 1_200_000_000 : 0)
+            guard !Task.isCancelled else { return }
+            guard await TogetherModelCatalog.shared.refresh(apiKey: key), let self else { return }
+            self.objectWillChange.send()
+            // A Together model the key can no longer use: move to one it can.
+            if self.selectedModel.contains("/"), self.aiProviderManager.getProvider(for: self.selectedModel) == nil,
+               let fallback = TogetherAIProvider().models.first(where: { $0.isDefault }) ?? TogetherAIProvider().models.first {
+                print("⚠️ \(self.selectedModel) is not available to this key; using \(fallback.id)")
+                self.selectedModel = fallback.id
+            }
         }
     }
     

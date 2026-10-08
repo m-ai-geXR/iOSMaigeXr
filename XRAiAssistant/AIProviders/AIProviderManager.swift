@@ -64,7 +64,14 @@ class AIProviderManager: ObservableObject {
     func getModelsByProvider() -> [String: [AIModel]] {
         var modelsByProvider: [String: [AIModel]] = [:]
         for provider in providers where !provider.models.isEmpty {
-            modelsByProvider[provider.name] = provider.models
+            if provider.name == "Together.ai" {
+                // Curated picks under Together.ai, the key's other models in their own group.
+                for model in provider.models {
+                    modelsByProvider[model.provider == TogetherModelCatalog.moreGroup ? model.provider : provider.name, default: []].append(model)
+                }
+            } else {
+                modelsByProvider[provider.name] = provider.models
+            }
         }
         return modelsByProvider
     }
