@@ -305,7 +305,7 @@ final class ChatViewModelTests: XCTestCase {
         
         // Should have the expected models
         let modelIds = togetherModels.map { $0.id }
-        XCTAssertTrue(modelIds.contains("deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"))
+        XCTAssertTrue(modelIds.contains("zai-org/GLM-5.3-Flash"))
         XCTAssertTrue(modelIds.contains("meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"))
         
         // Check pricing information

@@ -18,7 +18,7 @@ class ChatViewModel: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
-    @Published var selectedModel: String = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+    @Published var selectedModel: String = "zai-org/GLM-5.3-Flash"
     @Published var temperature: Double = 0.7
     @Published var topP: Double = 0.9
     /// Reasoning depth for models that use effort instead of temperature/top-p.
@@ -674,7 +674,7 @@ class ChatViewModel: ObservableObject {
         // SAFETY CHECK: Force migration away from non-serverless models
         if selectedModel == "Qwen/Qwen2.5-Coder-32B-Instruct" {
             print("🚨 SAFETY CHECK: Detected non-serverless model '\(selectedModel)' - forcing migration!")
-            selectedModel = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+            selectedModel = "zai-org/GLM-5.3-Flash"
             UserDefaults.standard.set(selectedModel, forKey: "XRAiAssistant_SelectedModel")
             print("✅ Migrated to: \(selectedModel)")
         }
@@ -797,7 +797,7 @@ class ChatViewModel: ObservableObject {
         // SAFETY CHECK: Force migration away from non-serverless models
         if selectedModel == "Qwen/Qwen2.5-Coder-32B-Instruct" {
             print("🚨 SAFETY CHECK: Detected non-serverless model '\(selectedModel)' - forcing migration!")
-            selectedModel = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+            selectedModel = "zai-org/GLM-5.3-Flash"
             UserDefaults.standard.set(selectedModel, forKey: "XRAiAssistant_SelectedModel")
             print("✅ Migrated to: \(selectedModel)")
         }
@@ -1727,6 +1727,9 @@ class ChatViewModel: ObservableObject {
     /// Shared by the UserDefaults and SQLite settings loaders so a saved model
     /// migrates identically whichever store it came from.
     static let modelMigrations: [String: String] = [
+        // Together: free tiers no longer served serverless -> GLM-5.3 Flash
+        "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free": "zai-org/GLM-5.3-Flash",
+        "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free": "zai-org/GLM-5.3-Flash",
         // Anthropic: retired 4.x snapshots -> Claude 5 series
         "claude-sonnet-4.5-20250514": "claude-sonnet-5",
         "claude-sonnet-4-5-20250514": "claude-sonnet-5",
@@ -1753,7 +1756,7 @@ class ChatViewModel: ObservableObject {
         "gpt-5.2-chat-latest": "gpt-5.6-sol",
 
         // Together.ai non-serverless model migrations (to FREE alternatives)
-        "Qwen/Qwen2.5-Coder-32B-Instruct": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+        "Qwen/Qwen2.5-Coder-32B-Instruct": "zai-org/GLM-5.3-Flash"
     ]
 
     /// Default model to fall back to when a saved ID no longer exists at all.
