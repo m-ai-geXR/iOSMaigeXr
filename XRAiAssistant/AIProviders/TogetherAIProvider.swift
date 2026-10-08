@@ -21,6 +21,16 @@ class TogetherAIProvider: AIProvider {
         TogetherModelCatalog.merge(curated: Self.curatedModels, live: TogetherModelCatalog.shared.cached)
     }
 
+    /// Debug builds can point Together at a local replay server
+    /// (-maigeTogetherURL http://127.0.0.1:8797/v1/chat/completions) to test
+    /// real captured streams without a key. Release builds always use Together.
+    static var chatCompletionsURL: String {
+        #if DEBUG
+        if let override = UserDefaults.standard.string(forKey: "maigeTogetherURL") { return override }
+        #endif
+        return "https://api.together.xyz/v1/chat/completions"
+    }
+
     /// Tested picks with hand-written descriptions, shown first.
     static let curatedModels: [AIModel] = [
         // Latest open models on Together (checked 2026-10-07). 1M-token context.
@@ -106,7 +116,7 @@ class TogetherAIProvider: AIProvider {
         effort: AIEffort
     ) async throws -> AsyncThrowingStream<String, Error> {
         guard let apiKey, !apiKey.isEmpty,
-              let url = URL(string: "https://api.together.xyz/v1/chat/completions") else {
+              let url = URL(string: Self.chatCompletionsURL) else {
             throw AIProviderError.configurationError("Provider not configured with API key")
         }
 
@@ -156,7 +166,14 @@ class TogetherAIProvider: AIProvider {
                     var parser = StreamParser()
                     for try await line in bytes.lines {
                         if line.trimmingCharacters(in: .whitespaces) == "data: [DONE]" { break }
-                        if let text = parser.text(fromLine: line) { continuation.yield(text) }
+                        // Any event counts as progress, even one with no text (a
+                        // role-only chunk or keep-alive), so the stall watchdog
+                        // never mistakes a thinking model for a dead stream.
+                        if let text = parser.text(fromLine: line) {
+                            continuation.yield(text)
+                        } else if line.hasPrefix("data:") || line.hasPrefix(":") {
+                            continuation.yield("")
+                        }
                     }
                     if let closing = parser.finish() { continuation.yield(closing) }
                     continuation.finish()
@@ -185,7 +202,11 @@ class TogetherAIProvider: AIProvider {
                   let delta = (json["choices"] as? [[String: Any]])?.first?["delta"] as? [String: Any]
             else { return nil }
             var out = ""
-            if let reasoning = (delta["reasoning"] ?? delta["reasoning_content"]) as? String, !reasoning.isEmpty {
+            // Whichever field carries text: models differ, and a null in one
+            // must not hide text in the other.
+            let reasoning = [delta["reasoning"], delta["reasoning_content"]]
+                .compactMap { $0 as? String }.first { !$0.isEmpty }
+            if let reasoning {
                 if !inThinking { out += "<think>"; inThinking = true }
                 out += reasoning
             }
