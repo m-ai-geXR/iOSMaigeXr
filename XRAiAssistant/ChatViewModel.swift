@@ -465,6 +465,11 @@ class ChatViewModel: ObservableObject {
     private var lastStreamUpdate = Date.distantPast
 
     private func startReply(text: String, currentCode: String?, restarted: Bool = false) {
+        // A new message starts with a clean slate for the GLM low-effort retry.
+        if !restarted {
+            lowEffortRetryUsed = false
+            effortOverride = nil
+        }
         let id = UUID()
         activeReply = ActiveReply(id: id, text: text, currentCode: currentCode, model: selectedModel, restarted: restarted)
         resetStreaming()
@@ -518,6 +523,27 @@ class ChatViewModel: ObservableObject {
                     self.restartIfStalled(id, after: 0)
                     return
                 }
+                // GLM can think for an hour on a huge request without writing a
+                // word. Past the thinking limit, ask once more at low effort; if
+                // that also only thinks, stop and suggest a faster model.
+                let stillThinking = self.streamingReply.isEmpty || self.isThinking
+                if stillThinking, Self.thinksBeforeAnswering(reply.model),
+                   Date().timeIntervalSince(reply.startedAt) > Self.glmThinkingLimit {
+                    reply.task?.cancel()
+                    self.activeReply = nil
+                    self.resetStreaming()
+                    if !self.lowEffortRetryUsed {
+                        print("🔁 \(reply.model) still thinking after \(Int(Self.glmThinkingLimit))s; asking again with low effort")
+                        self.lowEffortRetryUsed = true
+                        self.effortOverride = .low
+                        self.startReply(text: reply.text, currentCode: reply.currentCode, restarted: true)
+                    } else {
+                        self.lowEffortRetryUsed = false
+                        self.isLoading = false
+                        self.errorMessage = Self.stillThinkingMessage
+                    }
+                    return
+                }
                 // A model that keeps streaming (a reasoning loop, say) is never
                 // silent, so it also gets an overall cap. Not retried: a second
                 // attempt would most likely loop the same way.
@@ -534,6 +560,17 @@ class ChatViewModel: ObservableObject {
     }
 
     static var maxReplyDuration: TimeInterval = 900
+
+    /// How long GLM may think without starting its answer before it is asked
+    /// again at low effort (and then stopped).
+    static var glmThinkingLimit: TimeInterval = 240
+
+    static let stillThinkingMessage = "Still thinking\n\nThis request is large enough that the model was still planning after several minutes, even at low effort.\n\nTry GLM-5.3 Flash or Kimi K3, or split the request into smaller steps."
+
+    /// Models whose thinking shares the answer budget and has no hard off switch.
+    static func thinksBeforeAnswering(_ model: String) -> Bool {
+        TogetherReasoning.effort(for: model, appEffort: .high) != nil
+    }
 
     /// Set for one request after a GLM reply came back with no answer.
     private var effortOverride: AIEffort?

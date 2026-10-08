@@ -38,3 +38,17 @@ final class LowEffortRetryTests: XCTestCase {
         XCTAssertTrue(glm.allSatisfy { $0.maxOutputTokens >= 65_536 })
     }
 }
+
+@MainActor
+final class GLMThinkingLimitTests: XCTestCase {
+    func testOnlyGLMHasAThinkingLimit() {
+        XCTAssertTrue(ChatViewModel.thinksBeforeAnswering("zai-org/GLM-5.3"))
+        XCTAssertTrue(ChatViewModel.thinksBeforeAnswering("zai-org/GLM-5.3-Flash"))
+        XCTAssertFalse(ChatViewModel.thinksBeforeAnswering("moonshotai/Kimi-K3"))
+        XCTAssertFalse(ChatViewModel.thinksBeforeAnswering("claude-opus-5"))
+    }
+
+    func testTheLimitLeavesRoomForARetryInsideTheCap() {
+        XCTAssertLessThan(ChatViewModel.glmThinkingLimit * 2, ChatViewModel.maxReplyDuration)
+    }
+}
