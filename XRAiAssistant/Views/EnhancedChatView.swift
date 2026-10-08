@@ -141,60 +141,7 @@ struct EnhancedChatView: View {
                     inputAreaView
                 }
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    if currentConversation != nil {
-                        Text(navigationTitle)
-                            .font(.headline)
-                    } else {
-                        HStack(spacing: 8) {
-                            MaigeXRAvatar(size: 26)
-                            MaigeXRBrandText(isActive: true, fontSize: 17)
-                        }
-                    }
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { showHistory = true }) {
-                        Image(systemName: "clock.arrow.circlepath")
-                    }
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showFavorites = true }) {
-                        Image(systemName: "star")
-                            .foregroundColor(.brandAccentText)
-                    }
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button {
-                            isCompactView.toggle()
-                        } label: {
-                            Label(isCompactView ? "Wide View" : "Compact View",
-                                  systemImage: isCompactView ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left")
-                        }
-
-                        Button {
-                            saveCurrentConversation()
-                        } label: {
-                            Label("Save Conversation", systemImage: "square.and.arrow.down")
-                        }
-                        .disabled(viewModel.messages.isEmpty)
-
-                        Button(role: .destructive) {
-                            clearCurrentConversation()
-                        } label: {
-                            Label("New Conversation", systemImage: "plus.bubble")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                }
-            }
+            .navigationBarHidden(true)
             .onAppear {
                 switch DebugLaunch.screen {
                 case "history": showHistory = true
@@ -260,31 +207,102 @@ struct EnhancedChatView: View {
 
     // MARK: - Model and Library Header (broken into sub-views for compiler)
 
+    /// The single top bar: navigation, model and library pickers, and actions
+    /// in one row, so the conversation gets the rest of the screen. The
+    /// wordmark sits in the true centre when there is room for it (iPad); on
+    /// a phone it is left out and documentation moves into the menu.
     private var modelAndLibraryHeader: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                modelSelectorView
-                librarySelectorView
-                Spacer()
-
-                // Documentation for the current library.
-                Button(action: {
-                    let currentLibrary = viewModel.libraryManager.selectedLibrary
-                    if let url = URL(string: currentLibrary.documentationURL) {
-                        UIApplication.shared.open(url)
+            ZStack {
+                if horizontalSizeClass == .regular {
+                    HStack(spacing: 8) {
+                        MaigeXRAvatar(size: 24)
+                        MaigeXRBrandText(isActive: true, fontSize: 17)
                     }
-                }) {
-                    Image(systemName: "book")
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isHeader)
                 }
-                .buttonStyle(CompactIconButtonStyle(tint: .brandAccentText))
-                .accessibilityLabel("\(viewModel.libraryManager.selectedLibrary.displayName) documentation")
+
+                HStack(spacing: 8) {
+                    Button(action: { showHistory = true }) {
+                        Image(systemName: "clock.arrow.circlepath")
+                    }
+                    .buttonStyle(CompactIconButtonStyle(tint: .brandAccentText))
+                    .accessibilityLabel("History")
+
+                    modelSelectorView
+                    librarySelectorView
+
+                    Spacer(minLength: 8)
+
+                    if horizontalSizeClass == .regular {
+                        Button(action: openLibraryDocs) {
+                            Image(systemName: "book")
+                        }
+                        .buttonStyle(CompactIconButtonStyle(tint: .brandAccentText))
+                        .accessibilityLabel("\(viewModel.libraryManager.selectedLibrary.displayName) documentation")
+                    }
+
+                    Button(action: { showFavorites = true }) {
+                        Image(systemName: "star")
+                    }
+                    .buttonStyle(CompactIconButtonStyle(tint: .brandAccentText))
+                    .accessibilityLabel("Favorites")
+
+                    moreMenu
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .frame(height: 52)
 
             Hairline()
         }
         .background(Color.brandBackground)
+    }
+
+    private func openLibraryDocs() {
+        if let url = URL(string: viewModel.libraryManager.selectedLibrary.documentationURL) {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    private var moreMenu: some View {
+        Menu {
+            if horizontalSizeClass != .regular {
+                Button(action: openLibraryDocs) {
+                    Label("\(viewModel.libraryManager.selectedLibrary.displayName) Docs", systemImage: "book")
+                }
+            }
+
+            Button {
+                isCompactView.toggle()
+            } label: {
+                Label(isCompactView ? "Wide View" : "Compact View",
+                      systemImage: isCompactView ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left")
+            }
+
+            Button {
+                saveCurrentConversation()
+            } label: {
+                Label("Save Conversation", systemImage: "square.and.arrow.down")
+            }
+            .disabled(viewModel.messages.isEmpty)
+
+            Button(role: .destructive) {
+                clearCurrentConversation()
+            } label: {
+                Label("New Conversation", systemImage: "plus.bubble")
+            }
+        } label: {
+            // Menu labels ignore button styles, so match CompactIconButtonStyle by hand.
+            Image(systemName: "ellipsis")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(.brandAccentText)
+                .frame(width: Metrics.control, height: Metrics.control)
+                .background(Circle().fill(Color.brandSurface.opacity(0.7)))
+                .contentShape(Circle())
+        }
+        .accessibilityLabel("More")
     }
 
     private var modelSelectorView: some View {
@@ -351,7 +369,8 @@ struct EnhancedChatView: View {
     }
 
     private var modelMenuLabel: some View {
-        PillLabel(icon: "cpu", text: viewModel.getModelDisplayName(viewModel.selectedModel))
+        PillLabel(icon: "cpu", text: viewModel.getModelDisplayName(viewModel.selectedModel),
+                  maxTextWidth: horizontalSizeClass == .regular ? 140 : 84)
     }
 
     private var librarySelectorView: some View {
@@ -363,7 +382,7 @@ struct EnhancedChatView: View {
         Menu {
             ForEach(viewModel.libraryManager.availableLibraries, id: \.id) { library in
                 Button(action: {
-                    viewModel.libraryManager.selectLibrary(library)
+                    viewModel.selectLibrary(id: library.id)
                 }) {
                     HStack {
                         Text(library.displayName)
@@ -382,7 +401,8 @@ struct EnhancedChatView: View {
     }
 
     private var libraryMenuLabel: some View {
-        PillLabel(icon: "cube", text: viewModel.libraryManager.selectedLibrary.displayName)
+        PillLabel(icon: "cube", text: viewModel.libraryManager.selectedLibrary.displayName,
+                  maxTextWidth: horizontalSizeClass == .regular ? 140 : 72)
     }
 
     private func conversationHeaderView(_ conversation: Conversation) -> some View {
