@@ -18,20 +18,31 @@ class TogetherAIProvider: AIProvider {
     )
 
     let models: [AIModel] = [
+        // Latest open models on Together (checked 2026-10-07). 1M-token context.
         AIModel(
-            id: "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free",
-            displayName: "DeepSeek R1 70B",
-            description: "Advanced reasoning & coding",
-            pricing: "FREE",
+            id: "moonshotai/Kimi-K3",
+            displayName: "Kimi K3",
+            description: "Moonshot flagship - strong agentic coding",
+            pricing: "$3.00/1M input tokens",
             provider: "Together.ai",
-            isDefault: true
+            maxOutputTokens: 32_000
         ),
         AIModel(
-            id: "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-            displayName: "Llama 3.3 70B",
-            description: "Latest large model",
-            pricing: "FREE",
-            provider: "Together.ai"
+            id: "zai-org/GLM-5.3",
+            displayName: "GLM-5.3",
+            description: "Z.ai flagship - advanced coding and reasoning",
+            pricing: "$1.40/1M input tokens",
+            provider: "Together.ai",
+            maxOutputTokens: 32_000
+        ),
+        AIModel(
+            id: "zai-org/GLM-5.3-Flash",
+            displayName: "GLM-5.3 Flash",
+            description: "Fast, low-cost GLM for quick scenes",
+            pricing: "$0.15/1M input tokens",
+            provider: "Together.ai",
+            isDefault: true,
+            maxOutputTokens: 32_000
         ),
         AIModel(
             id: "meta-llama/Meta-Llama-3-8B-Instruct-Lite",
