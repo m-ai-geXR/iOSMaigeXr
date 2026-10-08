@@ -72,6 +72,8 @@ enum AIErrorClassifier {
 
         if let http = error as? AIProviderHTTPError {
             let provider = http.provider.isEmpty ? providerName : http.provider
+            // A 400 body usually says which setting was refused; read it first.
+            if http.status == 400, let body = http.providerMessage, let info = byMessage(body, provider) { return info }
             if let status = http.status, let info = byStatus(status, provider) { return info }
             if let body = http.providerMessage, let info = byMessage(body, provider) { return info }
             return unknown(provider, status: http.status)
@@ -97,6 +99,12 @@ enum AIErrorClassifier {
             case .modelNotSupported: return byStatus(404, providerName) ?? unknown(providerName, status: nil)
             case .responseEmpty: return emptyResponse(providerName)
             case .networkError(let text):
+                // "HTTP 400: {...}" is a refused request, not a lost connection.
+                if let match = text.range(of: #"HTTP (\d{3})"#, options: .regularExpression),
+                   let status = Int(text[match].dropFirst(5)) {
+                    return classify(AIProviderHTTPError(provider: providerName, status: status, providerMessage: text),
+                                    provider: providerName)
+                }
                 return byMessage(text, providerName) ?? offline(providerName)
             case .configurationError(let text):
                 return byMessage(text, providerName) ?? missingKey(providerName)
