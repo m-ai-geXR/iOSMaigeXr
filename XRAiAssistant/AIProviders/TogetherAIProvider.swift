@@ -43,25 +43,44 @@ class TogetherAIProvider: AIProvider {
             maxOutputTokens: 32_000
         ),
         AIModel(
-            id: "meta-llama/Meta-Llama-3-8B-Instruct-Lite",
-            displayName: "Llama 3 8B Lite",
-            description: "Cost-effective option",
-            pricing: "$0.10/1M tokens",
-            provider: "Together.ai"
+            id: "deepseek-ai/DeepSeek-V4.1-Flash",
+            displayName: "DeepSeek V4.1 Flash",
+            description: "Fast DeepSeek for coding",
+            pricing: "Serverless",
+            provider: "Together.ai",
+            maxOutputTokens: 16_000
         ),
         AIModel(
-            id: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
-            displayName: "Llama 3.1 8B Turbo",
-            description: "Good balance",
-            pricing: "$0.18/1M tokens",
-            provider: "Together.ai"
+            id: "deepseek-ai/DeepSeek-V4-Pro-0813",
+            displayName: "DeepSeek V4 Pro",
+            description: "DeepSeek flagship - deep reasoning",
+            pricing: "Serverless",
+            provider: "Together.ai",
+            maxOutputTokens: 16_000
         ),
         AIModel(
-            id: "Qwen/Qwen2.5-7B-Instruct-Turbo",
-            displayName: "Qwen 2.5 7B Turbo",
-            description: "Fast coding specialist",
-            pricing: "$0.30/1M tokens",
-            provider: "Together.ai"
+            id: "Qwen/Qwen3.8-Flash",
+            displayName: "Qwen3.8 Flash",
+            description: "Fast Qwen for quick edits",
+            pricing: "Serverless",
+            provider: "Together.ai",
+            maxOutputTokens: 16_000
+        ),
+        AIModel(
+            id: "Qwen/Qwen3.7-Max",
+            displayName: "Qwen3.7 Max",
+            description: "Qwen flagship - strong coding",
+            pricing: "Serverless",
+            provider: "Together.ai",
+            maxOutputTokens: 16_000
+        ),
+        AIModel(
+            id: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+            displayName: "Llama 3.3 70B Turbo",
+            description: "Meta large model",
+            pricing: "Serverless",
+            provider: "Together.ai",
+            maxOutputTokens: 8_000
         )
     ]
     
@@ -82,15 +101,8 @@ class TogetherAIProvider: AIProvider {
             throw AIProviderError.configurationError("Provider not configured with API key")
         }
 
-        // Model-specific max tokens
-        let maxTokens: Int
-        if model.hasPrefix("zai-org/") || model.hasPrefix("moonshotai/") {
-            maxTokens = 32_000
-        } else if model.contains("Llama-3.1") || model.contains("Llama-3-") {
-            maxTokens = 16_000
-        } else {
-            maxTokens = 8_000
-        }
+        // Each model's own output budget; reasoning models need room to think and answer.
+        let maxTokens = models.first(where: { $0.id == model })?.maxOutputTokens ?? 8_000
         let temperature = SamplingLimits.temperature(temperature, model: model)
         let topP = SamplingLimits.topP(topP, model: model)
 

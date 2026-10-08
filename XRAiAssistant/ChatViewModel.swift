@@ -108,13 +108,8 @@ class ChatViewModel: ObservableObject {
     
     // Available models (ordered by cost - cheapest first) - Legacy, now using aiProviderManager.getAllModels()
     // NOTE: Only serverless models are included. Non-serverless models require dedicated endpoints.
-    let availableModels = [
-        "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free", // FREE - DeepSeek R1 reasoning model
-        "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free", // FREE - Latest Llama 3.3 70B
-        "meta-llama/Meta-Llama-3-8B-Instruct-Lite",     // $0.10/1M - CHEAPEST paid
-        "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",  // $0.18/1M - Good balance
-        "Qwen/Qwen2.5-7B-Instruct-Turbo"                // $0.30/1M - Fastest Qwen
-    ]
+    // Every model now comes from the provider system; these were all retired by Together.
+    let availableModels: [String] = []
     
     // MARK: - New Provider System Properties
     var allAvailableModels: [AIModel] {
@@ -1820,6 +1815,11 @@ class ChatViewModel: ObservableObject {
         // Together: free tiers no longer served serverless -> GLM-5.3 Flash
         "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free": "zai-org/GLM-5.3-Flash",
         "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free": "zai-org/GLM-5.3-Flash",
+        // Together: retired from serverless (checked 2026-10-07)
+        "deepseek-ai/DeepSeek-R1": "deepseek-ai/DeepSeek-V4.1-Flash",
+        "meta-llama/Meta-Llama-3-8B-Instruct-Lite": "zai-org/GLM-5.3-Flash",
+        "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo": "zai-org/GLM-5.3-Flash",
+        "Qwen/Qwen2.5-7B-Instruct-Turbo": "Qwen/Qwen3.8-Flash",
         // Anthropic: retired 4.x snapshots -> Claude 5 series
         "claude-sonnet-4.5-20250514": "claude-sonnet-5",
         "claude-sonnet-4-5-20250514": "claude-sonnet-5",
