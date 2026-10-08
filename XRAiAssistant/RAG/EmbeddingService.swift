@@ -11,6 +11,12 @@ import Foundation
 class EmbeddingService {
     private let apiKey: String
     private let embeddingModel = "BAAI/bge-base-en-v1.5"
+
+    /// Set once Together refuses the embedding model (400 or 404). Together
+    /// currently offers no serverless embedding model, so without this every
+    /// chat message waited on a request that could only fail. Reset on the next
+    /// launch, so RAG comes back if Together adds the model again.
+    static var unavailable = false
     private let embeddingDimension = 768
 
     init(apiKey: String) {
@@ -30,6 +36,7 @@ class EmbeddingService {
 
     /// Generate embedding for a single text
     func generateEmbedding(text: String) async throws -> [Float] {
+        guard !Self.unavailable else { throw EmbeddingError.invalidResponse }
         guard !text.isEmpty else {
             throw EmbeddingError.emptyText
         }
@@ -56,6 +63,10 @@ class EmbeddingService {
         }
 
         guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 400 || httpResponse.statusCode == 404 {
+                Self.unavailable = true
+                print("⚠️ Embedding model not served (HTTP \(httpResponse.statusCode)); RAG is off for this session")
+            }
             let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
             throw EmbeddingError.apiError(statusCode: httpResponse.statusCode, message: errorText)
         }
@@ -77,6 +88,7 @@ class EmbeddingService {
     /// Generate embeddings for multiple texts in batch (more efficient)
     func batchGenerateEmbeddings(texts: [String]) async throws -> [[Float]] {
         guard !texts.isEmpty else { return [] }
+        guard !Self.unavailable else { throw EmbeddingError.invalidResponse }
 
         print("🧠 Generating batch embeddings for \(texts.count) texts...")
 
@@ -100,6 +112,10 @@ class EmbeddingService {
         }
 
         guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 400 || httpResponse.statusCode == 404 {
+                Self.unavailable = true
+                print("⚠️ Embedding model not served (HTTP \(httpResponse.statusCode)); RAG is off for this session")
+            }
             let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
             print("❌ Batch embedding failed: \(errorText)")
             throw EmbeddingError.apiError(statusCode: httpResponse.statusCode, message: errorText)
@@ -126,6 +142,7 @@ class EmbeddingService {
     /// Process large number of texts in smaller batches to avoid API limits
     func batchGenerateEmbeddingsChunked(texts: [String], batchSize: Int = 20) async throws -> [[Float]] {
         guard !texts.isEmpty else { return [] }
+        guard !Self.unavailable else { throw EmbeddingError.invalidResponse }
 
         print("🧠 Generating embeddings for \(texts.count) texts in batches of \(batchSize)...")
 

@@ -31,6 +31,7 @@ class TogetherAIProvider: AIProvider {
             description: "Z.ai flagship - advanced coding and reasoning",
             pricing: "$1.40/1M input tokens",
             provider: "Together.ai",
+            control: .effort,
             maxOutputTokens: 32_000
         ),
         AIModel(
@@ -40,6 +41,7 @@ class TogetherAIProvider: AIProvider {
             pricing: "$0.15/1M input tokens",
             provider: "Together.ai",
             isDefault: true,
+            control: .effort,
             maxOutputTokens: 32_000
         ),
         AIModel(
@@ -106,7 +108,7 @@ class TogetherAIProvider: AIProvider {
         let temperature = SamplingLimits.temperature(temperature, model: model)
         let topP = SamplingLimits.topP(topP, model: model)
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "model": model,
             "messages": messages.map { message -> [String: String] in
                 let role: String
@@ -122,6 +124,9 @@ class TogetherAIProvider: AIProvider {
             "top_p": topP,
             "stream": true
         ]
+        if let reasoningEffort = TogetherReasoning.effort(for: model, appEffort: effort) {
+            body["reasoning_effort"] = reasoningEffort
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 300 // reasoning models can think for minutes

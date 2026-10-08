@@ -102,6 +102,9 @@ enum BackgroundReplyRequests {
             body["temperature"] = SamplingLimits.temperature(inputs.temperature, model: inputs.model)
             body["top_p"] = SamplingLimits.topP(inputs.topP, model: inputs.model)
             body["max_tokens"] = inputs.maxOutputTokens
+            if let reasoningEffort = TogetherReasoning.effort(for: inputs.model, appEffort: inputs.effort) {
+                body["reasoning_effort"] = reasoningEffort
+            }
         }
         var request = jsonRequest(url, body: body)
         request?.setValue("Bearer \(inputs.apiKey)", forHTTPHeaderField: "Authorization")
