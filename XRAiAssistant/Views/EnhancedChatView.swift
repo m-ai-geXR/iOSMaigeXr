@@ -582,14 +582,8 @@ struct EnhancedChatView: View {
     /// The reply as it arrives: live text once the model starts answering,
     /// "Thinking…" before that.
     private var loadingIndicator: some View {
+        // One bubble: the status line inside it, the text below once it starts.
         VStack(alignment: .leading, spacing: 8) {
-            if !viewModel.streamingReply.isEmpty {
-                MarkdownMessageView(content: viewModel.streamingReply, isUser: false)
-                    .padding(12)
-                    .frame(maxWidth: 600, alignment: .leading)
-                    .background(Color.brandSurface)
-                    .clipShape(RoundedRectangle(cornerRadius: 18))
-            }
             HStack(spacing: 8) {
                 ProgressView()
                     .tint(.neonCyan)
@@ -598,7 +592,14 @@ struct EnhancedChatView: View {
                     .foregroundColor(.neonCyan)
             }
             .accessibilityElement(children: .combine)
+            if !viewModel.streamingReply.isEmpty {
+                MarkdownMessageView(content: viewModel.streamingReply, isUser: false)
+            }
         }
+        .padding(12)
+        .frame(maxWidth: 600, alignment: .leading)
+        .background(Color.brandSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .id("live-reply")
