@@ -230,6 +230,26 @@ struct EnhancedChatView: View {
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
+        // Missing key: ask for it here, then send the draft or retry the failed message.
+        .sheet(item: $viewModel.keyPrompt) { prompt in
+            APIKeyEntrySheet(
+                provider: prompt.provider,
+                onSave: { key in
+                    viewModel.setAPIKey(for: prompt.provider, key: key)
+                    viewModel.keyPrompt = nil
+                    if viewModel.retryAfterKey {
+                        viewModel.retryAfterKey = false
+                        viewModel.retryLastUserMessage()
+                    } else if !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        sendMessage()
+                    }
+                },
+                onCancel: {
+                    viewModel.keyPrompt = nil
+                    viewModel.retryAfterKey = false
+                }
+            )
+        }
         .onAppear {
             loadFavoritedMessageIds()
             restoreCurrentConversationIfNeeded()
@@ -286,7 +306,7 @@ struct EnhancedChatView: View {
                 Section(provider) {
                     ForEach(viewModel.modelsByProvider[provider] ?? [], id: \.id) { model in
                         Button(action: {
-                            viewModel.selectedModel = model.id
+                            viewModel.selectModel(model.id)
                         }) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
@@ -726,6 +746,13 @@ struct EnhancedChatView: View {
 
     private func sendMessage() {
         guard !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
+        // No key for this model's provider yet: ask for it now and keep the draft,
+        // instead of sending and answering with an error.
+        if let provider = viewModel.providerMissingKey(for: viewModel.selectedModel) {
+            viewModel.keyPrompt = KeyPrompt(provider: provider)
+            return
+        }
 
         let messageContent = inputText
         let imagesCopy = selectedImages

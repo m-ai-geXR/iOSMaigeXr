@@ -341,6 +341,48 @@ class ChatViewModel: ObservableObject {
     func isProviderConfigured(_ provider: String) -> Bool {
         return aiProviderManager.isProviderConfigured(provider)
     }
+
+    // MARK: - Asking for a missing key
+
+    /// Set to ask for a provider's key (sheet in the chat view).
+    @Published var keyPrompt: KeyPrompt?
+    /// After the key is saved, send the last message again (it failed on the key).
+    @Published var retryAfterKey = false
+
+    /// The provider of `modelId` if it needs a key the user has not entered.
+    func providerMissingKey(for modelId: String) -> String? {
+        guard let provider = aiProviderManager.getProvider(for: modelId),
+              provider.requiresAPIKey,
+              !isProviderConfigured(provider.name) else { return nil }
+        return provider.name
+    }
+
+    /// Picks a model and, if its provider has no key yet, asks for one.
+    func selectModel(_ modelId: String) {
+        selectedModel = modelId
+        if let provider = providerMissingKey(for: modelId) {
+            keyPrompt = KeyPrompt(provider: provider)
+        }
+    }
+
+    /// True when the current error is about a missing or rejected key.
+    var errorIsAboutKey: Bool {
+        guard let message = errorMessage?.lowercased() else { return false }
+        return message.contains("api key") || message.contains("authentication") || message.contains("unauthorized")
+    }
+
+    /// From the error alert: ask for the key, then retry.
+    func promptForKeyAfterError() {
+        errorMessage = nil
+        retryAfterKey = true
+        keyPrompt = KeyPrompt(provider: providerNameForSelectedModel)
+    }
+
+    /// Sends the last user message again, e.g. after its key was fixed.
+    func retryLastUserMessage() {
+        guard let last = messages.last(where: { $0.isUser }) else { return }
+        startReply(text: last.content, currentCode: nil)
+    }
     
     func getConfiguredProviders() -> [AIProvider] {
         return aiProviderManager.getConfiguredProviders()
