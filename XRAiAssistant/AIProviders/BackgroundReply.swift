@@ -1,4 +1,6 @@
 import UIKit
+import CoreSpotlight
+import UniformTypeIdentifiers
 
 // MARK: - Overview
 //
@@ -300,6 +302,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         _ = BackgroundReplyService.shared.session // pick up replies still running
+        AppSearchEntry.register()
         return true
     }
 
@@ -314,5 +317,27 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         }
         BackgroundReplyService.shared.backgroundEventsCompletion = completionHandler
         _ = BackgroundReplyService.shared.session // reconnects to the running session
+    }
+}
+
+// MARK: - Device search
+
+/// Lets iPhone and iPad search find the app by "maigexr" as well as by its
+/// display name, m{ai}geXR, whose braces the search field would otherwise need.
+enum AppSearchEntry {
+    static let identifier = "studio.seacloud9.maigexr.app"
+    static let keywords = ["maigexr", "maige", "maige xr", "m{ai}gexr", "3d", "ai", "xr", "scene"]
+
+    static func register(index: CSSearchableIndex = .default()) {
+        let attributes = CSSearchableItemAttributeSet(contentType: .content)
+        attributes.title = "m{ai}geXR"
+        attributes.displayName = "m{ai}geXR (maigeXR)"
+        attributes.contentDescription = "3D scenes from plain words"
+        attributes.keywords = keywords
+        let item = CSSearchableItem(uniqueIdentifier: identifier, domainIdentifier: "app", attributeSet: attributes)
+        item.expirationDate = .distantFuture
+        index.indexSearchableItems([item]) { error in
+            if let error { print("⚠️ Search entry not indexed: \(error.localizedDescription)") }
+        }
     }
 }
