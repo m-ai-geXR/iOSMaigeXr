@@ -5,7 +5,6 @@ import PhotosUI
 struct EnhancedChatView: View {
     @ObservedObject var viewModel: ChatViewModel
     @ObservedObject private var appearance = AppearanceStore.shared
-    @Environment(\.colorScheme) private var colorScheme
     private var theme: ChatTheme { appearance.chatTheme }
     @ObservedObject var storageManager: ConversationStorageManager
     var onRunCode: ((_ code: String, _ libraryId: String?) -> Void)?
@@ -115,9 +114,8 @@ struct EnhancedChatView: View {
                         .frame(maxWidth: maxMessageWidth)
                         .frame(maxWidth: .infinity) // Center the content
                     }
-                    // The chat style: its backdrop, and dark presets darken only this area.
+                    // The chat style's backdrop; it follows the app's light or dark appearance.
                     .background(ChatBackdrop(theme: theme).ignoresSafeArea(edges: .horizontal))
-                    .environment(\.colorScheme, theme.colorScheme ?? colorScheme)
                     .fontDesign(theme.monospaced ? .monospaced : .default)
                     .onChange(of: viewModel.streamingReply.count / 200) { _ in
                         // Keep the live reply in view as it grows.
