@@ -941,14 +941,12 @@ class ChatViewModel: ObservableObject {
                         errorMessage = "Configuration Error: \(message)"
                     }
                 default:
-                    errorMessage = "Provider Error: \(providerError.localizedDescription)"
+                    errorMessage = AIErrorClassifier.classify(providerError, provider: providerNameForSelectedModel).asMessage
                 }
             } else if error.localizedDescription.contains("Invalid API key") {
                 errorMessage = "⚠️ Invalid API Key: Please check your \(providerNameForSelectedModel) API key in Settings (gear icon). Get your API key at \(apiKeyURLForSelectedModel)"
-            } else if error.localizedDescription.contains("401") {
-                errorMessage = "⚠️ Authentication Failed: Please verify your \(providerNameForSelectedModel) API key in Settings (gear icon)."
             } else {
-                errorMessage = "Failed to get response: \(error.localizedDescription)"
+                errorMessage = AIErrorClassifier.classify(error, provider: providerNameForSelectedModel).asMessage
             }
             print("Chat error: \(error)")
         }
@@ -1180,8 +1178,8 @@ class ChatViewModel: ObservableObject {
             model: selectedModel,  // Use model name as-is (NIM endpoint should work)
             maxTokens: 4000,  // ✅ FIXED: Added maxTokens to prevent 400 errors
             stream: true,
-            temperature: temperature,
-            topP: topP
+            temperature: SamplingLimits.temperature(temperature, model: selectedModel),
+            topP: SamplingLimits.topP(topP, model: selectedModel)
         )
         
         print("✅ Created Together.ai request for model: \(selectedModel)")

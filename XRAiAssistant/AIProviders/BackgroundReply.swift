@@ -99,8 +99,8 @@ enum BackgroundReplyRequests {
             body["reasoning_effort"] = inputs.effort.rawValue
             body["max_completion_tokens"] = inputs.maxOutputTokens
         } else {
-            body["temperature"] = inputs.temperature
-            body["top_p"] = inputs.topP
+            body["temperature"] = SamplingLimits.temperature(inputs.temperature, model: inputs.model)
+            body["top_p"] = SamplingLimits.topP(inputs.topP, model: inputs.model)
             body["max_tokens"] = inputs.maxOutputTokens
         }
         var request = jsonRequest(url, body: body)
