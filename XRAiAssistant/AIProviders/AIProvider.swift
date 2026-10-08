@@ -219,6 +219,9 @@ enum AIRetry {
                 return false
             }
         }
+        if let http = error as? AIProviderHTTPError, let status = http.status {
+            return status == 429 || (500...599).contains(status)
+        }
         if case AIProviderError.networkError(let message) = error {
             // Rate limits and server errors are worth retrying; 4xx are not.
             return message.contains("HTTP 429") || message.contains("HTTP 5")
