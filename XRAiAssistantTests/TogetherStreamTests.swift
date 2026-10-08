@@ -38,4 +38,10 @@ final class TogetherStreamTests: XCTestCase {
         XCTAssertTrue(AIRetry.isTransient(AIProviderHTTPError(provider: "Together.ai", status: 429)))
         XCTAssertFalse(AIRetry.isTransient(AIProviderHTTPError(provider: "Together.ai", status: 400)))
     }
+
+    func testANullReasoningFieldDoesNotHideTheOther() {
+        var parser = TogetherAIProvider.StreamParser()
+        let line = #"data: {"choices":[{"delta":{"reasoning":null,"reasoning_content":"thinking"}}]}"#
+        XCTAssertEqual(parser.text(fromLine: line), "<think>thinking")
+    }
 }
