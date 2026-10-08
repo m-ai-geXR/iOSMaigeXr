@@ -17,3 +17,24 @@ final class EmptyReplyTests: XCTestCase {
         XCTAssertFalse(ChatViewModel.isEmptyReply("const cube = 1"))
     }
 }
+
+/// GLM thinks and answers from one budget; an empty GLM reply gets one retry at low effort.
+@MainActor
+final class LowEffortRetryTests: XCTestCase {
+
+    func testGLMEmptyRepliesRetryOnceAtLowEffort() {
+        XCTAssertTrue(ChatViewModel.shouldRetryWithLowEffort(model: "zai-org/GLM-5.3", effort: .high, alreadyRetried: false))
+        XCTAssertFalse(ChatViewModel.shouldRetryWithLowEffort(model: "zai-org/GLM-5.3", effort: .high, alreadyRetried: true),
+                       "only once")
+        XCTAssertFalse(ChatViewModel.shouldRetryWithLowEffort(model: "zai-org/GLM-5.3", effort: .medium, alreadyRetried: false),
+                       "medium already maps to GLM low")
+        XCTAssertFalse(ChatViewModel.shouldRetryWithLowEffort(model: "moonshotai/Kimi-K3", effort: .high, alreadyRetried: false),
+                       "only models whose thinking shares the budget")
+    }
+
+    func testGLMHasRoomToThinkAndAnswer() {
+        let glm = TogetherAIProvider.curatedModels.filter { $0.id.hasPrefix("zai-org/GLM-5.3") }
+        XCTAssertEqual(glm.count, 2)
+        XCTAssertTrue(glm.allSatisfy { $0.maxOutputTokens >= 65_536 })
+    }
+}

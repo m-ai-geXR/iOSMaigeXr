@@ -49,7 +49,7 @@ class TogetherAIProvider: AIProvider {
             pricing: "$1.40/1M input tokens",
             provider: "Together.ai",
             control: .effort,
-            maxOutputTokens: 32_000
+            maxOutputTokens: 65_536
         ),
         AIModel(
             id: "zai-org/GLM-5.3-Flash",
@@ -59,7 +59,7 @@ class TogetherAIProvider: AIProvider {
             provider: "Together.ai",
             isDefault: true,
             control: .effort,
-            maxOutputTokens: 32_000
+            maxOutputTokens: 65_536
         ),
         AIModel(
             id: "deepseek-ai/DeepSeek-V4.1-Flash",
@@ -164,7 +164,24 @@ class TogetherAIProvider: AIProvider {
                         throw AIProviderHTTPError(provider: providerName, status: http.statusCode, providerMessage: errorBody)
                     }
                     var parser = StreamParser()
+                    #if DEBUG
+                    let started = Date()
+                    var events = 0, thinking = 0, answer = 0
+                    var finish = "none"
+                    defer {
+                        print("🧪 Together stream \(model): \(events) events, \(thinking) thinking, \(answer) answer, finish=\(finish), \(Int(Date().timeIntervalSince(started)))s")
+                    }
+                    #endif
                     for try await line in bytes.lines {
+                        #if DEBUG
+                        if line.hasPrefix("data:") {
+                            events += 1
+                            if line.contains("\"reasoning_content\":\"") || line.contains("\"reasoning\":\"") { thinking += 1 }
+                            if line.contains("\"content\":\"") { answer += 1 }
+                            if let r = line.range(of: #""finish_reason":"[a-z_]+""#, options: .regularExpression) { finish = String(line[r]) }
+                            if events <= 2 || line.contains("error") { print("🧪 \(line.prefix(300))") }
+                        }
+                        #endif
                         if line.trimmingCharacters(in: .whitespaces) == "data: [DONE]" { break }
                         // Any event counts as progress, even one with no text (a
                         // role-only chunk or keep-alive), so the stall watchdog
