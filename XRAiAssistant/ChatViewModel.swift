@@ -629,7 +629,18 @@ class ChatViewModel: ObservableObject {
     }
 
     /// Shows a finished reply in the chat.
+    static let emptyReplyMessage = "No answer\n\nThe model finished without writing a reply, often because it spent its whole budget thinking.\n\nTry again, or pick another model."
+
+    /// True when a finished reply has nothing to show once reasoning is removed.
+    static func isEmptyReply(_ raw: String) -> Bool {
+        ReplyText.visible(raw).text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private func presentReply(_ response: String) {
+        if Self.isEmptyReply(response) {
+            errorMessage = Self.emptyReplyMessage
+            return
+        }
         let processedResponse = processResponseForActions(ReplyText.visible(response).text)
         messages.append(ChatMessage(
             id: UUID().uuidString,
@@ -898,6 +909,13 @@ class ChatViewModel: ObservableObject {
             guard isCurrentReply(replyID) else { return }
             finishReply(replyID)
             resetStreaming()
+
+            // Nothing left once reasoning is removed: say so, not an empty bubble.
+            if Self.isEmptyReply(response) {
+                errorMessage = Self.emptyReplyMessage
+                isLoading = false
+                return
+            }
 
             // Process response for potential actions (reasoning text is not shown)
             let processedResponse = processResponseForActions(ReplyText.visible(response).text)
