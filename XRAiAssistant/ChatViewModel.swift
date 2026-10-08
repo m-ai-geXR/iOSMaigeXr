@@ -431,6 +431,8 @@ class ChatViewModel: ObservableObject {
         var restarted = false
         /// Last time any text arrived, for spotting a stream that went quiet.
         var lastProgress = Date()
+        /// When this attempt started, for the overall cap.
+        var startedAt = Date()
     }
 
     private var activeReply: ActiveReply?
@@ -495,8 +497,25 @@ class ChatViewModel: ObservableObject {
                     self.restartIfStalled(id, after: 0)
                     return
                 }
+                // A model that keeps streaming (a reasoning loop, say) is never
+                // silent, so it also gets an overall cap. Not retried: a second
+                // attempt would most likely loop the same way.
+                if Self.hasRunTooLong(startedAt: reply.startedAt) {
+                    reply.task?.cancel()
+                    self.activeReply = nil
+                    self.resetStreaming()
+                    self.isLoading = false
+                    self.errorMessage = "Reply took too long\n\nThe model kept going without finishing, so it was stopped.\n\nTry again, or pick a faster model in Settings."
+                    return
+                }
             }
         }
+    }
+
+    static var maxReplyDuration: TimeInterval = 600
+
+    static func hasRunTooLong(startedAt: Date, now: Date = Date()) -> Bool {
+        now.timeIntervalSince(startedAt) > maxReplyDuration
     }
 
     static var inAppStallTimeout: TimeInterval = 45
@@ -598,7 +617,7 @@ class ChatViewModel: ObservableObject {
                 self.activeReply = nil
                 self.resetStreaming()
                 self.isLoading = false
-                self.errorMessage = "The reply did not arrive. Check your connection and try again."
+                self.errorMessage = "The reply did not arrive.\n\nTry again, or pick another model in Settings."
                 return
             }
             print("🔁 Reply stalled; sending it again")
