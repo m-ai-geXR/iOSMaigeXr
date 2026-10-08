@@ -4,6 +4,9 @@ import PhotosUI
 // MARK: - Enhanced Chat View with Adaptive Layout
 struct EnhancedChatView: View {
     @ObservedObject var viewModel: ChatViewModel
+    @ObservedObject private var appearance = AppearanceStore.shared
+    @Environment(\.colorScheme) private var colorScheme
+    private var theme: ChatTheme { appearance.chatTheme }
     @ObservedObject var storageManager: ConversationStorageManager
     var onRunCode: ((_ code: String, _ libraryId: String?) -> Void)?
 
@@ -112,6 +115,10 @@ struct EnhancedChatView: View {
                         .frame(maxWidth: maxMessageWidth)
                         .frame(maxWidth: .infinity) // Center the content
                     }
+                    // The chat style: its backdrop, and dark presets darken only this area.
+                    .background(ChatBackdrop(theme: theme).ignoresSafeArea(edges: .horizontal))
+                    .environment(\.colorScheme, theme.colorScheme ?? colorScheme)
+                    .fontDesign(theme.monospaced ? .monospaced : .default)
                     .onChange(of: viewModel.streamingReply.count / 200) { _ in
                         // Keep the live reply in view as it grows.
                         proxy.scrollTo("live-reply", anchor: .bottom)
@@ -455,8 +462,7 @@ struct EnhancedChatView: View {
                     MarkdownMessageView(content: message.content, isUser: true)
                         .padding(12)
                         .frame(maxWidth: 600, alignment: .leading)
-                        .background(Color.brandAccent)
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                        .chatBubble(theme, isUser: true)
 
                     Text(formatTime(message.timestamp))
                         .font(.caption2)
@@ -467,8 +473,7 @@ struct EnhancedChatView: View {
                     MarkdownMessageView(content: message.content, isUser: false)
                         .padding(12)
                         .frame(maxWidth: 600, alignment: .leading)
-                        .background(Color.brandSurface)
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                        .chatBubble(theme, isUser: false)
 
                     // Timestamp and action buttons
                     HStack(spacing: 12) {
@@ -618,8 +623,7 @@ struct EnhancedChatView: View {
         }
         .padding(12)
         .frame(maxWidth: 600, alignment: .leading)
-        .background(Color.brandSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .chatBubble(theme, isUser: false)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .id("live-reply")

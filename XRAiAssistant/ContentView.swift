@@ -330,6 +330,23 @@ struct ContentView: View {
             Text("System follows your device setting. The splash screen is always dark.")
                 .font(.caption)
                 .foregroundColor(.brandMuted)
+
+            Picker("Chat style", selection: $appearanceStore.chatTheme) {
+                ForEach(ChatTheme.allCases) { theme in
+                    HStack(spacing: 8) {
+                        HStack(spacing: 0) {
+                            ForEach(Array(theme.swatch.enumerated()), id: \.offset) { _, color in
+                                color.frame(width: 10, height: 18)
+                            }
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.brandDivider, lineWidth: 0.5))
+                        Text(theme.displayName)
+                    }
+                    .tag(theme)
+                }
+            }
+            .pickerStyle(.navigationLink)
         }
     }
 
@@ -1385,15 +1402,16 @@ struct ContentView: View {
                         }
                     }
                 }) {
-                    VStack(spacing: 1) {
+                    VStack(spacing: 4) {
                         Image(systemName: currentView == .chat ? "bubble.left.fill" : "bubble.left")
-                            .font(.system(size: 17, weight: .medium))
+                            .font(.system(size: 20, weight: .medium))
                             .foregroundColor(currentView == .chat ? .brandAccentText : .brandMuted)
-                        MaigeXRBrandText(isActive: currentView == .chat)
+                        TabDot(isActive: currentView == .chat)
                     }
                     // Compact, but never below the 44pt minimum touch target.
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
+                    .accessibilityLabel("m{ai}geXR chat")
                 }
                                 
                 // Run Scene Tab
@@ -1471,10 +1489,10 @@ struct ContentView: View {
                         }
                     }
                 }) {
-                    VStack(spacing: 1) {
+                    VStack(spacing: 4) {
                         ZStack(alignment: .topTrailing) {
                             Image(systemName: currentView == .scene ? "play.circle.fill" : "play.circle")
-                                .font(.system(size: 17, weight: .medium))
+                                .font(.system(size: 20, weight: .medium))
 
                             // New code waiting to run.
                             if !lastGeneratedCode.isEmpty && currentView != .scene {
@@ -1484,45 +1502,45 @@ struct ContentView: View {
                                     .offset(x: 3, y: -1)
                             }
                         }
-                        Text("Run Scene")
-                            .font(.caption2.weight(.medium))
+                        TabDot(isActive: currentView == .scene)
                     }
                     .foregroundColor(currentView == .scene ? .brandAccentText : .brandMuted)
                     // Compact, but never below the 44pt minimum touch target.
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
+                    .accessibilityLabel("Run scene")
                 }
                 
                 // Examples Button
                 Button(action: {
                     showingExamples = true
                 }) {
-                    VStack(spacing: 1) {
+                    VStack(spacing: 4) {
                         Image(systemName: "book")
-                            .font(.system(size: 17, weight: .medium))
-                        Text("Examples")
-                            .font(.caption2.weight(.medium))
+                            .font(.system(size: 20, weight: .medium))
+                        TabDot(isActive: false)
                     }
                     .foregroundColor(.brandMuted)
                     // Compact, but never below the 44pt minimum touch target.
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
+                    .accessibilityLabel("Examples")
                 }
 
                 // Settings Button
                 Button(action: {
                     showingSettings = true
                 }) {
-                    VStack(spacing: 1) {
+                    VStack(spacing: 4) {
                         Image(systemName: "gearshape")
-                            .font(.system(size: 17, weight: .medium))
-                        Text("Settings")
-                            .font(.caption2.weight(.medium))
+                            .font(.system(size: 20, weight: .medium))
+                        TabDot(isActive: false)
                     }
                     .foregroundColor(.brandMuted)
                     // Compact, but never below the 44pt minimum touch target.
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
+                    .accessibilityLabel("Settings")
                 }
             }
             .padding(.horizontal, 16)
@@ -2549,5 +2567,18 @@ private struct KeyStatusLabel: View {
         Label(isSet ? "Configured" : "Not set", systemImage: isSet ? "checkmark.circle.fill" : "circle.dashed")
             .font(.caption.weight(.medium))
             .foregroundColor(isSet ? .brandSuccess : .brandMuted)
+    }
+}
+
+/// Marks the active tab now that tabs are icon-only: a small accent dot under
+/// the icon. Takes the same space when inactive so icons never shift.
+private struct TabDot: View {
+    let isActive: Bool
+
+    var body: some View {
+        Circle()
+            .fill(isActive ? Color.brandAccentText : Color.clear)
+            .frame(width: 4, height: 4)
+            .accessibilityHidden(true)
     }
 }

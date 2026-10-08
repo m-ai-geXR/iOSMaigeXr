@@ -58,8 +58,20 @@ final class AppearanceStore: ObservableObject {
         }
     }
 
+    private static let chatThemeKey = "XRAiAssistant_ChatTheme"
+
+    /// The conversation canvas preset.
+    @Published var chatTheme: ChatTheme {
+        didSet {
+            guard oldValue != chatTheme else { return }
+            UserDefaults.standard.set(chatTheme.rawValue, forKey: Self.chatThemeKey)
+        }
+    }
+
     private init() {
         let saved = UserDefaults.standard.string(forKey: Self.key)
         appearance = saved.flatMap(AppAppearance.init(rawValue:)) ?? .system
+        let savedTheme = UserDefaults.standard.string(forKey: Self.chatThemeKey)
+        chatTheme = savedTheme.flatMap(ChatTheme.init(rawValue:)) ?? .clean
     }
 }

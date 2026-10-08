@@ -114,9 +114,7 @@ struct ThreadedMessageView: View {
                     MarkdownMessageView(content: message.content, isUser: message.isUser)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(message.isUser ? Color.brandAccent : Color.brandSurface)
-                        .foregroundColor(message.isUser ? .white : .brandText)
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                        .chatBubble(AppearanceStore.shared.chatTheme, isUser: message.isUser)
                         .frame(maxWidth: 600, alignment: message.isUser ? .trailing : .leading)
 
                     // Timestamp and actions
@@ -304,9 +302,7 @@ struct ThreadReplyView: View {
                 MarkdownMessageView(content: message.content, isUser: message.isUser)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(message.isUser ? Color.brandAccent : Color.brandSurface)
-                    .foregroundColor(message.isUser ? .white : .brandText)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .chatBubble(AppearanceStore.shared.chatTheme, isUser: message.isUser, cornerRadius: 14)
                     .frame(maxWidth: 500, alignment: .leading)
 
                 // Timestamp
