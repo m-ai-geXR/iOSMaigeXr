@@ -33,3 +33,19 @@ enum SamplingLimits {
         min(max(value, range.lowerBound), range.upperBound)
     }
 }
+
+/// GLM on Together always thinks before answering and, left to its default,
+/// can think for minutes. It takes `reasoning_effort` low / medium / high / max.
+/// Its levels run much heavier than Claude's or GPT's, so the app's levels map
+/// one step lighter: the default High becomes GLM medium.
+enum TogetherReasoning {
+    static func effort(for model: String, appEffort: AIEffort) -> String? {
+        guard model.lowercased().hasPrefix("zai-org/glm-") else { return nil }
+        switch appEffort {
+        case .low, .medium: return "low"
+        case .high: return "medium"
+        case .xhigh: return "high"
+        case .max: return "max"
+        }
+    }
+}
