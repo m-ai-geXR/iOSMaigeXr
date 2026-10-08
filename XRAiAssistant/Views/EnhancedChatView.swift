@@ -108,6 +108,8 @@ struct EnhancedChatView: View {
 
                             if viewModel.isLoading {
                                 loadingIndicator
+                            } else if let error = viewModel.errorMessage {
+                                errorCard(error)
                             }
                         }
                         .padding()
@@ -117,6 +119,13 @@ struct EnhancedChatView: View {
                     // The chat style's backdrop; it follows the app's light or dark appearance.
                     .background(ChatBackdrop(theme: theme).ignoresSafeArea(edges: .horizontal))
                     .fontDesign(theme.monospaced ? .monospaced : .default)
+                    .onChange(of: viewModel.errorMessage) { error in
+                        // Wait a beat so the card is laid out before scrolling to it.
+                        guard error != nil else { return }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            withAnimation { proxy.scrollTo("error-card", anchor: .bottom) }
+                        }
+                    }
                     .onChange(of: viewModel.streamingReply.count / 200) { _ in
                         // Keep the live reply in view as it grows.
                         proxy.scrollTo("live-reply", anchor: .bottom)
@@ -625,6 +634,67 @@ struct EnhancedChatView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .id("live-reply")
+    }
+
+    /// A failed reply, shown where the reply would have been (as Android does)
+    /// rather than in an alert: the title, what happened, what to do, and the
+    /// actions that fix it.
+    private func errorCard(_ error: String) -> some View {
+        let parts = error.components(separatedBy: "\n\n")
+        let title = parts.first ?? error
+        let body = parts.dropFirst().joined(separator: "\n\n")
+        let canRetry = viewModel.messages.contains(where: { $0.isUser })
+
+        return HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.brandError)
+                .padding(.top, 2)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.brandText)
+                if !body.isEmpty {
+                    Text(body)
+                        .font(.subheadline)
+                        .foregroundColor(.brandMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack(spacing: 10) {
+                    if viewModel.errorIsAboutKey {
+                        Button("Add \(viewModel.providerNameForSelectedModel) Key") {
+                            viewModel.promptForKeyAfterError()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    } else if canRetry {
+                        Button("Try Again") {
+                            viewModel.errorMessage = nil
+                            viewModel.retryLastUserMessage()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    Button("Dismiss") { viewModel.errorMessage = nil }
+                        .buttonStyle(.bordered)
+                }
+                .controlSize(.small)
+                .tint(.brandAccent)
+                .padding(.top, 2)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: 600, alignment: .leading)
+        .chatBubble(theme, isUser: false)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.brandError.opacity(0.5), lineWidth: 1)
+        )
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .id("error-card")
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Error: \(title)")
     }
 
     private func replyIndicatorView(for messageID: UUID) -> some View {
