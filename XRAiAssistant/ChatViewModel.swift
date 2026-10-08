@@ -533,7 +533,24 @@ class ChatViewModel: ObservableObject {
         }
     }
 
-    static var maxReplyDuration: TimeInterval = 600
+    static var maxReplyDuration: TimeInterval = 900
+
+    /// Set for one request after a GLM reply came back with no answer.
+    private var effortOverride: AIEffort?
+    private var lowEffortRetryUsed = false
+
+    /// The effort for the request being built; a one-off override is used once.
+    private func takeRequestEffort() -> AIEffort {
+        defer { effortOverride = nil }
+        return effortOverride ?? effort
+    }
+
+    /// Retry an empty reply once at low effort, for models whose thinking shares
+    /// the answer's budget (GLM), unless it already ran at low effort.
+    static func shouldRetryWithLowEffort(model: String, effort: AIEffort, alreadyRetried: Bool) -> Bool {
+        !alreadyRetried && effort != .low && TogetherReasoning.effort(for: model, appEffort: effort) != nil
+            && TogetherReasoning.effort(for: model, appEffort: effort) != "low"
+    }
 
     static func hasRunTooLong(startedAt: Date, now: Date = Date()) -> Bool {
         now.timeIntervalSince(startedAt) > maxReplyDuration
@@ -573,7 +590,7 @@ class ChatViewModel: ObservableObject {
             apiKey: aiProviderManager.getAPIKey(for: provider.name),
             temperature: temperature,
             topP: topP,
-            effort: effort,
+            effort: effortOverride ?? effort,
             control: definition?.control ?? .sampling,
             maxOutputTokens: definition?.maxOutputTokens ?? 16_000
         )
@@ -931,12 +948,23 @@ class ChatViewModel: ObservableObject {
             finishReply(replyID)
             resetStreaming()
 
-            // Nothing left once reasoning is removed: say so, not an empty bubble.
+            // Nothing left once reasoning is removed. GLM thinks and answers from
+            // one budget, so on a very large request it can spend it all thinking:
+            // ask once more with low effort, which keeps the thinking short.
             if Self.isEmptyReply(response) {
+                if Self.shouldRetryWithLowEffort(model: selectedModel, effort: effort, alreadyRetried: lowEffortRetryUsed) {
+                    print("🔁 \(selectedModel) used its budget thinking; asking again with low effort")
+                    lowEffortRetryUsed = true
+                    effortOverride = .low
+                    startReply(text: text, currentCode: currentCode, restarted: true)
+                    return
+                }
+                lowEffortRetryUsed = false
                 errorMessage = Self.emptyReplyMessage
                 isLoading = false
                 return
             }
+            lowEffortRetryUsed = false
 
             // Process response for potential actions (reasoning text is not shown)
             let processedResponse = processResponseForActions(ReplyText.visible(response).text)
@@ -1096,7 +1124,7 @@ class ChatViewModel: ObservableObject {
             modelId: selectedModel,
             temperature: temperature,
             topP: topP,
-            effort: effort
+            effort: takeRequestEffort()
         )
         
         var fullResponse = ""
