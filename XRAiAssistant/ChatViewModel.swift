@@ -256,7 +256,20 @@ class ChatViewModel: ObservableObject {
     
     // MARK: - 3D Library System Methods
     
+    /// React Three Fiber and Reactylon need an npm build, so their scenes always
+    /// run on CodeSandbox; there is no offline playground for them.
+    static func requiresCodeSandbox(_ libraryId: String) -> Bool {
+        libraryId == "reactThreeFiber" || libraryId == "reactylon"
+    }
+
+    /// Shown once when switching to a framework that runs on CodeSandbox.
+    @Published var codeSandboxNotice: String?
+
     func selectLibrary(id: String) {
+        if Self.requiresCodeSandbox(id) && id != currentLibraryId {
+            let name = id == "reactylon" ? "Reactylon" : "React Three Fiber"
+            codeSandboxNotice = "\(name) scenes are built and run on CodeSandbox (codesandbox.io), so they need an internet connection."
+        }
         // Update published property FIRST to trigger UI refresh immediately
         currentLibraryId = id
 

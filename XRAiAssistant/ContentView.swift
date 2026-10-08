@@ -311,7 +311,7 @@ struct ContentView: View {
             .frame(height: 40)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.brandSurface))
 
-            Text("Adds deployment features. React scenes build without it.")
+            Text("React Three Fiber and Reactylon always use CodeSandbox. A key is optional and saves sandboxes to your account.")
                 .font(.caption)
                 .foregroundColor(.brandMuted)
         }
@@ -625,106 +625,13 @@ struct ContentView: View {
 
     private var sandboxSettingsSection: some View {
         Section("Sandbox & Deployment") {
-            VStack(alignment: .leading, spacing: 12) {
-                // Sandpack toggle for React Three Fiber
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "globe")
-                            .foregroundColor(.orange)
-                            .font(.caption)
-                        Text("React Three Fiber Rendering")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        Spacer()
-                    }
-
-                    Toggle(isOn: $useSandpackForR3F) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Use CodeSandbox Live")
-                                .font(.subheadline)
-                                .foregroundColor(.primary)
-                            Text(useSandpackForR3F ?
-                                "Real CodeSandbox projects with sharing & npm packages" :
-                                "Local playground with offline support")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    .toggleStyle(SwitchToggleStyle(tint: .orange))
-
-                    // Description based on current setting
-                    HStack {
-                        Image(systemName: useSandpackForR3F ? "cloud.circle.fill" : "desktopcomputer")
-                            .foregroundColor(useSandpackForR3F ? .blue : .green)
-                            .font(.caption)
-
-                        Text(useSandpackForR3F ?
-                            "Online: Real CodeSandbox environment with full npm ecosystem" :
-                            "Offline: Fast local rendering, no network required")
-                            .font(.caption)
-                            .foregroundColor(useSandpackForR3F ? .blue : .green)
-
-                        Spacer()
-                    }
-                    .padding(.top, 4)
-
-                    // Benefits info
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Benefits:")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                            .fontWeight(.semibold)
-
-                        if useSandpackForR3F {
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack {
-                                    Text("• Instant deployment to CodeSandbox")
-                                        .font(.caption2)
-                                        .foregroundColor(.gray)
-                                    Spacer()
-                                }
-                                HStack {
-                                    Text("• Social sharing with direct links")
-                                        .font(.caption2)
-                                        .foregroundColor(.gray)
-                                    Spacer()
-                                }
-                                HStack {
-                                    Text("• Live collaboration and embedding")
-                                        .font(.caption2)
-                                        .foregroundColor(.gray)
-                                    Spacer()
-                                }
-                            }
-                        } else {
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack {
-                                    Text("• Works completely offline")
-                                        .font(.caption2)
-                                        .foregroundColor(.gray)
-                                    Spacer()
-                                }
-                                HStack {
-                                    Text("• Faster local rendering")
-                                        .font(.caption2)
-                                        .foregroundColor(.gray)
-                                    Spacer()
-                                }
-                                HStack {
-                                    Text("• No external dependencies")
-                                        .font(.caption2)
-                                        .foregroundColor(.gray)
-                                    Spacer()
-                                }
-                            }
-                        }
-                    }
-                    .padding(.top, 4)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .background(Color.gray.opacity(0.05))
-                    .cornerRadius(6)
-                }
+            VStack(alignment: .leading, spacing: 8) {
+                Label("React Three Fiber and Reactylon run on CodeSandbox", systemImage: "cloud.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.primary)
+                Text("These frameworks need an npm build, so their scenes are always built and shown on codesandbox.io. An internet connection is required. Babylon.js, Three.js, A-Frame and Nova64 run in the app.")
+                    .font(.caption)
+                    .foregroundColor(.gray)
             }
             .padding(.vertical, 4)
         }
@@ -1653,6 +1560,14 @@ struct ContentView: View {
             Button("OK") { }
         } message: {
             Text(errorMessage)
+        }
+        .alert("Runs on CodeSandbox", isPresented: Binding(
+            get: { chatViewModel.codeSandboxNotice != nil },
+            set: { if !$0 { chatViewModel.codeSandboxNotice = nil } }
+        )) {
+            Button("OK", role: .cancel) { chatViewModel.codeSandboxNotice = nil }
+        } message: {
+            Text(chatViewModel.codeSandboxNotice ?? "")
         }
         .alert("Chat Error", isPresented: .constant(chatViewModel.errorMessage != nil)) {
             Button("OK") {
