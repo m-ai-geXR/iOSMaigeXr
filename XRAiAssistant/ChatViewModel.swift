@@ -374,17 +374,78 @@ class ChatViewModel: ObservableObject {
         var jobID: String?
         var leftApp = false
         var restarted = false
+        /// Last time any text arrived, for spotting a stream that went quiet.
+        var lastProgress = Date()
     }
 
     private var activeReply: ActiveReply?
 
+    /// The reply as it streams in, shown live under the conversation.
+    @Published private(set) var streamingReply = ""
+    /// True while a reasoning model is still thinking before it answers.
+    @Published private(set) var isThinking = false
+    private var lastStreamUpdate = Date.distantPast
+
     private func startReply(text: String, currentCode: String?, restarted: Bool = false) {
         let id = UUID()
         activeReply = ActiveReply(id: id, text: text, currentCode: currentCode, model: selectedModel, restarted: restarted)
+        resetStreaming()
         activeReply?.task = Task { [weak self] in
             await self?.processUserMessage(text, currentCode: currentCode, isRetry: restarted, replyID: id)
         }
+        monitorStall(id)
     }
+
+    /// Stops the reply in progress (the Stop button).
+    func stopReply() {
+        guard let reply = activeReply else { return }
+        reply.task?.cancel()
+        if let jobID = reply.jobID { BackgroundReplyService.shared.cancel(jobID: jobID) }
+        activeReply = nil
+        resetStreaming()
+        isLoading = false
+        print("⏹️ Reply stopped by the user")
+    }
+
+    private func resetStreaming() {
+        streamingReply = ""
+        isThinking = false
+        lastStreamUpdate = .distantPast
+    }
+
+    /// Shows streamed text as it arrives, a few times a second at most.
+    private func streamProgress(_ fullText: String, replyID: UUID) {
+        guard activeReply?.id == replyID else { return }
+        activeReply?.lastProgress = Date()
+        guard Date().timeIntervalSince(lastStreamUpdate) > 0.1 else { return }
+        lastStreamUpdate = Date()
+        let shown = ReplyText.visible(fullText)
+        streamingReply = shown.text
+        isThinking = shown.isThinking
+    }
+
+    /// While the app is open, a reply that receives nothing for too long is sent
+    /// again once, then reported, so the spinner never runs on and on.
+    private func monitorStall(_ id: UUID) {
+        Task { @MainActor [weak self] in
+            while true {
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                guard let self, let reply = self.activeReply, reply.id == id else { return }
+                // Away from the app the background copy and checkReplyOnReturn take over.
+                if reply.leftApp || UIApplication.shared.applicationState != .active { continue }
+                // Models that reason silently before answering get longer.
+                let limit = self.aiProviderManager.control(for: reply.model) == .effort
+                    ? Self.silentThinkingTimeout : Self.inAppStallTimeout
+                if Date().timeIntervalSince(reply.lastProgress) > limit {
+                    self.restartIfStalled(id, after: 0)
+                    return
+                }
+            }
+        }
+    }
+
+    static var inAppStallTimeout: TimeInterval = 45
+    static var silentThinkingTimeout: TimeInterval = 150
 
     private func isCurrentReply(_ id: UUID?) -> Bool {
         guard let id else { return true } // image path and legacy callers
@@ -444,6 +505,7 @@ class ChatViewModel: ObservableObject {
             print("📬 Reply delivered by the background session")
             reply.task?.cancel()
             activeReply = nil
+            resetStreaming()
             presentReply(text)
             isLoading = false
             errorMessage = nil
@@ -477,12 +539,15 @@ class ChatViewModel: ObservableObject {
             guard let self, let reply = self.activeReply, reply.id == id else { return }
             if UIApplication.shared.applicationState != .active { return } // retried on return
             guard !reply.restarted else {
+                reply.task?.cancel()
                 self.activeReply = nil
+                self.resetStreaming()
                 self.isLoading = false
                 self.errorMessage = "The reply did not arrive. Check your connection and try again."
                 return
             }
             print("🔁 Reply stalled; sending it again")
+            self.resetStreaming()
             reply.task?.cancel()
             if let jobID = reply.jobID { BackgroundReplyService.shared.cancel(jobID: jobID) }
             self.startReply(text: reply.text, currentCode: reply.currentCode, restarted: true)
@@ -491,7 +556,7 @@ class ChatViewModel: ObservableObject {
 
     /// Shows a finished reply in the chat.
     private func presentReply(_ response: String) {
-        let processedResponse = processResponseForActions(response)
+        let processedResponse = processResponseForActions(ReplyText.visible(response).text)
         messages.append(ChatMessage(
             id: UUID().uuidString,
             content: processedResponse,
@@ -749,15 +814,19 @@ class ChatViewModel: ObservableObject {
 
             // Use simple inference for chat
             let response = try await BackgroundRequest.run("AI reply") {
-                try await callLlamaInference(userMessage: text, systemPrompt: fullSystemPrompt)
+                try await callLlamaInference(userMessage: text, systemPrompt: fullSystemPrompt) { [weak self] partial in
+                    guard let replyID else { return }
+                    Task { @MainActor in self?.streamProgress(partial, replyID: replyID) }
+                }
             }
 
             // Already shown by the background session, or superseded by a restart.
             guard isCurrentReply(replyID) else { return }
             finishReply(replyID)
+            resetStreaming()
 
-            // Process response for potential actions
-            let processedResponse = processResponseForActions(response)
+            // Process response for potential actions (reasoning text is not shown)
+            let processedResponse = processResponseForActions(ReplyText.visible(response).text)
 
             // DEBUG: Log the COMPLETE processed response before saving
             print("🔍 ===== PROCESSED RESPONSE DEBUG (BEFORE SAVING) =====")
@@ -819,6 +888,7 @@ class ChatViewModel: ObservableObject {
             return
         } catch {
             finishReply(replyID)
+            resetStreaming()
             // Provide user-friendly error messages for common issues
             if let providerError = error as? AIProviderError {
                 switch providerError {
@@ -864,7 +934,11 @@ class ChatViewModel: ObservableObject {
         return prompt
     }
     
-    internal func callLlamaInference(userMessage: String, systemPrompt: String) async throws -> String {
+    internal func callLlamaInference(
+        userMessage: String,
+        systemPrompt: String,
+        onProgress: ((String) -> Void)? = nil
+    ) async throws -> String {
         print("🎯 Using selected model: \(selectedModel)")
         
         // A model owned by a registered provider must never fall through to the
@@ -872,7 +946,7 @@ class ChatViewModel: ObservableObject {
         // returns a model_not_available 404 that hides the real failure.
         if let provider = aiProviderManager.getProvider(for: selectedModel) {
             print("📍 Routing to: New Provider System (\(provider.name))")
-            return try await callNewProviderSystem(userMessage: userMessage, systemPrompt: systemPrompt)
+            return try await callNewProviderSystem(userMessage: userMessage, systemPrompt: systemPrompt, onProgress: onProgress)
         }
 
         // Legacy path: only models with no registered provider reach here.
@@ -890,7 +964,11 @@ class ChatViewModel: ObservableObject {
         }
     }
     
-    private func callNewProviderSystem(userMessage: String, systemPrompt: String) async throws -> String {
+    private func callNewProviderSystem(
+        userMessage: String,
+        systemPrompt: String,
+        onProgress: ((String) -> Void)? = nil
+    ) async throws -> String {
         print("🔧 New Provider System called with model: \(selectedModel)")
         let activeProvider = providerNameForSelectedModel
         let keyState = aiProviderManager.getAPIKey(for: activeProvider) == "changeMe" ? "NOT_CONFIGURED (changeMe)" : "CONFIGURED"
@@ -915,6 +993,7 @@ class ChatViewModel: ObservableObject {
         
         for try await chunk in stream {
             fullResponse += chunk
+            onProgress?(fullResponse)
         }
         
         print("✅ New provider system response complete, length: \(fullResponse.count)")

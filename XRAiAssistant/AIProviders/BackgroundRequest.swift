@@ -104,3 +104,27 @@ final class InterruptedRequestQueue {
         retry()
     }
 }
+
+/// What a reply shows: reasoning models such as DeepSeek R1 wrap their
+/// thinking in <think>…</think>, which is not part of the answer.
+enum ReplyText {
+    /// The answer with any thinking removed, and whether the model is still
+    /// inside an unfinished <think> block (shown as "Thinking…").
+    static func visible(_ raw: String) -> (text: String, isThinking: Bool) {
+        var text = raw
+        var isThinking = false
+        while let open = text.range(of: "<think>") {
+            if let close = text.range(of: "</think>", range: open.upperBound..<text.endIndex) {
+                text.removeSubrange(open.lowerBound..<close.upperBound)
+            } else {
+                text.removeSubrange(open.lowerBound..<text.endIndex)
+                isThinking = true
+            }
+        }
+        // Some servers omit the opening tag and send only the closing one.
+        if let close = text.range(of: "</think>") {
+            text.removeSubrange(text.startIndex..<close.upperBound)
+        }
+        return (text.trimmingCharacters(in: .whitespacesAndNewlines), isThinking)
+    }
+}
