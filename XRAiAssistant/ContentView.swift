@@ -1587,7 +1587,9 @@ struct ContentView: View {
         } message: {
             Text(chatViewModel.codeSandboxNotice ?? "")
         }
-        .alert("Chat Error", isPresented: .constant(chatViewModel.errorMessage != nil)) {
+        // In chat the error shows as a card in the conversation; elsewhere
+        // (the scene) it still needs an alert to be seen at all.
+        .alert("Chat Error", isPresented: .constant(chatViewModel.errorMessage != nil && currentView != .chat)) {
             if chatViewModel.errorIsAboutKey {
                 Button("Add \(chatViewModel.providerNameForSelectedModel) Key") {
                     chatViewModel.promptForKeyAfterError()
