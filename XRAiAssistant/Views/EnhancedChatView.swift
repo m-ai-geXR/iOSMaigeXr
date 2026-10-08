@@ -112,6 +112,10 @@ struct EnhancedChatView: View {
                         .frame(maxWidth: maxMessageWidth)
                         .frame(maxWidth: .infinity) // Center the content
                     }
+                    .onChange(of: viewModel.streamingReply.count / 200) { _ in
+                        // Keep the live reply in view as it grows.
+                        proxy.scrollTo("live-reply", anchor: .bottom)
+                    }
                     .onChange(of: viewModel.messages.count) { _ in
                         if let lastMessage = viewModel.messages.last {
                             withAnimation {
@@ -555,15 +559,29 @@ struct EnhancedChatView: View {
         return code.isEmpty ? nil : code
     }
 
+    /// The reply as it arrives: live text once the model starts answering,
+    /// "Thinking…" before that.
     private var loadingIndicator: some View {
-        HStack {
-            ProgressView()
-                .tint(.neonCyan)
-            Text("Thinking...")
-                .font(.callout)
-                .foregroundColor(.neonCyan)
+        VStack(alignment: .leading, spacing: 8) {
+            if !viewModel.streamingReply.isEmpty {
+                MarkdownMessageView(content: viewModel.streamingReply, isUser: false)
+                    .padding(12)
+                    .frame(maxWidth: 600, alignment: .leading)
+                    .background(Color.brandSurface)
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+            }
+            HStack(spacing: 8) {
+                ProgressView()
+                    .tint(.neonCyan)
+                Text(viewModel.streamingReply.isEmpty || viewModel.isThinking ? "Thinking..." : "Writing...")
+                    .font(.callout)
+                    .foregroundColor(.neonCyan)
+            }
+            .accessibilityElement(children: .combine)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
+        .id("live-reply")
     }
 
     private func replyIndicatorView(for messageID: UUID) -> some View {
@@ -661,15 +679,29 @@ struct EnhancedChatView: View {
                         .padding(.vertical, 9)
 
                     let canSend = !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !viewModel.isLoading
-                    Button(action: sendMessage) {
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(width: Metrics.control, height: Metrics.control)
-                            .background(Circle().fill(canSend ? Color.brandAccent : Color.brandMuted.opacity(0.35)))
+                    Group {
+                    if viewModel.isLoading {
+                        // While a reply is coming, the button stops it.
+                        Button(action: { viewModel.stopReply() }) {
+                            Image(systemName: "stop.fill")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(width: Metrics.control, height: Metrics.control)
+                                .background(Circle().fill(Color.brandAccent))
+                        }
+                        .accessibilityLabel("Stop reply")
+                    } else {
+                        Button(action: sendMessage) {
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(width: Metrics.control, height: Metrics.control)
+                                .background(Circle().fill(canSend ? Color.brandAccent : Color.brandMuted.opacity(0.35)))
+                        }
+                        .disabled(!canSend)
+                        .accessibilityLabel("Send")
                     }
-                    .disabled(!canSend)
-                    .accessibilityLabel("Send")
+                    }
                     .padding(.bottom, 4)
                 }
                 .padding(.leading, 14)
