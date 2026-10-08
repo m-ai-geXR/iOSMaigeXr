@@ -6,7 +6,7 @@ import XCTest
 @MainActor
 final class TogetherLineupTests: XCTestCase {
 
-    private let offered = Set(TogetherAIProvider().models.map(\.id))
+    private let offered = Set(TogetherAIProvider.curatedModels.map(\.id))
     private let retired = ["deepseek-ai/DeepSeek-R1", "meta-llama/Meta-Llama-3-8B-Instruct-Lite",
                            "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo", "Qwen/Qwen2.5-7B-Instruct-Turbo",
                            "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"]

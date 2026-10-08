@@ -15,7 +15,14 @@ class TogetherAIProvider: AIProvider {
         maxTokens: 32_768  // Typical context window
     )
 
-    let models: [AIModel] = [
+    /// What the key can use: the curated list below, narrowed and extended by
+    /// the live list for the user's key when one has been fetched.
+    var models: [AIModel] {
+        TogetherModelCatalog.merge(curated: Self.curatedModels, live: TogetherModelCatalog.shared.cached)
+    }
+
+    /// Tested picks with hand-written descriptions, shown first.
+    static let curatedModels: [AIModel] = [
         // Latest open models on Together (checked 2026-10-07). 1M-token context.
         AIModel(
             id: "moonshotai/Kimi-K3",
