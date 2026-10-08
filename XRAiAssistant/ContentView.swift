@@ -1385,14 +1385,14 @@ struct ContentView: View {
                         }
                     }
                 }) {
-                    VStack(spacing: 3) {
+                    VStack(spacing: 1) {
                         Image(systemName: currentView == .chat ? "bubble.left.fill" : "bubble.left")
-                            .font(.system(size: 19, weight: .medium))
+                            .font(.system(size: 17, weight: .medium))
                             .foregroundColor(currentView == .chat ? .brandAccentText : .brandMuted)
                         MaigeXRBrandText(isActive: currentView == .chat)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                    // Compact, but never below the 44pt minimum touch target.
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
                 }
                                 
@@ -1471,10 +1471,10 @@ struct ContentView: View {
                         }
                     }
                 }) {
-                    VStack(spacing: 3) {
+                    VStack(spacing: 1) {
                         ZStack(alignment: .topTrailing) {
                             Image(systemName: currentView == .scene ? "play.circle.fill" : "play.circle")
-                                .font(.system(size: 19, weight: .medium))
+                                .font(.system(size: 17, weight: .medium))
 
                             // New code waiting to run.
                             if !lastGeneratedCode.isEmpty && currentView != .scene {
@@ -1488,8 +1488,8 @@ struct ContentView: View {
                             .font(.caption2.weight(.medium))
                     }
                     .foregroundColor(currentView == .scene ? .brandAccentText : .brandMuted)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                    // Compact, but never below the 44pt minimum touch target.
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
                 }
                 
@@ -1497,15 +1497,15 @@ struct ContentView: View {
                 Button(action: {
                     showingExamples = true
                 }) {
-                    VStack(spacing: 3) {
+                    VStack(spacing: 1) {
                         Image(systemName: "book")
-                            .font(.system(size: 19, weight: .medium))
+                            .font(.system(size: 17, weight: .medium))
                         Text("Examples")
                             .font(.caption2.weight(.medium))
                     }
                     .foregroundColor(.brandMuted)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                    // Compact, but never below the 44pt minimum touch target.
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
                 }
 
@@ -1513,20 +1513,20 @@ struct ContentView: View {
                 Button(action: {
                     showingSettings = true
                 }) {
-                    VStack(spacing: 3) {
+                    VStack(spacing: 1) {
                         Image(systemName: "gearshape")
-                            .font(.system(size: 19, weight: .medium))
+                            .font(.system(size: 17, weight: .medium))
                         Text("Settings")
                             .font(.caption2.weight(.medium))
                     }
                     .foregroundColor(.brandMuted)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                    // Compact, but never below the 44pt minimum touch target.
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 4)
+            .padding(.top, 2)
             .background(Color.brandBackground)
             .overlay(Hairline(), alignment: .top)
             .onChange(of: showingSettings) { isShowing in
