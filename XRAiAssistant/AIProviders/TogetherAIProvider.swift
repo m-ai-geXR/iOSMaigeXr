@@ -112,6 +112,8 @@ class TogetherAIProvider: AIProvider {
             maxTokens = 8_000   // Safe default for other models
         }
 
+        let temperature = SamplingLimits.temperature(temperature, model: model)
+        let topP = SamplingLimits.topP(topP, model: model)
         let requestBody = TogetherAIChatCompletionRequestBody(
             messages: togetherMessages,
             model: model,

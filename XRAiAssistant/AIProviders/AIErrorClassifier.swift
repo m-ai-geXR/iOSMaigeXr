@@ -22,6 +22,7 @@ enum AIErrorCategory {
     case quotaExceeded
     case modelUnavailable
     case contextTooLong
+    case invalidRequest
     case serverError
     case timeout
     case offline
@@ -120,6 +121,8 @@ enum AIErrorClassifier {
 
     private static func byStatus(_ status: Int, _ provider: String) -> AIErrorInfo? {
         switch status {
+        case 400:
+            return invalidRequest(provider)
         case 401:
             return AIErrorInfo(
                 title: "API key rejected",
@@ -178,6 +181,14 @@ enum AIErrorClassifier {
                 action: "Start a new conversation, or switch to a model with a larger context window.",
                 category: .contextTooLong, retryable: false)
         }
+        if t.contains("top_p") || t.contains("top p") || t.contains("temperature")
+            || t.contains("must be between") {
+            return AIErrorInfo(
+                title: "Setting out of range",
+                message: "\(provider) rejected the Temperature or Top-p value for this model.",
+                action: "Open Settings and reset the AI parameters, or pick another model.",
+                category: .invalidRequest, retryable: false)
+        }
         if t.contains("timed out") || t.contains("timeout") {
             return timeout(provider)
         }
@@ -200,6 +211,14 @@ enum AIErrorClassifier {
             message: "\(provider) needs an API key before it can answer.",
             action: settingsHint,
             category: .missingAPIKey, retryable: false)
+    }
+
+    private static func invalidRequest(_ provider: String) -> AIErrorInfo {
+        AIErrorInfo(
+            title: "Request not accepted",
+            message: "\(provider) could not accept this request for the selected model.",
+            action: "Try again, or switch model in Settings.",
+            category: .invalidRequest, retryable: false)
     }
 
     private static func timeout(_ provider: String) -> AIErrorInfo {
