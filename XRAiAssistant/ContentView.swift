@@ -859,7 +859,7 @@ struct ContentView: View {
                     Section(header: Text(provider)) {
                         ForEach(chatViewModel.modelsByProvider[provider] ?? [], id: \.id) { model in
                             Button(action: {
-                                chatViewModel.selectedModel = model.id
+                                chatViewModel.selectModel(model.id)
                                 showingModelPicker = false
                             }) {
                                 HStack {
@@ -896,7 +896,7 @@ struct ContentView: View {
                     Section(header: Text("Legacy (Together.ai)")) {
                         ForEach(chatViewModel.availableModels, id: \.self) { model in
                             Button(action: {
-                                chatViewModel.selectedModel = model
+                                chatViewModel.selectModel(model)
                                 showingModelPicker = false
                             }) {
                                 HStack {
@@ -1023,7 +1023,7 @@ struct ContentView: View {
                                         Section(provider) {
                                             ForEach(chatViewModel.modelsByProvider[provider] ?? [], id: \.id) { model in
                                                 Button(action: {
-                                                    chatViewModel.selectedModel = model.id
+                                                    chatViewModel.selectModel(model.id)
                                                 }) {
                                                     HStack {
                                                         VStack(alignment: .leading, spacing: 2) {
@@ -1058,7 +1058,7 @@ struct ContentView: View {
                                         Section("Legacy") {
                                             ForEach(chatViewModel.availableModels, id: \.self) { model in
                                                 Button(action: {
-                                                    chatViewModel.selectedModel = model
+                                                    chatViewModel.selectModel(model)
                                                 }) {
                                                     VStack(alignment: .leading, spacing: 2) {
                                                         HStack {
@@ -1640,7 +1640,7 @@ struct ContentView: View {
             // Debug-only test hook: -maigeModel <id> -maigeAutoSend <text> sends a
             // message at launch, so leaving the app mid-reply can be tested.
             if let model = UserDefaults.standard.string(forKey: "maigeModel") {
-                chatViewModel.selectedModel = model
+                chatViewModel.selectModel(model)
             }
             if let text = UserDefaults.standard.string(forKey: "maigeAutoSend") {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
@@ -1655,7 +1655,12 @@ struct ContentView: View {
             Text(errorMessage)
         }
         .alert("Chat Error", isPresented: .constant(chatViewModel.errorMessage != nil)) {
-            Button("OK") {
+            if chatViewModel.errorIsAboutKey {
+                Button("Add \(chatViewModel.providerNameForSelectedModel) Key") {
+                    chatViewModel.promptForKeyAfterError()
+                }
+            }
+            Button(chatViewModel.errorIsAboutKey ? "Not Now" : "OK", role: .cancel) {
                 chatViewModel.errorMessage = nil
             }
         } message: {
