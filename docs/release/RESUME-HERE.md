@@ -1,5 +1,11 @@
 # Resume here — store-readiness work in progress
 
+**November 4, 2026 update:** follow
+[`RESUBMISSION-2026-11-04.md`](RESUBMISSION-2026-11-04.md) for build 13, the
+23 passing tests, the verified Release archive, the reproduced UMP configuration
+error, China mainland exclusion and remaining account/signing/evidence work.
+The October notes below are historical context.
+
 Updated 2026-10-05. A working note, not a deliverable: current state, what is
 decided, and the next action. `READINESS-AUDIT.md` is the evidence; this is the
 pointer.
