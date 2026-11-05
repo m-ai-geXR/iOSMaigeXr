@@ -2,7 +2,7 @@
 
 Submission: `3642846a-012f-4d74-b59e-db26effba94b`. Rejected build: 1.0 (12).
 Prepared replacement: **1.0 (13)**. This document supersedes the October reply
-for these two issues. Do not submit until the device evidence below is complete.
+for these two issues. Resubmitted November 4 at 8:24 PM Pacific; verified Waiting for Review.
 
 ## Current handoff
 
@@ -48,9 +48,15 @@ for these two issues. Do not submit until the device evidence below is complete.
   Attachment field. Review Notes now identify the recording, physical device,
   exact OS and permission-reset flow, preserving existing reviewer access.
   The physical iPad was not on 27.2; no claim of physical 27.2 testing is made.
-- Nothing has been resubmitted to App Review. Final submission remains a
-  separate action. The attachment finished processing and its saved state was
-  verified after reloading App Store Connect.
+- **Resubmitted November 4, 2026 at 8:24 PM Pacific**, at the user's explicit
+  request. App Store Connect confirms **Waiting for Review** for both iOS App
+  1.0 (13) and maigeXR Remove Ads. Submission ID remains
+  `3642846a-012f-4d74-b59e-db26effba94b`.
+- Sent a new App Review reply addressing Guidelines 2.1 and 5, with the physical
+  video attached directly to the message as well as App Review Information.
+  The reply states the actual iPadOS 26.5 device, permission-reset flow,
+  consent configuration fix and China mainland exclusion. The video finished
+  processing and the attachment/Review Notes persisted after reload.
 
 
 

@@ -5,6 +5,7 @@
 23 passing focused tests plus the simulator UI check, the verified Release
 archive, published AdMob consent messages, selected build 13, China mainland
 exclusion and the uploaded physical-iPad ATT recording (landscape, iPadOS 26.5).
+Resubmitted at 8:24 PM Pacific; build 13 and Remove Ads are Waiting for Review.
 The October notes below are historical context.
 
 Updated 2026-10-05. A working note, not a deliverable: current state, what is
