@@ -11,8 +11,10 @@ for these two issues. Do not submit until the device evidence below is complete.
   `post-approval/nova64-game-templates` branch preserves commit `fdc1052`.
   Git's reflog confirms that feature branch was created after build 13 was
   archived and uploaded; the uploaded build excludes that later feature work.
+  Source changes are committed locally as `5187ff1`.
 - Build 13 was exported, uploaded, processed and verified **Ready to Submit**
-  in TestFlight. It still needs to be selected on version 1.0.
+  in TestFlight. It is now selected on version 1.0, saved and verified after
+  reloading App Store Connect.
 - China mainland was excluded; privacy-label corrections were published.
 - AdMob publisher `pub-4166973145998533` now has **maigeXR GDPR** and
   **maigeXR US states**, both verified **Published** for **2 apps** (iOS and
@@ -26,11 +28,16 @@ for these two issues. Do not submit until the device evidence below is complete.
   tracking and verified the app remained usable and the scene WebView became
   visible and interactive. This does not assert that a complete 3D scene
   finished rendering or that all SDK traffic has been audited.
-- **Remaining:** App Store Connect's Safari session expired and redirected the
-  version page to `/login`; sign-in is needed to select build 13 and update
-  Review Notes. A physical-device recording is still required by Apple's
-  message. The user chose simulator validation for now; no physical-device
-  testing or recording is claimed. Nothing has been resubmitted to App Review.
+- Review Notes were updated and saved with the corrected consent configuration,
+  China mainland exclusion, ATT reproduction instructions and accurate simulator
+  validation status. Existing reviewer access/setup instructions were preserved
+  inside App Store Connect without exposing any reviewer key. Save state and
+  build selection were verified after a full page reload.
+- **Remaining:** Apple's requested physical-device recording must be captured,
+  attached and referenced in Review Notes before resubmission. The user chose
+  simulator validation for now; no physical-device testing or recording is
+  claimed. Notes explicitly flag the recording as pending. Nothing has been
+  resubmitted to App Review.
 
 
 ## Changes
@@ -137,8 +144,10 @@ Ads and enable tracking requests in system settings to reproduce.
 - [x] Signed archive manifests inspected and App Privacy answers corrected
   against SDK declarations; final runtime behavior remains in the device gate.
 - [x] Build 13 uploaded and processed; verified Ready to Submit in TestFlight.
-- [ ] Build 13 selected on version 1.0 after restoring App Store Connect sign-in.
-- [ ] Recording attached/referenced, final reply and Notes updated.
+- [x] Build 13 selected on version 1.0; saved and verified after reload.
+- [x] Review Notes updated and saved, with existing reviewer access preserved.
+- [ ] Physical recording attached/referenced; pending-recording sentence replaced
+  with the actual device/OS/recording details; final reply prepared for sending.
 - [ ] Resubmit version 1.0 with the existing Remove Ads purchase attached.
 
 ## Validation recorded during preparation
@@ -177,7 +186,8 @@ Ads and enable tracking requests in system settings to reproduce.
   Build 13 was absent from TestFlight before starting its upload.
   **Upload succeeded** (`Uploaded XRAiAssistant`, `EXPORT SUCCEEDED`). Build 13
   subsequently finished processing and was verified Ready to Submit in TestFlight.
-  Selecting it on version 1.0 remains pending App Store Connect sign-in.
+  After the user restored sign-in, build 13 was selected and saved on version
+  1.0. The selected build and the new Review Notes persisted after reload.
   Upload returned warnings about missing vendor dSYMs for GoogleMobileAds and
   UserMessagingPlatform; these did not block upload and affect symbolication
   inside those vendor frameworks.

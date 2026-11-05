@@ -41,9 +41,10 @@ the console use the internal name maigeXR; anything users see says m{ai}geXR.
 | maigeXR-android-banner-chat | Banner | `ca-app-pub-4166973145998533/8826512623` | Android `local.properties` `maigexr.admob.bannerId` |
 | maigeXR-android-interstitial-scene-exit | Interstitial | `ca-app-pub-4166973145998533/8005394705` | Android `local.properties` `maigexr.admob.interstitialId` |
 
-Still to do in AdMob: the consent messages (Privacy & messaging: `maigeXR GDPR`
-and `maigeXR US states`, privacy URL above, both apps), and, after launch, linking
-each app to its store listing under App settings to lift limited ad serving.
+Done November 4 in AdMob: `maigeXR GDPR` and `maigeXR US states` are Published
+for both apps, with the privacy URL above. GDPR includes an explicit refusal
+choice for every region; US opt-out is enabled. After launch, link each app to
+its store listing under App settings to lift limited ad serving.
 
 ## 2. Console setup
 
