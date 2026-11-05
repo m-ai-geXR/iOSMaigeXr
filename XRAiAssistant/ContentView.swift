@@ -134,6 +134,7 @@ struct ContentView: View {
             Form {
                 apiConfigurationSection
                 localServerSection
+                    .id("localServer")
                 appearanceSection
                 playgroundSection
                 RemoveAdsSection()
@@ -149,6 +150,11 @@ struct ContentView: View {
                 if DebugLaunch.screen == "removeads" {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         proxy.scrollTo("removeAds", anchor: .top)
+                    }
+                }
+                if DebugLaunch.screen == "local" {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        proxy.scrollTo("localServer", anchor: .top)
                     }
                 }
             }
@@ -864,52 +870,56 @@ struct ContentView: View {
         EnhancedChatView(
             viewModel: chatViewModel,
             storageManager: conversationStorage,
-            onRunCode: { code, libraryId in
-                print("🎯 Inline 'Run the Scene' button clicked with library: \(libraryId ?? "current")")
-
-                // If libraryId is provided and different from current, switch to it temporarily
-                if let targetLibraryId = libraryId, targetLibraryId != chatViewModel.currentLibraryId {
-                    print("🔄 Switching from \(chatViewModel.currentLibraryId) to \(targetLibraryId) for this code")
-                    chatViewModel.selectLibrary(id: targetLibraryId)
-                }
-
-                // Store code for use
-                currentCode = code
-                lastGeneratedCode = code
-                lastCodeLibraryId = chatViewModel.getCurrentLibrary().id
-
-                // ALWAYS use CodeSandbox for React Three Fiber
-                let shouldUseCodeSandbox = chatViewModel.getCurrentLibrary().id == "reactThreeFiber"
-                print("🔍 Inline button - Library: \(chatViewModel.getCurrentLibrary().id), useCodeSandbox: \(shouldUseCodeSandbox)")
-
-                if shouldUseCodeSandbox {
-                    print("🚀 Inline button: Using CodeSandbox for React Three Fiber")
-
-                    // Store code and force view recreation (same as tab bar button)
-                    pendingCodeSandboxCode = code
-                    pendingCodeSandboxFramework = chatViewModel.getCurrentLibrary().id
-                    sandboxRecreationID = UUID()
-                    print("🔄 Inline button: Changed sandbox recreation ID to force new sandbox creation")
-
-                    // Switch to scene view (will trigger CodeSandbox creation)
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        currentView = .scene
-                    }
-                } else {
-                    print("🚀 Inline button: Using local playground injection")
-
-                    // Switch to scene view and inject code for local playgrounds
-                    currentView = .scene
-
-                    // Inject after a short delay to ensure view is loaded
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        injectCodeWithRetry(code, maxRetries: 3)
-                    }
-                }
-            }
+            onRunCode: { code, libraryId in runInlineCode(code, libraryId: libraryId) }
         )
     }
     
+    /// What the "Run scene" pill on a chat message does: show the scene and run
+    /// that message's code with the library it was written for.
+    private func runInlineCode(_ code: String, libraryId: String?) {
+            print("🎯 Inline 'Run the Scene' button clicked with library: \(libraryId ?? "current")")
+
+            // If libraryId is provided and different from current, switch to it temporarily
+            if let targetLibraryId = libraryId, targetLibraryId != chatViewModel.currentLibraryId {
+                print("🔄 Switching from \(chatViewModel.currentLibraryId) to \(targetLibraryId) for this code")
+                chatViewModel.selectLibrary(id: targetLibraryId)
+            }
+
+            // Store code for use
+            currentCode = code
+            lastGeneratedCode = code
+            lastCodeLibraryId = chatViewModel.getCurrentLibrary().id
+
+            // ALWAYS use CodeSandbox for React Three Fiber
+            let shouldUseCodeSandbox = chatViewModel.getCurrentLibrary().id == "reactThreeFiber"
+            print("🔍 Inline button - Library: \(chatViewModel.getCurrentLibrary().id), useCodeSandbox: \(shouldUseCodeSandbox)")
+
+            if shouldUseCodeSandbox {
+                print("🚀 Inline button: Using CodeSandbox for React Three Fiber")
+
+                // Store code and force view recreation (same as tab bar button)
+                pendingCodeSandboxCode = code
+                pendingCodeSandboxFramework = chatViewModel.getCurrentLibrary().id
+                sandboxRecreationID = UUID()
+                print("🔄 Inline button: Changed sandbox recreation ID to force new sandbox creation")
+
+                // Switch to scene view (will trigger CodeSandbox creation)
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    currentView = .scene
+                }
+            } else {
+                print("🚀 Inline button: Using local playground injection")
+
+                // Switch to scene view and inject code for local playgrounds
+                currentView = .scene
+
+                // Inject after a short delay to ensure view is loaded
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    injectCodeWithRetry(code, maxRetries: 3)
+                }
+            }
+    }
+
     // MARK: - Chat Header
     private var chatHeader: some View {
         VStack(spacing: 0) {
@@ -1558,18 +1568,34 @@ struct ContentView: View {
             switch DebugLaunch.screen {
             case "scene": currentView = .scene
             case "examples": showingExamples = true
-            case "settings", "removeads": showingSettings = true
+            case "settings", "removeads", "local": showingSettings = true
             default: break
             }
             #if DEBUG
             // Debug-only test hook: -maigeModel <id> -maigeAutoSend <text> sends a
             // message at launch, so leaving the app mid-reply can be tested.
+            if let library = UserDefaults.standard.string(forKey: "maigeLibrary") {
+                chatViewModel.selectLibrary(id: library)
+            }
             if let model = UserDefaults.standard.string(forKey: "maigeModel") {
                 chatViewModel.selectModel(model)
             }
             if let text = UserDefaults.standard.string(forKey: "maigeAutoSend") {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    let before = chatViewModel.messages.count
                     chatViewModel.sendMessage(text, currentCode: nil)
+                    // -maigeAutoRun 1 then taps the reply's "Run scene" pill, so a
+                    // whole prompt-to-scene run can be recorded without touch.
+                    guard UserDefaults.standard.bool(forKey: "maigeAutoRun") else { return }
+                    Task { @MainActor in
+                        while chatViewModel.messages.count <= before + 1 {
+                            try? await Task.sleep(nanoseconds: 1_000_000_000)
+                        }
+                        try? await Task.sleep(nanoseconds: 1_500_000_000)
+                        guard let reply = chatViewModel.messages.last(where: { !$0.isUser }),
+                              let code = EnhancedChatView.extractCode(from: reply.content) else { return }
+                        runInlineCode(code, libraryId: reply.libraryId)
+                    }
                 }
             }
             #endif

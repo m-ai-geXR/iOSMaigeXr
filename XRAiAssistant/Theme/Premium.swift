@@ -95,6 +95,7 @@ struct RunSceneLabel: View {
 /// can be taken without tapping through the app:
 /// `xcrun simctl launch <device> studio.seacloud9.maigexr -maigeScreen examples`.
 /// Names: scene, examples, settings, removeads (Settings scrolled to the purchase),
+/// local (Settings scrolled to the local model server),
 /// history, favorites. Compiled out of release.
 enum DebugLaunch {
     static var screen: String? {

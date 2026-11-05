@@ -516,8 +516,11 @@ class ChatViewModel: ObservableObject {
                 guard let self, let reply = self.activeReply, reply.id == id else { return }
                 // Away from the app the background copy and checkReplyOnReturn take over.
                 if reply.leftApp || UIApplication.shared.applicationState != .active { continue }
-                // Models that reason silently before answering get longer.
-                let limit = self.aiProviderManager.control(for: reply.model) == .effort
+                // Models that reason silently before answering get longer, and so do
+                // local models: a laptop-sized model can spend minutes reading a long
+                // prompt before its first token.
+                let limit = reply.model.hasPrefix(LocalServerConfig.modelPrefix) ? Self.localModelTimeout
+                    : self.aiProviderManager.control(for: reply.model) == .effort
                     ? Self.silentThinkingTimeout : Self.inAppStallTimeout
                 if Date().timeIntervalSince(reply.lastProgress) > limit {
                     self.restartIfStalled(id, after: 0)
@@ -595,6 +598,8 @@ class ChatViewModel: ObservableObject {
 
     static var inAppStallTimeout: TimeInterval = 45
     static var silentThinkingTimeout: TimeInterval = 150
+    /// Matches the local provider's request timeout.
+    static var localModelTimeout: TimeInterval = 300
 
     private func isCurrentReply(_ id: UUID?) -> Bool {
         guard let id else { return true } // image path and legacy callers
@@ -655,7 +660,7 @@ class ChatViewModel: ObservableObject {
             reply.task?.cancel()
             activeReply = nil
             resetStreaming()
-            presentReply(text)
+            presentReply(text, request: reply.text, currentCode: reply.currentCode)
             isLoading = false
             errorMessage = nil
         } else {
@@ -711,7 +716,16 @@ class ChatViewModel: ObservableObject {
         ReplyText.visible(raw).text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private func presentReply(_ response: String) {
+    /// Opens a Nova64 template reply with which template the user's words picked
+    /// (see `Nova64Templates.note`). Other replies are unchanged.
+    private func withTemplateNote(_ content: String, request: String?, currentCode: String?) -> String {
+        guard library3DManager.selectedLibrary.id == "nova64", let request,
+              Nova64Templates.templateId(of: content) != nil else { return content }
+        let note = Nova64Templates.note(message: request, currentCode: currentCode)
+        return note.isEmpty ? content : note + "\n\n" + content
+    }
+
+    private func presentReply(_ response: String, request: String? = nil, currentCode: String? = nil) {
         if Self.isEmptyReply(response) {
             errorMessage = Self.emptyReplyMessage
             return
@@ -719,7 +733,7 @@ class ChatViewModel: ObservableObject {
         let processedResponse = processResponseForActions(ReplyText.visible(response).text)
         messages.append(ChatMessage(
             id: UUID().uuidString,
-            content: processedResponse,
+            content: withTemplateNote(processedResponse, request: request, currentCode: currentCode),
             isUser: false,
             timestamp: Date(),
             libraryId: library3DManager.selectedLibrary.id
@@ -918,7 +932,7 @@ class ChatViewModel: ObservableObject {
 
             let assistantMessage = ChatMessage(
                 id: UUID().uuidString,
-                content: processedResponse,
+                content: withTemplateNote(processedResponse, request: text, currentCode: currentCode),
                 isUser: false,
                 timestamp: Date(),
                 libraryId: library3DManager.selectedLibrary.id
@@ -1038,7 +1052,7 @@ class ChatViewModel: ObservableObject {
 
             let assistantMessage = ChatMessage(
                 id: UUID().uuidString,
-                content: processedResponse,
+                content: withTemplateNote(processedResponse, request: text, currentCode: currentCode),
                 isUser: false,
                 timestamp: Date(),
                 libraryId: library3DManager.selectedLibrary.id

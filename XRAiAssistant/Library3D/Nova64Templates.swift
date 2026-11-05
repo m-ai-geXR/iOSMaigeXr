@@ -6,6 +6,10 @@ struct Nova64TemplateInfo {
     let family: String
     let genre: String
     let style: String
+    /// Chat words that pick it, from the KEYWORDS const in its CONFIG: game words
+    /// choose the kind of game, style words choose this look over the others.
+    let gameWords: [String]
+    let styleWords: [String]
     let description: String
     let guide: String
     /// Example CONFIG, starting with its `// NOVA64 TEMPLATE: <id>` line.
@@ -22,19 +26,6 @@ struct Nova64TemplateInfo {
 enum Nova64Templates {
     private static let optOut = #"\b(from scratch|free-?form|without (a |the )?template|no template|custom engine)\b"#
     private static let newThing = #"\b(new|another|different)\b.*\b(scene|game|cart|demo)\b"#
-    private static let families: [(String, String)] = [
-        ("dungeon", #"\b(dungeons?|crawlers?|rpg|wizardry|labyrinths?|mazes?|dungeon-crawler)\b"#),
-        ("runner", #"\b(runners?|endless run\w*|lanes?|subway|temple run)\b"#),
-        ("arena", #"\b(arenas?|dodgers?|dodging|dodge|bullet hell|top-down|survive waves|waves of)\b"#)
-    ]
-    private static let neon = #"\b(neon|cyber\w*|synth\w*|grid|digital|hacker|tron|data|electric|vapor\w*|laser|sci-?fi|space|holo\w*)\b"#
-    private static let classic = #"\b(stone|torch\w*|caves?|cavern|crypts?|tomb|mines?|lava|medieval|castle|forest|corridor|ice|frost|crystal|fantasy)\b"#
-    private static let variants: [String: [String: String]] = [
-        "dungeon": ["neon": "fp-dungeon-odyssey", "classic": "fp-dungeon-wizardry"],
-        "runner": ["neon": "lane-runner-grid", "classic": "lane-runner-corridor"],
-        "arena": ["neon": "arena-dodger-neon", "classic": "arena-dodger-cave"]
-    ]
-    private static let defaultStyle = ["dungeon": "classic", "runner": "neon", "arena": "neon"]
     static let configMark = "// ============================== CONFIG =============================="
     static let engineMark = "// ============================== ENGINE =============================="
 
@@ -55,18 +46,64 @@ enum Nova64Templates {
         return template(id) != nil ? id : nil
     }
 
+    /// True when `word` starts a word in the lower-cased message ("dodge" matches "dodges").
+    static func hasWord(_ message: String, _ word: String) -> Bool {
+        var from = message.startIndex
+        while let r = message.range(of: word, range: from..<message.endIndex) {
+            if r.lowerBound == message.startIndex { return true }
+            let before = message[message.index(before: r.lowerBound)]
+            if !(before.isASCII && (before.isLetter || before.isNumber)) { return true }
+            from = message.index(after: r.lowerBound)
+        }
+        return false
+    }
+
+    private static func matched(_ message: String, _ words: [String]) -> [String] {
+        words.filter { hasWord(message, $0) }
+    }
+
+    /// Which template a chat request should use and the keywords that picked it.
+    /// `id` is nil for free-form; `words` is empty for a follow-up edit.
+    static func pick(message: String, currentTemplateId current: String?) -> (id: String?, words: [String]) {
+        let m = message.lowercased()
+        if matches(optOut, m) { return (nil, []) }
+        var best: Nova64TemplateInfo?
+        var bestGame: [String] = []
+        for t in all {
+            let g = matched(m, t.gameWords)
+            if g.count > bestGame.count { best = t; bestGame = g }
+        }
+        guard let best else {
+            if let current, !matches(newThing, m) { return (current, []) }   // follow-up edit
+            return (nil, [])
+        }
+        var choice: Nova64TemplateInfo?
+        var choiceStyle: [String] = []
+        for t in all where t.family == best.family {
+            let st = matched(m, t.styleWords)
+            if choice == nil || st.count > choiceStyle.count { choice = t; choiceStyle = st }
+        }
+        if choiceStyle.isEmpty, let current, let cur = template(current), cur.family == best.family { choice = cur }
+        return (choice?.id, bestGame + choiceStyle)
+    }
+
     /// Which template a chat request should use, or nil for free-form generation.
     static func choose(message: String, currentTemplateId current: String?) -> String? {
-        let m = message.lowercased()
-        if matches(optOut, m) { return nil }
-        guard let family = families.first(where: { matches($0.1, m) })?.0 else {
-            if let current, !matches(newThing, m) { return current }   // follow-up edit
-            return nil
-        }
-        let isNeon = matches(neon, m), isClassic = matches(classic, m)
-        if let current, template(current)?.family == family, !isNeon, !isClassic { return current }
-        let style = isNeon && !isClassic ? "neon" : isClassic && !isNeon ? "classic" : defaultStyle[family]!
-        return variants[family]?[style]
+        pick(message: message, currentTemplateId: current).id
+    }
+
+    /// A template's chip label in chat: its first game word and first style word.
+    static func chipLabel(_ t: Nova64TemplateInfo) -> String {
+        "\(t.gameWords.first ?? t.family) \u{00B7} \(t.styleWords.first ?? t.style.lowercased())"
+    }
+
+    /// The line that opens a template reply: which template the user's words picked.
+    /// Empty for follow-ups and free-form. Matches `templateNote` in kit.src.js.
+    static func note(message: String, currentCode: String?) -> String {
+        let p = pick(message: message, currentTemplateId: templateId(of: currentCode))
+        guard let id = p.id, let t = template(id), !p.words.isEmpty else { return "" }
+        let words = p.words.map { "*\($0)*" }.joined(separator: ", ")
+        return "\u{1F3AE} Started from the **\(t.genre) \u{00B7} \(t.style)** template, because you said \(words). Tap a template below to preview it, or say *from scratch* to write your own."
     }
 
     /// The CONFIG section of a cart, from its NOVA64 TEMPLATE line to the ENGINE marker.

@@ -13,6 +13,7 @@ Reply with one or two sentences about your design, then ONLY the CONFIG below re
 
 Rules:
 - Keep the first line exactly: // NOVA64 TEMPLATE: {id}
+- Keep KEYWORDS exactly as it is.
 - Keep every const and property name. Change the values, names, text, colours and numbers so the game matches the request. Arrays may have more or fewer entries of the same shape.
 - 3D colours are 0xRRGGBB numbers; UI colours are [r, g, b]. Never use 0x000000. Keep enemies, pickups and text bright against the dark scene.
 - Do not add functions, API calls or new consts.
@@ -28,6 +29,7 @@ CONFIG to rewrite:
     static let templates: [Nova64TemplateInfo] = [
         Nova64TemplateInfo(
             id: "fp-dungeon-wizardry", family: "dungeon", genre: "Dungeon crawler", style: "Torchlit stone",
+            gameWords: ["dungeon","crawler","rpg","wizardry","labyrinth","maze"], styleWords: ["stone","torch","cave","cavern","crypt","tomb","mine","lava","medieval","castle","forest","corridor","ice","frost","crystal","fantasy"],
             description: #"""
 First-person grid dungeon crawler in the spirit of Wizardry and Indie Odyssey. Step tile by tile, turn 90 degrees, random encounters plus a boss guarding the exit portal, turn-based party combat (attack, spell, defend, flee), chests that heal, minimap, illustrated story slides, victory or defeat with restart, and auto-play (P) that explores, fights and loops like an arcade attract mode.
 """#,
@@ -54,6 +56,13 @@ Write only the CONFIG section. The engine reads:
             config: #"""
 // NOVA64 TEMPLATE: fp-dungeon-wizardry
 // ============================== CONFIG ==============================
+// Chat words that pick this template. Edit them to change when it is used:
+// a game word picks the kind of game, a style word picks this look over the others.
+const KEYWORDS = {
+  game: ['dungeon', 'crawler', 'rpg', 'wizardry', 'labyrinth', 'maze'],
+  style: ['stone', 'torch', 'cave', 'cavern', 'crypt', 'tomb', 'mine', 'lava', 'medieval', 'castle', 'forest', 'corridor', 'ice', 'frost', 'crystal', 'fantasy']
+};
+
 const THEME = {
   wallStyle: 'stone', // 'stone' = torchlit stone, 'grid' = neon edge strips
   wall: 0x6a5848,
@@ -120,6 +129,7 @@ const SPELL_COST = 4;
         ),
         Nova64TemplateInfo(
             id: "fp-dungeon-odyssey", family: "dungeon", genre: "Dungeon crawler", style: "Neon grid",
+            gameWords: ["dungeon","crawler","rpg","wizardry","labyrinth","maze"], styleWords: ["neon","cyber","synth","grid","digital","hacker","tron","data","electric","vapor","laser","sci-fi","scifi","space","holo"],
             description: #"""
 First-person grid dungeon crawler in the spirit of Wizardry and Indie Odyssey. Step tile by tile, turn 90 degrees, random encounters plus a boss guarding the exit portal, turn-based party combat (attack, spell, defend, flee), chests that heal, minimap, illustrated story slides, victory or defeat with restart, and auto-play (P) that explores, fights and loops like an arcade attract mode.
 """#,
@@ -146,6 +156,13 @@ Write only the CONFIG section. The engine reads:
             config: #"""
 // NOVA64 TEMPLATE: fp-dungeon-odyssey
 // ============================== CONFIG ==============================
+// Chat words that pick this template. Edit them to change when it is used:
+// a game word picks the kind of game, a style word picks this look over the others.
+const KEYWORDS = {
+  game: ['dungeon', 'crawler', 'rpg', 'wizardry', 'labyrinth', 'maze'],
+  style: ['neon', 'cyber', 'synth', 'grid', 'digital', 'hacker', 'tron', 'data', 'electric', 'vapor', 'laser', 'sci-fi', 'scifi', 'space', 'holo']
+};
+
 const THEME = {
   wallStyle: 'grid', // 'stone' = torchlit stone, 'grid' = neon edge strips
   wall: 0x0c1430,
@@ -209,90 +226,8 @@ const SPELL_COST = 4;
 """#
         ),
         Nova64TemplateInfo(
-            id: "lane-runner-corridor", family: "runner", genre: "Lane runner", style: "Torchlit corridor",
-            description: #"""
-Third-person three-lane runner. Switch lanes with Left/Right and jump with Up/Space. The engine generates fair obstacle rows that always leave an open lane: barriers block a lane, hurdles must be jumped, pickups score with a combo multiplier, and shields absorb one hit. Speed ramps up, you have lives and a best score, and there are illustrated story slides and auto-play (P).
-"""#,
-            guide: #"""
-Write only the CONFIG section. The engine reads:
-- THEME: trackStyle 'grid' (neon floor and pylons) or 'corridor' (torchlit
-  walls), colours (0xRRGGBB for 3D, [r,g,b] for UI), sky [top, bottom] and
-  bloom (0.3 to 1.0). Keep floors and walls dark; never use 0x000000.
-- TEXT: title (14 characters or fewer looks best), subtitle, prompt, over.
-- STORY: 0 to 4 slides, as strings under 90 characters or { text, art }, where
-  art is 'castle', 'city', 'party' (the runner) or 'portal' (the threat).
-- PLAYER: { name, color, trail }.
-- HAZARDS: barrier { name, color, glow }, hurdle { name, color },
-  pickup { name, color, points }, shield { name, color }. Use bright colours
-  for hurdle, pickup and shield, and a glowing edge for barriers.
-- DIFFICULTY: lives 1-5, startSpeed 10-20, maxSpeed 24-40, ramp 0.2-0.6,
-  rowGap 12-20, minRowGap 8-12, hurdleChance 0-0.5, shieldChance 0-0.1.
-Never write track or obstacle layouts: the engine generates them.
-"""#,
-            config: #"""
-// NOVA64 TEMPLATE: lane-runner-corridor
-// ============================== CONFIG ==============================
-const THEME = {
-  trackStyle: 'corridor', // 'grid' = neon floor and pylons, 'corridor' = torchlit walls
-  floor: 0x3a2c22,
-  wall: 0x6a5848, // pylons (grid) or side walls (corridor)
-  fog: 0x0a0604,
-  fogNear: 6,
-  fogFar: 48,
-  ambient: 0x442f22,
-  ambientLevel: 0.55,
-  accent: 0xff9a2e, // track lines, pylon lights, torches
-  sky: [0x0a0515, 0x2a1408], // gradient skybox top, bottom
-  bloom: 0.8,
-  ui: {
-    title: [255, 210, 60],
-    text: [235, 225, 205],
-    dim: [150, 135, 115],
-    panel: [12, 9, 16],
-    border: [110, 85, 55],
-  },
-};
-
-const TEXT = {
-  title: 'CRYPT RUN',
-  subtitle: 'FLEE THE COLLAPSING TOMB',
-  prompt: 'Press Space to flee',
-  over: 'THE CRYPT CLAIMS YOU',
-};
-
-// One short slide per screen before play. Strings or { text, art }, art:
-// 'castle' | 'city' | 'party' | 'portal'. Use [] to skip the story.
-const STORY = [
-  { text: 'The king\'s tomb was never meant to be opened.', art: 'castle' },
-  { text: 'Now its halls are falling. Run, leap the blades, grab the gold.', art: 'party' },
-  { text: 'Something ancient is right behind you.', art: 'portal' },
-];
-
-const PLAYER = { name: 'ROWAN', color: 0xffd8a0, trail: 0xff6a20 };
-
-// What appears on the track: barriers block a lane, hurdles must be jumped,
-// pickups score, shields absorb one hit.
-const HAZARDS = {
-  barrier: { name: 'FALLEN STONE', color: 0x5a4a3c, glow: 0xff5522 },
-  hurdle: { name: 'BLADE', color: 0xc8c8d0 },
-  pickup: { name: 'GOLD', color: 0xffd23c, points: 10 },
-  shield: { name: 'WARD', color: 0x9a55ff },
-};
-
-const DIFFICULTY = {
-  lives: 3,
-  startSpeed: 14, // world units per second
-  maxSpeed: 30,
-  ramp: 0.3, // speed gained per second
-  rowGap: 17, // distance between obstacle rows at the start
-  minRowGap: 10, // ...and at top speed
-  hurdleChance: 0.35,
-  shieldChance: 0.06,
-};
-"""#
-        ),
-        Nova64TemplateInfo(
             id: "lane-runner-grid", family: "runner", genre: "Lane runner", style: "Neon grid",
+            gameWords: ["runner","endless run","lane","subway","temple run"], styleWords: ["neon","cyber","synth","grid","digital","hacker","tron","data","electric","vapor","laser","sci-fi","scifi","space","holo"],
             description: #"""
 Third-person three-lane runner. Switch lanes with Left/Right and jump with Up/Space. The engine generates fair obstacle rows that always leave an open lane: barriers block a lane, hurdles must be jumped, pickups score with a combo multiplier, and shields absorb one hit. Speed ramps up, you have lives and a best score, and there are illustrated story slides and auto-play (P).
 """#,
@@ -315,6 +250,13 @@ Never write track or obstacle layouts: the engine generates them.
             config: #"""
 // NOVA64 TEMPLATE: lane-runner-grid
 // ============================== CONFIG ==============================
+// Chat words that pick this template. Edit them to change when it is used:
+// a game word picks the kind of game, a style word picks this look over the others.
+const KEYWORDS = {
+  game: ['runner', 'endless run', 'lane', 'subway', 'temple run'],
+  style: ['neon', 'cyber', 'synth', 'grid', 'digital', 'hacker', 'tron', 'data', 'electric', 'vapor', 'laser', 'sci-fi', 'scifi', 'space', 'holo']
+};
+
 const THEME = {
   trackStyle: 'grid', // 'grid' = neon floor and pylons, 'corridor' = torchlit walls
   floor: 0x060b1e,
@@ -375,90 +317,99 @@ const DIFFICULTY = {
 """#
         ),
         Nova64TemplateInfo(
-            id: "arena-dodger-cave", family: "arena", genre: "Arena dodger", style: "Crystal cave",
+            id: "lane-runner-corridor", family: "runner", genre: "Lane runner", style: "Torchlit corridor",
+            gameWords: ["runner","endless run","lane","subway","temple run"], styleWords: ["torch","stone","cave","cavern","crypt","tomb","mine","lava","medieval","castle","forest","corridor","ice","frost","crystal","fantasy"],
             description: #"""
-Top-down arena game. Move freely with arrows/WASD and dash with Space (a quick burst that makes you briefly untouchable, on a cooldown). Collect gems for a combo multiplier while enemy waves grow. Every spawn is telegraphed by a glowing floor ring a second before it appears. The rim blocks you; it never hurts. Lives, waves, best score, illustrated story slides and auto-play (P).
+Third-person three-lane runner. Switch lanes with Left/Right and jump with Up/Space. The engine generates fair obstacle rows that always leave an open lane: barriers block a lane, hurdles must be jumped, pickups score with a combo multiplier, and shields absorb one hit. Speed ramps up, you have lives and a best score, and there are illustrated story slides and auto-play (P).
 """#,
             guide: #"""
 Write only the CONFIG section. The engine reads:
-- THEME: arenaStyle 'cave' (stalagmites and lit crystals) or 'neon' (ring grid
-  and pylons), colours (0xRRGGBB for 3D, [r,g,b] for UI), sky [top, bottom],
-  bloom 0.3 to 1.0. Keep floors and walls dark; never use 0x000000.
+- THEME: trackStyle 'grid' (neon floor and pylons) or 'corridor' (torchlit
+  walls), colours (0xRRGGBB for 3D, [r,g,b] for UI), sky [top, bottom] and
+  bloom (0.3 to 1.0). Keep floors and walls dark; never use 0x000000.
 - TEXT: title (14 characters or fewer looks best), subtitle, prompt, over.
 - STORY: 0 to 4 slides, as strings under 90 characters or { text, art }, where
-  art is 'castle' (peaks or cave teeth), 'city', 'party' (the player) or
-  'portal' (the enemies' eyes).
-- PLAYER: { name, color, speed 6-9 }.
-- GEM: { name, color, points, onScreen 2-5 }.
-- ENEMIES: 2 to 4 { name, behavior: 'chaser'|'orbiter'|'dasher', color, glow,
-  speed, size 0.35-0.7 }. Chasers move at speed 2-3.5, orbiters 3-5 and
-  dashers lunge at 10-15. Later waves unlock later entries, so list the
-  easiest first.
-- DIFFICULTY: lives 1-5, waveTime 8-15, firstWave 1-3, perWave 1-2,
-  maxEnemies 8-16, dashCooldown 1-2.
-Never write positions or spawn layouts: the engine generates them.
+  art is 'castle', 'city', 'party' (the runner) or 'portal' (the threat).
+- PLAYER: { name, color, trail }.
+- HAZARDS: barrier { name, color, glow }, hurdle { name, color },
+  pickup { name, color, points }, shield { name, color }. Use bright colours
+  for hurdle, pickup and shield, and a glowing edge for barriers.
+- DIFFICULTY: lives 1-5, startSpeed 10-20, maxSpeed 24-40, ramp 0.2-0.6,
+  rowGap 12-20, minRowGap 8-12, hurdleChance 0-0.5, shieldChance 0-0.1.
+Never write track or obstacle layouts: the engine generates them.
 """#,
             config: #"""
-// NOVA64 TEMPLATE: arena-dodger-cave
+// NOVA64 TEMPLATE: lane-runner-corridor
 // ============================== CONFIG ==============================
+// Chat words that pick this template. Edit them to change when it is used:
+// a game word picks the kind of game, a style word picks this look over the others.
+const KEYWORDS = {
+  game: ['runner', 'endless run', 'lane', 'subway', 'temple run'],
+  style: ['torch', 'stone', 'cave', 'cavern', 'crypt', 'tomb', 'mine', 'lava', 'medieval', 'castle', 'forest', 'corridor', 'ice', 'frost', 'crystal', 'fantasy']
+};
+
 const THEME = {
-  arenaStyle: 'cave', // 'cave' = crystal cavern, 'neon' = glowing ring grid
-  floor: 0x1a1428,
-  wall: 0x3a2c50, // stalagmites (cave) or pylons (neon)
-  fog: 0x05030a,
-  fogNear: 14,
-  fogFar: 40,
-  ambient: 0x2a2040,
-  ambientLevel: 0.6,
-  accent: 0xc040ff, // arena rim, crystals, floor lines
-  sky: [0x05030a, 0x140a24],
-  bloom: 0.7,
+  trackStyle: 'corridor', // 'grid' = neon floor and pylons, 'corridor' = torchlit walls
+  floor: 0x3a2c22,
+  wall: 0x6a5848, // pylons (grid) or side walls (corridor)
+  fog: 0x0a0604,
+  fogNear: 6,
+  fogFar: 48,
+  ambient: 0x442f22,
+  ambientLevel: 0.55,
+  accent: 0xff9a2e, // track lines, pylon lights, torches
+  sky: [0x0a0515, 0x2a1408], // gradient skybox top, bottom
+  bloom: 0.8,
   ui: {
-    title: [255, 120, 230],
-    text: [235, 225, 250],
-    dim: [150, 130, 175],
-    panel: [12, 8, 22],
-    border: [160, 90, 230],
+    title: [255, 210, 60],
+    text: [235, 225, 205],
+    dim: [150, 135, 115],
+    panel: [12, 9, 16],
+    border: [110, 85, 55],
   },
 };
 
 const TEXT = {
-  title: 'CRYSTAL CAVE',
-  subtitle: 'GATHER THE GLOW, FLEE THE DARK',
-  prompt: 'Press Space to descend',
-  over: 'THE CAVE GOES DARK',
+  title: 'CRYPT RUN',
+  subtitle: 'FLEE THE COLLAPSING TOMB',
+  prompt: 'Press Space to flee',
+  over: 'THE CRYPT CLAIMS YOU',
 };
 
-// Strings or { text, art }, art: 'castle' | 'city' | 'party' | 'portal'. [] skips.
+// One short slide per screen before play. Strings or { text, art }, art:
+// 'castle' | 'city' | 'party' | 'portal'. Use [] to skip the story.
 const STORY = [
-  { text: 'Deep below the mountain, the crystals still remember the sun.', art: 'castle' },
-  { text: 'A lone drone slips in to gather their light before it fades.', art: 'party' },
-  { text: 'But the cave has guardians, and they wake when the light moves.', art: 'portal' },
+  { text: 'The king\'s tomb was never meant to be opened.', art: 'castle' },
+  { text: 'Now its halls are falling. Run, leap the blades, grab the gold.', art: 'party' },
+  { text: 'Something ancient is right behind you.', art: 'portal' },
 ];
 
-const PLAYER = { name: 'GLIMMER', color: 0x44e8ff, speed: 7 };
+const PLAYER = { name: 'ROWAN', color: 0xffd8a0, trail: 0xff6a20 };
 
-const GEM = { name: 'CRYSTAL', color: 0xff3fd0, points: 10, onScreen: 3 };
-
-// behavior: 'chaser' (homes in), 'orbiter' (circles the arena), 'dasher' (charges then lunges)
-const ENEMIES = [
-  { name: 'BAT', behavior: 'orbiter', color: 0x8855aa, glow: 0xff5577, speed: 3.5, size: 0.45 },
-  { name: 'SHADE', behavior: 'chaser', color: 0x402060, glow: 0x9a66ff, speed: 2.6, size: 0.5 },
-  { name: 'GOLEM SHARD', behavior: 'dasher', color: 0x6a5a80, glow: 0xffaa33, speed: 12, size: 0.55 },
-];
+// What appears on the track: barriers block a lane, hurdles must be jumped,
+// pickups score, shields absorb one hit.
+const HAZARDS = {
+  barrier: { name: 'FALLEN STONE', color: 0x5a4a3c, glow: 0xff5522 },
+  hurdle: { name: 'BLADE', color: 0xc8c8d0 },
+  pickup: { name: 'GOLD', color: 0xffd23c, points: 10 },
+  shield: { name: 'WARD', color: 0x9a55ff },
+};
 
 const DIFFICULTY = {
   lives: 3,
-  waveTime: 12, // seconds between waves
-  firstWave: 2, // enemies in wave 1
-  perWave: 1, // extra enemies each wave
-  maxEnemies: 12,
-  dashCooldown: 1.4,
+  startSpeed: 14, // world units per second
+  maxSpeed: 30,
+  ramp: 0.3, // speed gained per second
+  rowGap: 17, // distance between obstacle rows at the start
+  minRowGap: 10, // ...and at top speed
+  hurdleChance: 0.35,
+  shieldChance: 0.06,
 };
 """#
         ),
         Nova64TemplateInfo(
             id: "arena-dodger-neon", family: "arena", genre: "Arena dodger", style: "Neon web",
+            gameWords: ["arena","dodge","dodging","bullet hell","top-down","survive waves","waves of"], styleWords: ["neon","cyber","synth","grid","digital","hacker","tron","data","electric","vapor","laser","sci-fi","scifi","space","holo"],
             description: #"""
 Top-down arena game. Move freely with arrows/WASD and dash with Space (a quick burst that makes you briefly untouchable, on a cooldown). Collect gems for a combo multiplier while enemy waves grow. Every spawn is telegraphed by a glowing floor ring a second before it appears. The rim blocks you; it never hurts. Lives, waves, best score, illustrated story slides and auto-play (P).
 """#,
@@ -484,6 +435,13 @@ Never write positions or spawn layouts: the engine generates them.
             config: #"""
 // NOVA64 TEMPLATE: arena-dodger-neon
 // ============================== CONFIG ==============================
+// Chat words that pick this template. Edit them to change when it is used:
+// a game word picks the kind of game, a style word picks this look over the others.
+const KEYWORDS = {
+  game: ['arena', 'dodge', 'dodging', 'bullet hell', 'top-down', 'survive waves', 'waves of'],
+  style: ['neon', 'cyber', 'synth', 'grid', 'digital', 'hacker', 'tron', 'data', 'electric', 'vapor', 'laser', 'sci-fi', 'scifi', 'space', 'holo']
+};
+
 const THEME = {
   arenaStyle: 'neon', // 'cave' = crystal cavern, 'neon' = glowing ring grid
   floor: 0x060b1e,
@@ -539,29 +497,125 @@ const DIFFICULTY = {
   dashCooldown: 1.3,
 };
 """#
+        ),
+        Nova64TemplateInfo(
+            id: "arena-dodger-cave", family: "arena", genre: "Arena dodger", style: "Crystal cave",
+            gameWords: ["arena","dodge","dodging","bullet hell","top-down","survive waves","waves of"], styleWords: ["cave","stone","torch","cavern","crypt","tomb","mine","lava","medieval","castle","forest","corridor","ice","frost","crystal","fantasy"],
+            description: #"""
+Top-down arena game. Move freely with arrows/WASD and dash with Space (a quick burst that makes you briefly untouchable, on a cooldown). Collect gems for a combo multiplier while enemy waves grow. Every spawn is telegraphed by a glowing floor ring a second before it appears. The rim blocks you; it never hurts. Lives, waves, best score, illustrated story slides and auto-play (P).
+"""#,
+            guide: #"""
+Write only the CONFIG section. The engine reads:
+- THEME: arenaStyle 'cave' (stalagmites and lit crystals) or 'neon' (ring grid
+  and pylons), colours (0xRRGGBB for 3D, [r,g,b] for UI), sky [top, bottom],
+  bloom 0.3 to 1.0. Keep floors and walls dark; never use 0x000000.
+- TEXT: title (14 characters or fewer looks best), subtitle, prompt, over.
+- STORY: 0 to 4 slides, as strings under 90 characters or { text, art }, where
+  art is 'castle' (peaks or cave teeth), 'city', 'party' (the player) or
+  'portal' (the enemies' eyes).
+- PLAYER: { name, color, speed 6-9 }.
+- GEM: { name, color, points, onScreen 2-5 }.
+- ENEMIES: 2 to 4 { name, behavior: 'chaser'|'orbiter'|'dasher', color, glow,
+  speed, size 0.35-0.7 }. Chasers move at speed 2-3.5, orbiters 3-5 and
+  dashers lunge at 10-15. Later waves unlock later entries, so list the
+  easiest first.
+- DIFFICULTY: lives 1-5, waveTime 8-15, firstWave 1-3, perWave 1-2,
+  maxEnemies 8-16, dashCooldown 1-2.
+Never write positions or spawn layouts: the engine generates them.
+"""#,
+            config: #"""
+// NOVA64 TEMPLATE: arena-dodger-cave
+// ============================== CONFIG ==============================
+// Chat words that pick this template. Edit them to change when it is used:
+// a game word picks the kind of game, a style word picks this look over the others.
+const KEYWORDS = {
+  game: ['arena', 'dodge', 'dodging', 'bullet hell', 'top-down', 'survive waves', 'waves of'],
+  style: ['cave', 'stone', 'torch', 'cavern', 'crypt', 'tomb', 'mine', 'lava', 'medieval', 'castle', 'forest', 'corridor', 'ice', 'frost', 'crystal', 'fantasy']
+};
+
+const THEME = {
+  arenaStyle: 'cave', // 'cave' = crystal cavern, 'neon' = glowing ring grid
+  floor: 0x1a1428,
+  wall: 0x3a2c50, // stalagmites (cave) or pylons (neon)
+  fog: 0x05030a,
+  fogNear: 14,
+  fogFar: 40,
+  ambient: 0x2a2040,
+  ambientLevel: 0.6,
+  accent: 0xc040ff, // arena rim, crystals, floor lines
+  sky: [0x05030a, 0x140a24],
+  bloom: 0.7,
+  ui: {
+    title: [255, 120, 230],
+    text: [235, 225, 250],
+    dim: [150, 130, 175],
+    panel: [12, 8, 22],
+    border: [160, 90, 230],
+  },
+};
+
+const TEXT = {
+  title: 'CRYSTAL CAVE',
+  subtitle: 'GATHER THE GLOW, FLEE THE DARK',
+  prompt: 'Press Space to descend',
+  over: 'THE CAVE GOES DARK',
+};
+
+// Strings or { text, art }, art: 'castle' | 'city' | 'party' | 'portal'. [] skips.
+const STORY = [
+  { text: 'Deep below the mountain, the crystals still remember the sun.', art: 'castle' },
+  { text: 'A lone drone slips in to gather their light before it fades.', art: 'party' },
+  { text: 'But the cave has guardians, and they wake when the light moves.', art: 'portal' },
+];
+
+const PLAYER = { name: 'GLIMMER', color: 0x44e8ff, speed: 7 };
+
+const GEM = { name: 'CRYSTAL', color: 0xff3fd0, points: 10, onScreen: 3 };
+
+// behavior: 'chaser' (homes in), 'orbiter' (circles the arena), 'dasher' (charges then lunges)
+const ENEMIES = [
+  { name: 'BAT', behavior: 'orbiter', color: 0x8855aa, glow: 0xff5577, speed: 3.5, size: 0.45 },
+  { name: 'SHADE', behavior: 'chaser', color: 0x402060, glow: 0x9a66ff, speed: 2.6, size: 0.5 },
+  { name: 'GOLEM SHARD', behavior: 'dasher', color: 0x6a5a80, glow: 0xffaa33, speed: 12, size: 0.55 },
+];
+
+const DIFFICULTY = {
+  lives: 3,
+  waveTime: 12, // seconds between waves
+  firstWave: 2, // enemies in wave 1
+  perWave: 1, // extra enemies each wave
+  maxEnemies: 12,
+  dashCooldown: 1.4,
+};
+"""#
         )
     ]
 
     /// chooseTemplate(message, currentTemplateId) -> expected id, computed by the JS kit.
-    static let testVectors: [(message: String, current: String?, expected: String?)] = [
-        ("Make a dungeon crawler about four monks in a flooded abbey", nil, "fp-dungeon-wizardry"),
-        ("make a neon cyberpunk dungeon crawler with hackers", nil, "fp-dungeon-odyssey"),
-        ("an endless runner through a lava mine", nil, "lane-runner-corridor"),
-        ("synthwave lane runner on a violet grid", nil, "lane-runner-grid"),
-        ("an arena game where a firefly dodges spiders in a cave", nil, "arena-dodger-cave"),
-        ("top-down arena: a spark collects energy cells while drones orbit", nil, "arena-dodger-neon"),
-        ("a spinning cube with a glowing orb", nil, nil),
-        ("make the enemies faster and the walls green", "fp-dungeon-wizardry", "fp-dungeon-wizardry"),
-        ("change the title to SUNKEN ABBEY", "lane-runner-grid", "lane-runner-grid"),
-        ("make a new scene with a rotating planet", "arena-dodger-cave", nil),
-        ("build a dungeon crawler from scratch", nil, nil),
-        ("now make it a neon dungeon", "fp-dungeon-wizardry", "fp-dungeon-odyssey"),
-        ("make the dungeon spookier", "fp-dungeon-odyssey", "fp-dungeon-odyssey"),
-        ("a maze game set in an ice castle", nil, "fp-dungeon-wizardry"),
-        ("bullet hell in space", nil, "arena-dodger-neon"),
-        ("A medieval RPG with a party of four", nil, "fp-dungeon-wizardry"),
-        ("a racing game with lanes of traffic", nil, "lane-runner-grid"),
-        ("a calm forest scene with fireflies", nil, nil),
-        ("different game: an arena dodger in a crystal cavern", "lane-runner-corridor", "arena-dodger-cave")
+    static let testVectors: [(message: String, current: String?, expected: String?, words: [String])] = [
+        ("Make a dungeon crawler about four monks in a flooded abbey", nil, "fp-dungeon-wizardry", ["dungeon","crawler"]),
+        ("make a neon cyberpunk dungeon crawler with hackers", nil, "fp-dungeon-odyssey", ["dungeon","crawler","neon","cyber","hacker"]),
+        ("an endless runner through a lava mine", nil, "lane-runner-corridor", ["runner","endless run","mine","lava"]),
+        ("synthwave lane runner on a violet grid", nil, "lane-runner-grid", ["runner","lane","synth","grid"]),
+        ("an arena game where a firefly dodges spiders in a cave", nil, "arena-dodger-cave", ["arena","dodge","cave"]),
+        ("top-down arena: a spark collects energy cells while drones orbit", nil, "arena-dodger-neon", ["arena","top-down"]),
+        ("a spinning cube with a glowing orb", nil, nil, []),
+        ("make the enemies faster and the walls green", "fp-dungeon-wizardry", "fp-dungeon-wizardry", []),
+        ("change the title to SUNKEN ABBEY", "lane-runner-grid", "lane-runner-grid", []),
+        ("make a new scene with a rotating planet", "arena-dodger-cave", nil, []),
+        ("build a dungeon crawler from scratch", nil, nil, []),
+        ("now make it a neon dungeon", "fp-dungeon-wizardry", "fp-dungeon-odyssey", ["dungeon","neon"]),
+        ("make the dungeon spookier", "fp-dungeon-odyssey", "fp-dungeon-odyssey", ["dungeon"]),
+        ("a maze game set in an ice castle", nil, "fp-dungeon-wizardry", ["maze","castle","ice"]),
+        ("bullet hell in space", nil, "arena-dodger-neon", ["bullet hell","space"]),
+        ("A medieval RPG with a party of four", nil, "fp-dungeon-wizardry", ["rpg","medieval"]),
+        ("a racing game with lanes of traffic", nil, "lane-runner-grid", ["lane"]),
+        ("a calm forest scene with fireflies", nil, nil, []),
+        ("different game: an arena dodger in a crystal cavern", "lane-runner-corridor", "arena-dodger-cave", ["arena","dodge","cave","cavern","crystal"]),
+        ("dodging lasers in a neon arena", nil, "arena-dodger-neon", ["arena","dodging","neon","laser"]),
+        ("subway runner through a frosty tomb", nil, "lane-runner-corridor", ["runner","subway","tomb","frost"]),
+        ("an RPG maze with a hacker party in cyberspace", nil, "fp-dungeon-odyssey", ["rpg","maze","cyber","hacker"]),
+        ("endless running game", nil, "lane-runner-grid", ["endless run"]),
+        ("spaceship dodging waves of asteroids", nil, "arena-dodger-neon", ["dodging","waves of","space"])
     ]
 }

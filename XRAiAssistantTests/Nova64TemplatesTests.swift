@@ -8,8 +8,9 @@ final class Nova64TemplatesTests: XCTestCase {
     func testChooseMatchesTheJavaScriptKit() {
         XCTAssertFalse(Nova64TemplateData.testVectors.isEmpty)
         for v in Nova64TemplateData.testVectors {
-            XCTAssertEqual(Nova64Templates.choose(message: v.message, currentTemplateId: v.current), v.expected,
-                           "\"\(v.message)\" with current \(v.current ?? "none")")
+            let pick = Nova64Templates.pick(message: v.message, currentTemplateId: v.current)
+            XCTAssertEqual(pick.id, v.expected, "\"\(v.message)\" with current \(v.current ?? "none")")
+            XCTAssertEqual(pick.words, v.words, "words for \"\(v.message)\"")
         }
     }
 
@@ -39,6 +40,17 @@ final class Nova64TemplatesTests: XCTestCase {
         let block = try XCTUnwrap(Nova64Templates.promptBlock(message: "make it faster", currentCode: cart))
         XCTAssertTrue(block.contains("title: 'EMBER DASH'"))
         XCTAssertFalse(block.contains("function init() {}"))
+    }
+
+    func testNoteNamesTheTemplateAndTheWords() {
+        let note = Nova64Templates.note(message: "Make a dungeon crawler about four monks in a flooded abbey", currentCode: nil)
+        XCTAssertEqual(note, "\u{1F3AE} Started from the **Dungeon crawler \u{00B7} Torchlit stone** template, because you said *dungeon*, *crawler*. Tap a template below to preview it, or say *from scratch* to write your own.")
+        XCTAssertEqual(Nova64Templates.note(message: "make it faster", currentCode: "// NOVA64 TEMPLATE: lane-runner-grid\n"), "")
+    }
+
+    func testChipLabelsUseTheFirstGameAndStyleWords() {
+        XCTAssertEqual(Nova64Templates.all.map(Nova64Templates.chipLabel),
+                       ["dungeon \u{00B7} stone", "dungeon \u{00B7} neon", "runner \u{00B7} neon", "runner \u{00B7} torch", "arena \u{00B7} neon", "arena \u{00B7} cave"])
     }
 
     func testNonGameRequestsStayFreeForm() {

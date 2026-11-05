@@ -99,6 +99,10 @@ final class LocalLLMProvider: AIProvider {
             "messages": messages.map(Self.openAIMessage),
             "temperature": temperature,
             "top_p": topP,
+            // Servers pick their own default when this is missing, and some are
+            // tiny (mlx_lm.server stops at 512 tokens), which cuts a cart off
+            // mid-code.
+            "max_tokens": 8192,
             "stream": true
         ]
 
