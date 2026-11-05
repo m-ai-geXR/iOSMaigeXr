@@ -33,11 +33,25 @@ for these two issues. Do not submit until the device evidence below is complete.
   validation status. Existing reviewer access/setup instructions were preserved
   inside App Store Connect without exposing any reviewer key. Save state and
   build selection were verified after a full page reload.
-- **Remaining:** Apple's requested physical-device recording must be captured,
-  attached and referenced in Review Notes before resubmission. The user chose
-  simulator validation for now; no physical-device testing or recording is
-  claimed. Notes explicitly flag the recording as pending. Nothing has been
-  resubmitted to App Review.
+- Physical Release build 13 was installed on the connected iPad Pro 11-inch
+  (2nd generation), iPadOS 26.5, using an explicit development profile with
+  the installed app's T28W526VKC prefix. The same archived build was exported
+  for the device; no source changes or app-data deletion were needed.
+- A physical-device UI check passed (one test, zero failures). Native ATT was
+  visually verified in the actual USB video; a custom XCTest interruption
+  handler selected **Ask App Not to Track**. Normal navigation and an animated
+  Nova64 scene rendered afterward. The global tracking-request switch was
+  already on; only maigeXR's authorization was reset using XCTest.
+- The final 47-second H.264 landscape recording is
+  `resubmission-evidence/2026-11-04/Physical-iPad/maigeXR-build13-physical-iPad-ATT-landscape.mp4`
+  relative to the workspace root. It was uploaded to App Review Information's
+  Attachment field. Review Notes now identify the recording, physical device,
+  exact OS and permission-reset flow, preserving existing reviewer access.
+  The physical iPad was not on 27.2; no claim of physical 27.2 testing is made.
+- Nothing has been resubmitted to App Review. Final submission remains a
+  separate action. The attachment finished processing and its saved state was
+  verified after reloading App Store Connect.
+
 
 
 ## Changes
@@ -60,9 +74,9 @@ for these two issues. Do not submit until the device evidence below is complete.
 
 ## Physical-device evidence required
 
-No physical device was connected during preparation. Simulator tests are not
-the recording Apple requested. Prefer a physical iPad on iPadOS 27.2; otherwise
-state the exact physical device and OS actually tested.
+Physical capture is now complete on the connected iPad Pro 11-inch
+(2nd generation), iPadOS 26.5. Simulator artifacts are not the physical evidence.
+The following checklist remains useful for reproducing the capture.
 
 1. Archive build 13 in Release configuration and distribute through TestFlight.
    Confirm the installed build is 13, not a Debug build (ads are disabled by
@@ -265,3 +279,22 @@ Sources: [Apple ATT documentation](https://developer.apple.com/documentation/app
 [Google UMP setup](https://developers.google.com/admob/ios/privacy),
 [Google privacy strategies](https://developers.google.com/admob/ios/privacy/strategies),
 [Apple availability settings](https://developer.apple.com/help/app-store-connect/manage-your-apps-availability/manage-availability-for-your-app-on-the-app-store/).
+
+## Physical capture provenance — November 4 evening
+
+Final take: `PHYSICAL-IPAD-build13-ATT-landscape-take4.mov`, captured through
+AVFoundation from the USB muxed display input named Brendon's iPad. The final
+MP4 trims three seconds from the beginning and ends at 50 seconds of that
+continuous take; it adds no simulated UI, overlays or replacement frames.
+Video is H.264, 1718 x 1200, 30 fps, 47 seconds, 4,231,099 bytes, without audio.
+The test result is
+`/tmp/maigexr-physical-smoke-build/Logs/Test/Test-Smoke-2026.11.04_20-20-36--0800.xcresult`.
+Exported prompt, post-denial and scene screenshots are under `Physical-iPad/UI-test`.
+Earlier takes are retained locally but are not the uploaded evidence. Early
+harness checks missed the native sheet in the accessibility tree; the final
+custom interruption handler explicitly tapped Ask App Not to Track, verified
+in the test log and video. A video demonstrates the UI flow, not a packet-level
+traffic audit. Development signing was used only to install the archived app
+on hardware; the selected App Store build remains the distribution upload.
+
+Final recording SHA-256: `42a4b57315929318b721d672ae259e7062d2b08b97a8e3561975e0fcaa6e4c66`.

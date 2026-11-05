@@ -4,7 +4,7 @@
 [`RESUBMISSION-2026-11-04.md`](RESUBMISSION-2026-11-04.md) for build 13, the
 23 passing focused tests plus the simulator UI check, the verified Release
 archive, published AdMob consent messages, selected build 13, China mainland
-exclusion and remaining physical-device evidence work.
+exclusion and the uploaded physical-iPad ATT recording (landscape, iPadOS 26.5).
 The October notes below are historical context.
 
 Updated 2026-10-05. A working note, not a deliverable: current state, what is
