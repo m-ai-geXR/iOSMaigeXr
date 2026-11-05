@@ -884,7 +884,7 @@ class ChatViewModel: ObservableObject {
             }
 
             // Create system prompt
-            let fullSystemPrompt = createSystemPrompt(currentCode: currentCode)
+            let fullSystemPrompt = createSystemPrompt(for: text, currentCode: currentCode)
 
             // Build message array
             let messages = [
@@ -967,7 +967,7 @@ class ChatViewModel: ObservableObject {
 
         do {
             // Create system prompt with context
-            let fullSystemPrompt = createSystemPrompt(currentCode: currentCode)
+            let fullSystemPrompt = createSystemPrompt(for: text, currentCode: currentCode)
             if let replyID, activeReply?.id == replyID {
                 activeReply?.systemPrompt = fullSystemPrompt
             }
@@ -1099,10 +1099,11 @@ class ChatViewModel: ObservableObject {
         }
     }
 
-    private func createSystemPrompt(currentCode: String?) -> String {
-        // Use library-specific prompt with context
+    private func createSystemPrompt(for userMessage: String, currentCode: String?) -> String {
+        // Use library-specific prompt with context. The message lets Nova64 pick a
+        // game template (GAME TEMPLATE MODE) for requests like "a dungeon crawler".
         let prompt = library3DManager.getLibrarySpecificPrompt(
-            for: "", // No specific user message for system prompt
+            for: userMessage,
             currentCode: currentCode
         )
         
