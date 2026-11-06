@@ -73,7 +73,7 @@ struct Nova64Library: Library3D {
         EXACT SIGNATURES:
         - createCube(size, color, position, options) or createCube(w, h, d, color, position, options) -> meshId
         - createSphere(radius, color, position, segments, options) -> meshId
-        - createPlane(width, height, color, position) -> meshId
+        - createPlane(width, height, color, position) -> meshId (stands upright; rotate -Math.PI / 2 on X for a floor)
         - createCylinder(radiusTop, radiusBottom, height, color, position, options) -> meshId
         - createCone(radius, height, color, position, options) -> meshId
         - createTorus(radius, tube, color, position, options) -> meshId
@@ -88,12 +88,24 @@ struct Nova64Library: Library3D {
         - 3D colors are hex numbers like 0xff3366
 
         CRITICAL RULES:
-        - Provide the COMPLETE cart every time, not a fragment
+        - Provide the COMPLETE cart every time, not a fragment (except in GAME TEMPLATE MODE, which asks for only a CONFIG)
         - Always set up a camera and lighting in init() so the scene is visible
         - Multiply all motion by dt so it stays framerate independent
         - Prefer low segment counts and setFlatShading for the authentic retro look
         - Use fog to hide the draw distance, and a bloom or vignette pass for mood
         - Include brief comments explaining the console concepts you use
+
+        Verified lessons (each confirmed in a running cart):
+        - createPlane stands upright. For a floor, lay it flat: nova64.scene.setRotation(planeId, -Math.PI / 2, 0, 0).
+        - Never call cls() in draw() in a 3D cart: it paints over the whole scene and the player sees a black screen. draw() only adds the HUD on top.
+        - Keep game state in top-level let variables. `this.` inside init/update/draw is undefined.
+        - Create meshes once in init() and move them in update(). When clearing spawned objects, call nova64.scene.removeMesh on each one.
+        - Games start on a title screen: init() leaves the game in a 'title' state, and Space or Z starts play.
+        - Anything the player must see needs a bright or emissive colour against the dark scene. Never use 0x000000 for something visible.
+        - Pick one look: nova64.fx.enableN64Mode() turns bloom off, so do not combine it with enableBloom().
+        - Text helpers live in different groups: print/printCentered/rgba8 in nova64.draw, setFont/drawTextShadow in nova64.ui.
+
+        Game templates: for dungeon crawlers, lane runners and arena dodgers, the request may include a GAME TEMPLATE MODE section. When it does, follow it exactly and return only the CONFIG it asks for; m{ai}geXR adds the tested engine.
         """
     }
 
@@ -132,6 +144,7 @@ struct Nova64Library: Library3D {
 
           // Ground
           groundId = nova64.scene.createPlane(60, 60, 0x1b2735, [0, -0.01, 0]);
+          nova64.scene.setRotation(groundId, -Math.PI / 2, 0, 0); // planes stand upright; lay the floor flat
           nova64.scene.setFlatShading(groundId, true);
 
           // Post-processing
@@ -195,7 +208,7 @@ struct Nova64Library: Library3D {
                     pillars.push(id);
                   }
 
-                  nova64.scene.createPlane(80, 160, 0x101828, [0, -1, -40]);
+                  nova64.scene.setRotation(nova64.scene.createPlane(80, 160, 0x101828, [0, -1, -40]), -Math.PI / 2, 0, 0); // floor, laid flat
 
                   nova64.fx.enableBloom();
                   nova64.fx.setBloomStrength(0.8);
@@ -330,7 +343,7 @@ struct Nova64Library: Library3D {
                     }
                   }
 
-                  nova64.scene.createPlane(40, 40, 0x060610, [0, -1.5, 0]);
+                  nova64.scene.setRotation(nova64.scene.createPlane(40, 40, 0x060610, [0, -1.5, 0]), -Math.PI / 2, 0, 0); // floor, laid flat
                   nova64.fx.enableBloom();
                   nova64.fx.enableVignette();
                 }
@@ -396,7 +409,7 @@ struct Nova64Library: Library3D {
                     ringIds.push(id);
                   }
 
-                  nova64.scene.createPlane(60, 60, 0x0b0b18, [0, -0.5, 0]);
+                  nova64.scene.setRotation(nova64.scene.createPlane(60, 60, 0x0b0b18, [0, -0.5, 0]), -Math.PI / 2, 0, 0); // floor, laid flat
 
                   nova64.fx.enableBloom();
                   nova64.fx.setBloomStrength(1.2);
@@ -432,6 +445,23 @@ struct Nova64Library: Library3D {
                 keywords: ["vr", "webxr", "immersive", "torus", "tunnel", "xr"],
                 aiPromptHints: "Guard XR calls with isXRSupported() and skip 2D HUD drawing while isXRActive(), since the flat overlay has no place in an immersive view."
             )
-        ]
+        ] + gameTemplateExamples
+    }
+
+    /// Game templates: each example is only a CONFIG. The Nova64 kit inlined in
+    /// playground-nova64.html splices it into the tested engine when it runs.
+    private var gameTemplateExamples: [CodeExample] {
+        Nova64Templates.all.map { t in
+            CodeExample(
+                id: "nova64-template-\(t.id)",
+                title: "\(t.genre): \(t.style)",
+                description: "Game template. \(t.description) Describe your own version in the chat to restyle it.",
+                code: t.config,
+                category: .advanced,
+                difficulty: .intermediate,
+                keywords: ["game", "template", t.family, t.genre.lowercased(), t.style.lowercased()],
+                aiPromptHints: "This is a game template: rewrite only its CONFIG; the engine is added automatically."
+            )
+        }
     }
 }

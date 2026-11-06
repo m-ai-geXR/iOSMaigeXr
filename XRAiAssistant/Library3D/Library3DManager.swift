@@ -170,7 +170,13 @@ class Library3DManager: ObservableObject {
     
     func getLibrarySpecificPrompt(for userMessage: String, currentCode: String? = nil) -> String {
         var prompt = selectedLibrary.systemPrompt
-        
+
+        // Nova64 games customise a tested engine: send only its CONFIG, not the whole cart.
+        if selectedLibrary.id == "nova64",
+           let block = Nova64Templates.promptBlock(message: userMessage, currentCode: currentCode) {
+            return prompt + "\n\n" + block
+        }
+
         if let code = currentCode, !code.isEmpty {
             prompt += "\n\nCurrent scene code:\n```\(selectedLibrary.codeLanguage.rawValue)\n\(code)\n```"
         }
