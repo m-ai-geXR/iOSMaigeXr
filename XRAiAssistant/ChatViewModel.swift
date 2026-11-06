@@ -432,7 +432,51 @@ class ChatViewModel: ObservableObject {
             libraryId: library3DManager.selectedLibrary.id
         )
         messages.append(userMessage)
+        nova64Repair = nil
         startReply(text: text, currentCode: currentCode)
+    }
+
+    // MARK: - Nova64 check, then repair
+
+    /// Repair state for the current user message: attempts used and the best cart so far.
+    private var nova64Repair: (attempt: Int, best: Nova64KitRunner.Result)?
+
+    /// First fenced code block in a reply.
+    static func firstCodeBlock(_ text: String) -> String? {
+        guard let re = try? NSRegularExpression(pattern: "```[a-zA-Z]*\\n([\\s\\S]*?)```"),
+              let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let r = Range(m.range(at: 1), in: text) else { return nil }
+        return String(text[r])
+    }
+
+    /// Runs a finished Nova64 reply through the shared kit. Problems it cannot fix go
+    /// back to the model as one compact repair message, at most `maxRepairs` times,
+    /// visibly. A repair with more problems than the best version so far is dropped.
+    private func checkNova64Reply(_ reply: String) {
+        let kit = Nova64KitRunner.shared
+        guard library3DManager.selectedLibrary.id == "nova64", kit.isAvailable,
+              let code = Self.firstCodeBlock(reply), let result = kit.prepare(code) else { return }
+        let attempt = nova64Repair?.attempt ?? 0
+        var best = result
+        if let previous = nova64Repair?.best, result.problems.count > previous.problems.count {
+            best = previous
+            messages.append(ChatMessage(id: UUID().uuidString, content: "That repair was worse, so the previous version is kept.",
+                                        isUser: false, timestamp: Date(), libraryId: "nova64"))
+            onInsertCode?(previous.code)
+            nova64Repair = nil
+            return
+        }
+        guard !best.problems.isEmpty, attempt < kit.maxRepairs,
+              let prompt = kit.repairPrompt(code: best.code, problems: best.problems) else {
+            nova64Repair = nil
+            return
+        }
+        nova64Repair = (attempt + 1, best)
+        messages.append(ChatMessage(id: UUID().uuidString,
+                                    content: "🔧 **Fixing (\(attempt + 1)/\(kit.maxRepairs)):** \(best.problems[0])",
+                                    isUser: false, timestamp: Date(), libraryId: "nova64"))
+        print("🔧 Nova64 repair \(attempt + 1)/\(kit.maxRepairs): \(best.problems.joined(separator: " | "))")
+        startReply(text: prompt, currentCode: nil)
     }
 
     // MARK: - Replies that survive leaving the app
@@ -663,6 +707,7 @@ class ChatViewModel: ObservableObject {
             presentReply(text, request: reply.text, currentCode: reply.currentCode)
             isLoading = false
             errorMessage = nil
+            checkNova64Reply(ReplyText.visible(text).text)
         } else {
             print("⚠️ Background copy failed: \(outcome.error ?? "unknown")")
             activeReply?.jobID = nil
@@ -1058,7 +1103,8 @@ class ChatViewModel: ObservableObject {
                 libraryId: library3DManager.selectedLibrary.id
             )
             messages.append(assistantMessage)
-            
+            checkNova64Reply(processedResponse)
+
         } catch where !isCurrentReply(replyID) || error is CancellationError || (error as? URLError)?.code == .cancelled {
             // Superseded: the background session delivered it, or it was restarted.
             return
