@@ -802,7 +802,12 @@
   function prepare(input) {
     var code = String(input || '').replace(/\r\n/g, '\n');
     var fixes = [], problems = [];
-    var stripped = code.replace(/^[ \t]*import\s[^\n]*\n?/gm, '');
+    // The app's reply markers sometimes land inside the code block (a model that
+    // closes the fence after its [EXPLAIN] notes). They are never cart code.
+    var stripped = code.replace(/(^|\n)[ \t]*\[EXPLAIN\][\s\S]*?(?:\[\/EXPLAIN\][^\n]*|(?![\s\S]))/g, '$1')
+      .replace(/^[ \t]*\[\/?(?:INSERT_CODE|RUN_SCENE|EXPLAIN)\][ \t]*\n?/gm, '');
+    if (stripped !== code) { fixes.push('Removed the reply\'s [EXPLAIN]/[INSERT_CODE] notes from the code.'); code = stripped; }
+    stripped = code.replace(/^[ \t]*import\s[^\n]*\n?/gm, '');
     if (stripped !== code) { fixes.push('Removed import lines (carts run as scripts).'); code = stripped; }
     stripped = code.replace(/^([ \t]*)export\s+(default\s+)?(?=(async\s+)?function|const|let|var|class)/gm, '$1');
     if (stripped !== code) { fixes.push('Removed export keywords (carts run as scripts).'); code = stripped; }

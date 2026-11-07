@@ -1588,11 +1588,14 @@ struct ContentView: View {
                     // whole prompt-to-scene run can be recorded without touch.
                     guard UserDefaults.standard.bool(forKey: "maigeAutoRun") else { return }
                     Task { @MainActor in
-                        while chatViewModel.messages.count <= before + 1 {
+                        // Wait for the reply and any Nova64 repairs: idle for 5s in a row.
+                        var idle = 0
+                        while idle < 5 {
                             try? await Task.sleep(nanoseconds: 1_000_000_000)
+                            let done = chatViewModel.messages.count > before + 1 && !chatViewModel.isLoading
+                            idle = done ? idle + 1 : 0
                         }
-                        try? await Task.sleep(nanoseconds: 1_500_000_000)
-                        guard let reply = chatViewModel.messages.last(where: { !$0.isUser }),
+                        guard let reply = chatViewModel.messages.dropFirst(before).last(where: { !$0.isUser && EnhancedChatView.extractCode(from: $0.content) != nil }),
                               let code = EnhancedChatView.extractCode(from: reply.content) else { return }
                         runInlineCode(code, libraryId: reply.libraryId)
                     }

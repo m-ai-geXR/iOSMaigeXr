@@ -441,12 +441,15 @@ class ChatViewModel: ObservableObject {
     /// Repair state for the current user message: attempts used and the best cart so far.
     private var nova64Repair: (attempt: Int, best: Nova64KitRunner.Result)?
 
-    /// First fenced code block in a reply.
+    /// First fenced code block in a reply. A block the model never closed runs to
+    /// the end of the reply, so the kit reports the trailing prose as a syntax error
+    /// and the repair asks for a clean block.
     static func firstCodeBlock(_ text: String) -> String? {
-        guard let re = try? NSRegularExpression(pattern: "```[a-zA-Z]*\\n([\\s\\S]*?)```"),
+        guard let re = try? NSRegularExpression(pattern: "```[a-zA-Z]*\\n([\\s\\S]*?)(?:```|$(?![\\s\\S]))"),
               let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
               let r = Range(m.range(at: 1), in: text) else { return nil }
-        return String(text[r])
+        let code = String(text[r])
+        return code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : code
     }
 
     /// Runs a finished Nova64 reply through the shared kit. Problems it cannot fix go
@@ -1103,7 +1106,9 @@ class ChatViewModel: ObservableObject {
                 libraryId: library3DManager.selectedLibrary.id
             )
             messages.append(assistantMessage)
-            checkNova64Reply(processedResponse)
+            // The raw reply: stripping [INSERT_CODE]...[/INSERT_CODE] above can also drop
+            // the code block's closing fence, which would pull the prose into the cart.
+            checkNova64Reply(ReplyText.visible(response).text)
 
         } catch where !isCurrentReply(replyID) || error is CancellationError || (error as? URLError)?.code == .cancelled {
             // Superseded: the background session delivered it, or it was restarted.
@@ -1663,8 +1668,10 @@ class ChatViewModel: ObservableObject {
         
         // DEBUG: Show actual response format around code blocks
         if let jsIndex = response.range(of: "```javascript") {
-            let start = max(response.startIndex, response.index(jsIndex.lowerBound, offsetBy: -20))
-            let end = min(response.endIndex, response.index(jsIndex.upperBound, offsetBy: 100))
+            // limitedBy: a reply that opens with the fence (or ends soon after it)
+            // must not step outside the string; that crashed the app.
+            let start = response.index(jsIndex.lowerBound, offsetBy: -20, limitedBy: response.startIndex) ?? response.startIndex
+            let end = response.index(jsIndex.upperBound, offsetBy: 100, limitedBy: response.endIndex) ?? response.endIndex
             print("🔍 RESPONSE DEBUG: Context around ```javascript:")
             print("'\(response[start..<end])'")
         }
