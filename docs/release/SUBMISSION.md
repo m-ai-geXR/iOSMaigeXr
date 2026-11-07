@@ -1,5 +1,9 @@
 # Store submission guide
 
+For the November 4 rejection and build 13, follow
+[`RESUBMISSION-2026-11-04.md`](RESUBMISSION-2026-11-04.md) first. The older
+console/privacy checklist below still needs verification against the archive.
+
 Updated 2026-10-05. Everything left between the code and a submitted build, for
 both platforms. `RESUME-HERE.md` is the running status; this is the checklist and
 the copy to paste into the consoles.
@@ -37,9 +41,10 @@ the console use the internal name maigeXR; anything users see says m{ai}geXR.
 | maigeXR-android-banner-chat | Banner | `ca-app-pub-4166973145998533/8826512623` | Android `local.properties` `maigexr.admob.bannerId` |
 | maigeXR-android-interstitial-scene-exit | Interstitial | `ca-app-pub-4166973145998533/8005394705` | Android `local.properties` `maigexr.admob.interstitialId` |
 
-Still to do in AdMob: the consent messages (Privacy & messaging: `maigeXR GDPR`
-and `maigeXR US states`, privacy URL above, both apps), and, after launch, linking
-each app to its store listing under App settings to lift limited ad serving.
+Done November 4 in AdMob: `maigeXR GDPR` and `maigeXR US states` are Published
+for both apps, with the privacy URL above. GDPR includes an explicit refusal
+choice for every region; US opt-out is enabled. After launch, link each app to
+its store listing under App settings to lift limited ad serving.
 
 ## 2. Console setup
 
@@ -90,12 +95,13 @@ at submission time, as it changes.
 
 | Data type | Purposes | Linked to user | Used for tracking |
 |---|---|---|---|
-| Coarse Location (from IP) | Third-Party Advertising, Analytics | No | Yes, if the user allows tracking |
-| Device ID | Third-Party Advertising, Analytics | No | Yes, if the user allows tracking |
-| Product Interaction | Third-Party Advertising, Analytics | No | Yes, if the user allows tracking |
-| Advertising Data | Third-Party Advertising, Analytics | No | Yes, if the user allows tracking |
-| Crash Data | App Functionality | No | No |
-| Performance Data | Analytics | No | No |
+| Coarse Location (from IP) | Third-Party Advertising, Analytics, App Functionality (UMP) | Yes (ad SDK) | Yes, if the user allows tracking |
+| Device ID | Third-Party Advertising, Analytics | Yes (ad SDK) | Yes, if the user allows tracking |
+| Product Interaction | Third-Party Advertising, Analytics, App Functionality (UMP) | Yes (ad SDK) | Yes, if the user allows tracking |
+| Advertising Data | Third-Party Advertising, Analytics | Yes (ad SDK) | Yes, if the user allows tracking |
+| Crash Data | App Functionality, Analytics | No | No |
+| Performance Data | Analytics, Third-Party Advertising, App Functionality (UMP) | No | No |
+| Other Diagnostic Data | Third-Party Advertising, Analytics | No | No |
 | Other User Content (prompts, images) | App Functionality | No | No |
 
 The app asks for App Tracking Transparency before using the IDFA, so tracking

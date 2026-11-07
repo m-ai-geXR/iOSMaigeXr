@@ -9,8 +9,8 @@
 //  - **UMP** (Google's consent platform) covers the regional requirement —
 //    EEA/UK and regulated US states. It decides whether ads may be requested
 //    at all.
-//  - **ATT** (Apple's tracking prompt) covers the IDFA. It decides whether
-//    those ads may be personalised.
+//  - **ATT** (Apple's tracking prompt) authorizes cross-company tracking and
+//    access to the IDFA. Without it, requests use nonpersonalized ads.
 //
 //  Neither substitutes for the other, and declining either is a normal outcome
 //  rather than an error. See docs/release/MONETIZATION.md step 3.
@@ -19,6 +19,7 @@
 import SwiftUI
 import AppTrackingTransparency
 import UserMessagingPlatform
+import OSLog
 
 @MainActor
 final class AdConsentStore: ObservableObject {
@@ -37,6 +38,9 @@ final class AdConsentStore: ObservableObject {
 
     private init() {}
 
+    private var resolutionTask: Task<AdConsent, Never>?
+    private let logger = Logger(subsystem: "studio.seacloud9.maigexr", category: "AdConsent")
+
     // MARK: - Resolving
 
     /// Gather consent and return the result.
@@ -46,6 +50,23 @@ final class AdConsentStore: ObservableObject {
     /// presenting them over nothing.
     @discardableResult
     func resolve() async -> AdConsent {
+        if let resolutionTask { return await resolutionTask.value }
+        let task = Task { await self.resolveOnce() }
+        resolutionTask = task
+        let result = await task.value
+        resolutionTask = nil
+        return result
+    }
+
+    private func resolveOnce() async -> AdConsent {
+        log("waiting for an active presentation before consent")
+        do {
+            try await TrackingAuthorizationResolver.waitForPresentation()
+        } catch {
+            consent = .unknown
+            return consent
+        }
+        log("updating UMP consent information")
         if let error = await requestConsentInfoUpdate() {
             // Without an answer we must not assume permission. No ads this
             // session; the next launch tries again.
@@ -65,10 +86,19 @@ final class AdConsentStore: ObservableObject {
             return consent
         }
 
-        // Ads are allowed. ATT decides only whether they are personalised, so a
-        // refusal here still serves ads — just contextual ones.
-        let tracking = await resolveTrackingAuthorization()
-        consent = tracking ? .personalised : .nonPersonalised
+        do {
+            log("UMP permits ads; resolving ATT before ad initialization")
+            let status = try await TrackingAuthorizationResolver().resolve()
+            log("ATT status: \(status.rawValue)")
+            switch status {
+            case .authorized: consent = .personalised
+            case .denied, .restricted: consent = .nonPersonalised
+            case .notDetermined: consent = .unknown
+            @unknown default: consent = .unknown
+            }
+        } catch {
+            consent = .unknown
+        }
         log("resolved \(consent)")
         return consent
     }
@@ -79,8 +109,14 @@ final class AdConsentStore: ObservableObject {
             consent = .denied
             return
         }
-        let tracking = ATTrackingManager.trackingAuthorizationStatus == .authorized
-        consent = tracking ? .personalised : .nonPersonalised
+        // If the original prompt was interrupted, privacy options must not
+        // turn that unanswered request into permission to initialize ads.
+        switch ATTrackingManager.trackingAuthorizationStatus {
+        case .authorized: consent = .personalised
+        case .denied, .restricted: consent = .nonPersonalised
+        case .notDetermined: consent = .unknown
+        @unknown default: consent = .unknown
+        }
     }
 
     // MARK: - Privacy options
@@ -153,30 +189,15 @@ final class AdConsentStore: ObservableObject {
         #endif
     }
 
-    // MARK: - ATT
-
-    private func resolveTrackingAuthorization() async -> Bool {
-        switch ATTrackingManager.trackingAuthorizationStatus {
-        case .authorized:
-            return true
-        case .notDetermined:
-            // Needs NSUserTrackingUsageDescription in Info.plist, or the prompt
-            // never appears and this returns false forever.
-            let status = await ATTrackingManager.requestTrackingAuthorization()
-            return status == .authorized
-        case .denied, .restricted:
-            return false
-        @unknown default:
-            return false
-        }
-    }
-
     // MARK: - Internals
 
     /// `nonisolated` because the UMP completion handlers are nonisolated
     /// closures. Hopping to the main actor just to log would reorder the lines
     /// relative to the work they describe.
     private nonisolated func log(_ message: String) {
+        // No prompts, keys or identifiers: release-device diagnostics need only
+        // the gate reached and system authorization status.
+        logger.notice("\(message, privacy: .public)")
         if AppConfig.showAdDebugLogs { print("🎯 Consent: \(message)") }
     }
 }
