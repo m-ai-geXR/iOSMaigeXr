@@ -432,7 +432,54 @@ class ChatViewModel: ObservableObject {
             libraryId: library3DManager.selectedLibrary.id
         )
         messages.append(userMessage)
+        nova64Repair = nil
         startReply(text: text, currentCode: currentCode)
+    }
+
+    // MARK: - Nova64 check, then repair
+
+    /// Repair state for the current user message: attempts used and the best cart so far.
+    private var nova64Repair: (attempt: Int, best: Nova64KitRunner.Result)?
+
+    /// First fenced code block in a reply. A block the model never closed runs to
+    /// the end of the reply, so the kit reports the trailing prose as a syntax error
+    /// and the repair asks for a clean block.
+    static func firstCodeBlock(_ text: String) -> String? {
+        guard let re = try? NSRegularExpression(pattern: "```[a-zA-Z]*\\n([\\s\\S]*?)(?:```|$(?![\\s\\S]))"),
+              let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let r = Range(m.range(at: 1), in: text) else { return nil }
+        let code = String(text[r])
+        return code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : code
+    }
+
+    /// Runs a finished Nova64 reply through the shared kit. Problems it cannot fix go
+    /// back to the model as one compact repair message, at most `maxRepairs` times,
+    /// visibly. A repair with more problems than the best version so far is dropped.
+    private func checkNova64Reply(_ reply: String) {
+        let kit = Nova64KitRunner.shared
+        guard library3DManager.selectedLibrary.id == "nova64", kit.isAvailable,
+              let code = Self.firstCodeBlock(reply), let result = kit.prepare(code) else { return }
+        let attempt = nova64Repair?.attempt ?? 0
+        var best = result
+        if let previous = nova64Repair?.best, result.problems.count > previous.problems.count {
+            best = previous
+            messages.append(ChatMessage(id: UUID().uuidString, content: "That repair was worse, so the previous version is kept.",
+                                        isUser: false, timestamp: Date(), libraryId: "nova64"))
+            onInsertCode?(previous.code)
+            nova64Repair = nil
+            return
+        }
+        guard !best.problems.isEmpty, attempt < kit.maxRepairs,
+              let prompt = kit.repairPrompt(code: best.code, problems: best.problems) else {
+            nova64Repair = nil
+            return
+        }
+        nova64Repair = (attempt + 1, best)
+        messages.append(ChatMessage(id: UUID().uuidString,
+                                    content: "🔧 **Fixing (\(attempt + 1)/\(kit.maxRepairs)):** \(best.problems[0])",
+                                    isUser: false, timestamp: Date(), libraryId: "nova64"))
+        print("🔧 Nova64 repair \(attempt + 1)/\(kit.maxRepairs): \(best.problems.joined(separator: " | "))")
+        startReply(text: prompt, currentCode: nil)
     }
 
     // MARK: - Replies that survive leaving the app
@@ -516,8 +563,11 @@ class ChatViewModel: ObservableObject {
                 guard let self, let reply = self.activeReply, reply.id == id else { return }
                 // Away from the app the background copy and checkReplyOnReturn take over.
                 if reply.leftApp || UIApplication.shared.applicationState != .active { continue }
-                // Models that reason silently before answering get longer.
-                let limit = self.aiProviderManager.control(for: reply.model) == .effort
+                // Models that reason silently before answering get longer, and so do
+                // local models: a laptop-sized model can spend minutes reading a long
+                // prompt before its first token.
+                let limit = reply.model.hasPrefix(LocalServerConfig.modelPrefix) ? Self.localModelTimeout
+                    : self.aiProviderManager.control(for: reply.model) == .effort
                     ? Self.silentThinkingTimeout : Self.inAppStallTimeout
                 if Date().timeIntervalSince(reply.lastProgress) > limit {
                     self.restartIfStalled(id, after: 0)
@@ -595,6 +645,8 @@ class ChatViewModel: ObservableObject {
 
     static var inAppStallTimeout: TimeInterval = 45
     static var silentThinkingTimeout: TimeInterval = 150
+    /// Matches the local provider's request timeout.
+    static var localModelTimeout: TimeInterval = 300
 
     private func isCurrentReply(_ id: UUID?) -> Bool {
         guard let id else { return true } // image path and legacy callers
@@ -655,9 +707,10 @@ class ChatViewModel: ObservableObject {
             reply.task?.cancel()
             activeReply = nil
             resetStreaming()
-            presentReply(text)
+            presentReply(text, request: reply.text, currentCode: reply.currentCode)
             isLoading = false
             errorMessage = nil
+            checkNova64Reply(ReplyText.visible(text).text)
         } else {
             print("⚠️ Background copy failed: \(outcome.error ?? "unknown")")
             activeReply?.jobID = nil
@@ -711,7 +764,16 @@ class ChatViewModel: ObservableObject {
         ReplyText.visible(raw).text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private func presentReply(_ response: String) {
+    /// Opens a Nova64 template reply with which template the user's words picked
+    /// (see `Nova64Templates.note`). Other replies are unchanged.
+    private func withTemplateNote(_ content: String, request: String?, currentCode: String?) -> String {
+        guard library3DManager.selectedLibrary.id == "nova64", let request,
+              Nova64Templates.templateId(of: content) != nil else { return content }
+        let note = Nova64Templates.note(message: request, currentCode: currentCode)
+        return note.isEmpty ? content : note + "\n\n" + content
+    }
+
+    private func presentReply(_ response: String, request: String? = nil, currentCode: String? = nil) {
         if Self.isEmptyReply(response) {
             errorMessage = Self.emptyReplyMessage
             return
@@ -719,7 +781,7 @@ class ChatViewModel: ObservableObject {
         let processedResponse = processResponseForActions(ReplyText.visible(response).text)
         messages.append(ChatMessage(
             id: UUID().uuidString,
-            content: processedResponse,
+            content: withTemplateNote(processedResponse, request: request, currentCode: currentCode),
             isUser: false,
             timestamp: Date(),
             libraryId: library3DManager.selectedLibrary.id
@@ -884,7 +946,7 @@ class ChatViewModel: ObservableObject {
             }
 
             // Create system prompt
-            let fullSystemPrompt = createSystemPrompt(currentCode: currentCode)
+            let fullSystemPrompt = createSystemPrompt(for: text, currentCode: currentCode)
 
             // Build message array
             let messages = [
@@ -918,7 +980,7 @@ class ChatViewModel: ObservableObject {
 
             let assistantMessage = ChatMessage(
                 id: UUID().uuidString,
-                content: processedResponse,
+                content: withTemplateNote(processedResponse, request: text, currentCode: currentCode),
                 isUser: false,
                 timestamp: Date(),
                 libraryId: library3DManager.selectedLibrary.id
@@ -967,7 +1029,7 @@ class ChatViewModel: ObservableObject {
 
         do {
             // Create system prompt with context
-            let fullSystemPrompt = createSystemPrompt(currentCode: currentCode)
+            let fullSystemPrompt = createSystemPrompt(for: text, currentCode: currentCode)
             if let replyID, activeReply?.id == replyID {
                 activeReply?.systemPrompt = fullSystemPrompt
             }
@@ -1038,13 +1100,16 @@ class ChatViewModel: ObservableObject {
 
             let assistantMessage = ChatMessage(
                 id: UUID().uuidString,
-                content: processedResponse,
+                content: withTemplateNote(processedResponse, request: text, currentCode: currentCode),
                 isUser: false,
                 timestamp: Date(),
                 libraryId: library3DManager.selectedLibrary.id
             )
             messages.append(assistantMessage)
-            
+            // The raw reply: stripping [INSERT_CODE]...[/INSERT_CODE] above can also drop
+            // the code block's closing fence, which would pull the prose into the cart.
+            checkNova64Reply(ReplyText.visible(response).text)
+
         } catch where !isCurrentReply(replyID) || error is CancellationError || (error as? URLError)?.code == .cancelled {
             // Superseded: the background session delivered it, or it was restarted.
             return
@@ -1099,10 +1164,11 @@ class ChatViewModel: ObservableObject {
         }
     }
 
-    private func createSystemPrompt(currentCode: String?) -> String {
-        // Use library-specific prompt with context
+    private func createSystemPrompt(for userMessage: String, currentCode: String?) -> String {
+        // Use library-specific prompt with context. The message lets Nova64 pick a
+        // game template (GAME TEMPLATE MODE) for requests like "a dungeon crawler".
         let prompt = library3DManager.getLibrarySpecificPrompt(
-            for: "", // No specific user message for system prompt
+            for: userMessage,
             currentCode: currentCode
         )
         
@@ -1602,8 +1668,10 @@ class ChatViewModel: ObservableObject {
         
         // DEBUG: Show actual response format around code blocks
         if let jsIndex = response.range(of: "```javascript") {
-            let start = max(response.startIndex, response.index(jsIndex.lowerBound, offsetBy: -20))
-            let end = min(response.endIndex, response.index(jsIndex.upperBound, offsetBy: 100))
+            // limitedBy: a reply that opens with the fence (or ends soon after it)
+            // must not step outside the string; that crashed the app.
+            let start = response.index(jsIndex.lowerBound, offsetBy: -20, limitedBy: response.startIndex) ?? response.startIndex
+            let end = response.index(jsIndex.upperBound, offsetBy: 100, limitedBy: response.endIndex) ?? response.endIndex
             print("🔍 RESPONSE DEBUG: Context around ```javascript:")
             print("'\(response[start..<end])'")
         }

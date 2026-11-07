@@ -5,6 +5,9 @@ struct XRAiAssistant: App {
     /// Finishes AI replies in the background when the user leaves the app.
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var showSplash = true
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var isStartingMonetization = false
+    @State private var monetizationResolved = false
     @StateObject private var appearanceStore = AppearanceStore.shared
 
     init() {
@@ -54,6 +57,11 @@ struct XRAiAssistant: App {
             }
             // One place decides the window's scheme. nil follows the system.
             .preferredColorScheme(appearanceStore.appearance.colorScheme)
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active && !showSplash {
+                    Task { await startMonetization() }
+                }
+            }
         }
     }
 
@@ -64,14 +72,34 @@ struct XRAiAssistant: App {
     /// not ask, which is not the same as being refused.
     @MainActor
     private func startMonetization() async {
-        await StoreEntitlement.shared.start()
+        guard !isStartingMonetization else { return }
+        isStartingMonetization = true
+        defer { isStartingMonetization = false }
+
+        if monetizationResolved {
+            // System Settings can change ATT while the app is backgrounded.
+            // Discard ads prepared under an authorization the user revoked.
+            await AdConsentStore.shared.refreshAfterPrivacyOptionsChange()
+            let consent = AdConsentStore.shared.consent
+            await AdManager.shared.updateConsent(consent)
+            if consent != .unknown { return }
+            monetizationResolved = false
+        }
+
+        await StoreEntitlement.shared.refresh()
+        // Product pricing is independent of entitlement and must not delay
+        // the consent prompt when the App Store is slow or unavailable.
+        Task { await StoreEntitlement.shared.loadProduct() }
 
         guard AppConfig.adsEnabled, !StoreEntitlement.shared.isEntitled else {
             await AdManager.shared.start(consent: .unknown)
+            monetizationResolved = true
             return
         }
 
         let consent = await AdConsentStore.shared.resolve()
         await AdManager.shared.start(consent: consent)
+        // Retry an interrupted request or failed UMP update on next foreground.
+        monetizationResolved = consent != .unknown
     }
 }

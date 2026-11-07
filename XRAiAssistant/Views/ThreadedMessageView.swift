@@ -117,6 +117,10 @@ struct ThreadedMessageView: View {
                         .chatBubble(AppearanceStore.shared.chatTheme, isUser: message.isUser)
                         .frame(maxWidth: 600, alignment: message.isUser ? .trailing : .leading)
 
+                    if let templateId = Nova64TemplateChips.activeTemplate(in: message.content, libraryId: message.libraryId, isUser: message.isUser) {
+                        Nova64TemplateChips(activeId: templateId) { code, libraryId in onRun?(code, libraryId) }
+                    }
+
                     // Timestamp and actions
                     HStack(spacing: 12) {
                         Text(formatTime(message.timestamp))

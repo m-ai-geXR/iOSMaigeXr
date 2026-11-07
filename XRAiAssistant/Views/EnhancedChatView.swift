@@ -482,6 +482,10 @@ struct EnhancedChatView: View {
                         .frame(maxWidth: 600, alignment: .leading)
                         .chatBubble(theme, isUser: false)
 
+                    if let templateId = Nova64TemplateChips.activeTemplate(in: message.content, libraryId: message.libraryId, isUser: false) {
+                        Nova64TemplateChips(activeId: templateId) { code, libraryId in onRunCode?(code, libraryId) }
+                    }
+
                     // Timestamp and action buttons
                     HStack(spacing: 12) {
                         Text(formatTime(message.timestamp))
