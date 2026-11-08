@@ -2,8 +2,8 @@
 //  SplashScreenView.swift
 //  m{ai}geXR
 //
-//  SwiftUI view wrapper for the vaporwave splash screen
-//  Displays on app launch with animated Three.js scene
+//  SwiftUI view wrapper for the m{ai}geXR brand intro
+//  Displays on app launch with a Nova64 portal cart
 //
 
 import SwiftUI
@@ -15,13 +15,12 @@ struct SplashScreenView: View {
 
     var body: some View {
         ZStack {
-            // Background color (cyberpunkBlack) while WebView loads
-            Color(red: 0.039, green: 0.039, blue: 0.039)
+            // Brand background while the bundled identity loads
+            Color(red: 11/255, green: 13/255, blue: 18/255)
                 .ignoresSafeArea()
 
             // Splash WebView
             SplashWebView(webView: $webView, onDismiss: onDismiss)
-                .ignoresSafeArea()
         }
         // environment, not preferredColorScheme: the latter propagates up to the
         // window, so while the splash was on screen it forced the whole app dark
